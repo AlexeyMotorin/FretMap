@@ -91,18 +91,19 @@ struct PopularHarmonyView: View {
     var body: some View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 18) {
-                Text(scale.shortName)
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(AppColors.primaryText)
-
-                let progressions = HarmonyData.popularProgressions[scale.id] ?? []
-                ForEach(progressions, id: \.self) { progression in
-                    Text(progression)
-                        .font(.title3.weight(.bold))
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(scale.shortName)
+                        .font(.title2.weight(.bold))
                         .foregroundStyle(AppColors.primaryText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(16)
-                        .background(AppColors.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    Text("Популярные ходы и модальные обороты")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(AppColors.mutedText)
+                }
+
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 14)], alignment: .leading, spacing: 14) {
+                    ForEach(HarmonyData.popularProgressions(for: scale)) { progression in
+                        PopularProgressionCard(progression: progression)
+                    }
                 }
 
                 Spacer(minLength: 0)
@@ -111,6 +112,104 @@ struct PopularHarmonyView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppColors.page)
+    }
+}
+
+private struct PopularProgressionCard: View {
+    let progression: PopularProgression
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 10) {
+                Text(progression.category)
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .frame(height: 26)
+                    .background(progression.color.color.opacity(0.78), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                Spacer()
+
+                PopularityMeter(value: progression.popularity, color: progression.color.color)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(progression.title)
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(AppColors.primaryText)
+                    .lineLimit(2)
+
+                Text(progression.progressionText)
+                    .font(.system(.subheadline, design: .rounded).weight(.heavy))
+                    .foregroundStyle(AppColors.mutedText)
+                    .lineLimit(2)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(progression.degrees, id: \.self) { degree in
+                        ProgressionDegreeChip(text: degree, color: color(for: degree))
+                            .frame(width: max(58, CGFloat(degree.count * 13 + 28)), height: 38)
+                    }
+                }
+            }
+
+            if !progression.examples.isEmpty {
+                Text(progression.examples.joined(separator: " / "))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppColors.mutedText)
+                    .lineLimit(2)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, minHeight: 190, alignment: .topLeading)
+        .background(AppColors.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private func color(for degree: String) -> Color {
+        let token = degree
+            .replacingOccurrences(of: "b", with: "")
+            .replacingOccurrences(of: "#", with: "")
+        if token.hasPrefix("IV") || token.hasPrefix("iv") || token.hasPrefix("II") || token.hasPrefix("ii") {
+            return HarmonyColor.blue.color
+        }
+        if token.hasPrefix("VI") || token.hasPrefix("vi") || token.hasPrefix("III") || token.hasPrefix("iii") {
+            return HarmonyColor.yellow.color
+        }
+        if token.hasPrefix("V") || token.hasPrefix("v") {
+            return HarmonyColor.red.color
+        }
+        return HarmonyColor.green.color
+    }
+}
+
+private struct PopularityMeter: View {
+    let value: Int
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(1...5, id: \.self) { index in
+                Capsule()
+                    .fill(index <= value ? color : AppColors.control)
+                    .frame(width: 14, height: 6)
+            }
+        }
+    }
+}
+
+private struct ProgressionDegreeChip: View {
+    let text: String
+    let color: Color
+
+    var body: some View {
+        Text(text)
+            .font(.headline.weight(.black))
+            .minimumScaleFactor(0.7)
+            .lineLimit(1)
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(color, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 

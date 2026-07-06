@@ -504,6 +504,18 @@ struct ModalHarmonyRow: Identifiable {
     let cells: [(degree: String, chord: String, color: HarmonyColor)]
 }
 
+struct PopularProgression: Identifiable {
+    let id: String
+    let title: String
+    let category: String
+    let degrees: [String]
+    let examples: [String]
+    let popularity: Int
+    let color: HarmonyColor
+
+    var progressionText: String { degrees.joined(separator: " - ") }
+}
+
 enum HarmonyData {
     static let functional: [FunctionalHarmonyGroup] = [
         FunctionalHarmonyGroup(title: "Тоническая функция", symbol: "T", degrees: [("I", .green), ("III", .red), ("VI", .yellow)]),
@@ -521,15 +533,76 @@ enum HarmonyData {
         ModalHarmonyRow(title: "Локрийский dim (min b2 b5)", cells: [("i°", "dim", .red), ("II", "maj", .yellow), ("iii", "m", .green), ("iv", "m", .green), ("V", "maj", .red), ("VI", "maj", .yellow), ("vi", "m", .green)])
     ]
 
-    static let popularProgressions: [String: [String]] = [
-        "ionian": ["I - V - vi - IV", "I - IV - V - I", "vi - IV - I - V", "I - vi - IV - V"],
-        "dorian": ["i - IV - i - VII", "i - ii - IV - i", "i - VII - IV - i", "i - v - IV - i"],
-        "phrygian": ["i - II - i - vii", "i - VII - VI - II", "i - bII - bVII - i", "i - iv - II - i"],
-        "lydian": ["I - II - I - V", "I - II - vii - I", "I - V - II - I", "I - #iv° - V - I"],
-        "mixolydian": ["I - VII - IV - I", "I - v - VII - IV", "I - IV - VII - I", "I - bVII - I - V"],
-        "aeolian": ["i - VII - VI - VII", "i - VI - III - VII", "i - iv - VII - i", "i - v - VI - VII"],
-        "locrian": ["i° - II - i° - iv", "i° - VI - II - i°", "i° - iv - II - i°", "i° - VII - II - i°"]
-    ]
+    static func popularProgressions(for scale: ScalePattern) -> [PopularProgression] {
+        let progressionsByScale: [String: [PopularProgression]] = [
+            "ionian": [
+                progression("ionian-pop-axis", "Поп-ось", "Beginner", ["I", "V", "vi", "IV"], ["In The Stars", "Right Now", "Praise"], 5, .green),
+                progression("ionian-pachelbel", "Канонная цепочка", "Beginner", ["I", "V", "vi", "iii", "IV", "I", "IV", "V"], ["Go West", "Good Old Fashioned Lover Boy"], 5, .yellow),
+                progression("ionian-doo-wop", "Magic changes", "Beginner", ["I", "vi", "IV", "V"], ["Baby", "Dream A Little Dream"], 4, .blue),
+                progression("ionian-step-down", "Бас вниз", "Intermediate", ["I", "V/7", "vi", "I/5", "IV"], ["Stuttering", "Sunshine Laserbeams"], 4, .green),
+                progression("ionian-secondary", "V/vi в обороте", "Intermediate", ["I", "V/vi", "vi", "IV", "V"], ["Absolute Beginners", "Pink In The Night"], 3, .red),
+                progression("ionian-borrowed-vii", "Каденция через bVII", "Advanced", ["I", "bVII", "IV", "I"], ["redesign your logo", "A Stranger I Remain"], 3, .yellow)
+            ],
+            "dorian": [
+                progression("dorian-vamp", "Дорийский вамп", "Modal", ["i", "IV", "i", "IV"], ["So What", "Oye Como Va"], 5, .green),
+                progression("dorian-backdoor", "i - VII - IV", "Modal", ["i", "VII", "IV", "i"], ["Mad World", "Scarborough Fair"], 4, .blue),
+                progression("dorian-two-four", "Минорная опора II-IV", "Modal", ["i", "ii", "IV", "i"], ["Drunken Sailor"], 3, .yellow),
+                progression("dorian-five-minor", "С мягкой доминантой", "Modal", ["i", "v", "IV", "i"], ["Riders on the Storm"], 3, .red)
+            ],
+            "phrygian": [
+                progression("phrygian-half-step", "Фригийский полутон", "Modal", ["i", "II", "i", "VII"], ["Wherever I May Roam"], 5, .red),
+                progression("phrygian-spanish", "Испанский оборот", "Modal", ["i", "VII", "VI", "V"], ["Malaguena"], 4, .yellow),
+                progression("phrygian-bii", "bII как центр тяжести", "Modal", ["i", "II", "VII", "i"], ["Set the Controls"], 4, .green),
+                progression("phrygian-dark", "Темная каденция", "Modal", ["i", "iv", "II", "i"], ["War Pigs"], 3, .blue)
+            ],
+            "lydian": [
+                progression("lydian-two", "Лидийская II ступень", "Modal", ["I", "II", "I", "V"], ["Flying in a Blue Dream"], 5, .green),
+                progression("lydian-sharp-four", "#iv° как краска", "Modal", ["I", "#iv°", "V", "I"], ["The Simpsons Theme"], 4, .yellow),
+                progression("lydian-lift", "Подъем через II", "Modal", ["I", "II", "iii", "I"], ["Dreams"], 3, .blue),
+                progression("lydian-wide", "Широкая мажорная петля", "Modal", ["I", "V", "II", "I"], ["Man on the Moon"], 3, .green)
+            ],
+            "mixolydian": [
+                progression("mixolydian-rock", "Рок-каденция bVII-IV", "Modal", ["I", "VII", "IV", "I"], ["Sweet Home Alabama", "Hey Jude"], 5, .green),
+                progression("mixolydian-v-minor", "Минорная v", "Modal", ["I", "v", "VII", "IV"], ["Norwegian Wood"], 4, .blue),
+                progression("mixolydian-plagal", "Плагальная петля", "Modal", ["I", "IV", "VII", "I"], ["Fire on the Mountain"], 4, .yellow),
+                progression("mixolydian-cadence", "Возврат через bVII", "Modal", ["I", "VII", "I", "V"], ["Sympathy for the Devil"], 3, .red)
+            ],
+            "aeolian": [
+                progression("aeolian-pop-minor", "Минорная поп-ось", "Minor", ["i", "VI", "III", "VII"], ["Numb", "The Hanging Tree"], 5, .green),
+                progression("aeolian-falling", "Нисходящая цепочка", "Minor", ["i", "VII", "VI", "VII"], ["All Along the Watchtower"], 5, .yellow),
+                progression("aeolian-subdominant", "Минорная субдоминанта", "Minor", ["i", "iv", "VII", "i"], ["Losing My Religion"], 4, .blue),
+                progression("aeolian-cinematic", "Кинематографичный минор", "Minor", ["i", "VI", "iv", "V"], ["House of the Rising Sun"], 3, .red)
+            ],
+            "locrian": [
+                progression("locrian-bii", "Опора на bII", "Modal", ["i°", "II", "i°", "iv"], ["Army of Me"], 3, .red),
+                progression("locrian-six", "Через bVI", "Modal", ["i°", "VI", "II", "i°"], ["Dust to Dust"], 2, .yellow),
+                progression("locrian-four", "Полууменьшенная петля", "Modal", ["i°", "iv", "II", "i°"], ["YYZ"], 2, .blue),
+                progression("locrian-release", "С выходом в bVII", "Modal", ["i°", "VII", "II", "i°"], ["Juicebox"], 2, .green)
+            ]
+        ]
+
+        return progressionsByScale[scale.id] ?? progressionsByScale["ionian"] ?? []
+    }
+
+    private static func progression(
+        _ id: String,
+        _ title: String,
+        _ category: String,
+        _ degrees: [String],
+        _ examples: [String],
+        _ popularity: Int,
+        _ color: HarmonyColor
+    ) -> PopularProgression {
+        PopularProgression(
+            id: id,
+            title: title,
+            category: category,
+            degrees: degrees,
+            examples: examples,
+            popularity: popularity,
+            color: color
+        )
+    }
 }
 
 enum ChordIdentifier {
