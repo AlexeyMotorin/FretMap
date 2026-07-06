@@ -4,6 +4,7 @@ struct FretboardView: View {
     let tuning: TuningPreset
     let fretCount: Int
     let markers: [FretMarker]
+    let barres: [ChordBarre]
     let selectedPositions: Set<FretPosition>
     let customMode: Bool
     let onTapPosition: ((FretPosition) -> Void)?
@@ -32,6 +33,7 @@ struct FretboardView: View {
                     fretNumbers
                     inlays(boardHeight: boardHeight)
                     strings(boardHeight: boardHeight)
+                    barreViews(boardHeight: boardHeight)
                     markerViews(boardHeight: boardHeight)
 
                     if customMode {
@@ -120,6 +122,22 @@ struct FretboardView: View {
         ForEach(markers) { marker in
             NoteMarker(label: marker.label, isRoot: marker.isRoot, isOpenString: marker.position.fret == 0)
                 .position(x: noteX(marker.position.fret), y: stringY(marker.position.stringIndex, boardHeight: boardHeight))
+        }
+    }
+
+    private func barreViews(boardHeight: CGFloat) -> some View {
+        ForEach(barres) { barre in
+            let startIndex = min(barre.fromStringNumber, barre.toStringNumber) - 1
+            let endIndex = max(barre.fromStringNumber, barre.toStringNumber) - 1
+            if displayedStrings.indices.contains(startIndex), displayedStrings.indices.contains(endIndex) {
+                let y1 = stringY(startIndex, boardHeight: boardHeight)
+                let y2 = stringY(endIndex, boardHeight: boardHeight)
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .fill(AppColors.barre.opacity(0.86))
+                    .frame(width: 22, height: abs(y2 - y1) + 30)
+                    .shadow(color: AppColors.barre.opacity(0.35), radius: 7, x: 0, y: 0)
+                    .position(x: noteX(barre.fret), y: (y1 + y2) / 2)
+            }
         }
     }
 

@@ -137,6 +137,7 @@ struct ContentView: View {
                         tuning: selectedTuning,
                         fretCount: fretCount,
                         markers: scaleMarkers,
+                        barres: [],
                         selectedPositions: [],
                         customMode: false,
                         onTapPosition: nil,
@@ -157,27 +158,21 @@ struct ContentView: View {
     private var chordsModeView: some View {
         GeometryReader { proxy in
             HStack(alignment: .top, spacing: 0) {
-                if isSettingsVisible {
-                    chordSettingsPanel
-                        .frame(width: min(320, max(280, proxy.size.width * 0.27)))
-                        .frame(height: proxy.size.height)
-                }
+                chordSettingsPanel
+                    .frame(width: min(320, max(280, proxy.size.width * 0.27)))
+                    .frame(height: proxy.size.height)
 
                 ZStack(alignment: .topLeading) {
                     FretboardView(
                         tuning: selectedTuning,
                         fretCount: fretCount,
                         markers: chordMarkers,
+                        barres: chordBarres,
                         selectedPositions: [],
                         customMode: false,
                         onTapPosition: nil,
-                        onSwipe: isSettingsVisible ? { setSettingsVisible(false) } : nil
+                        onSwipe: nil
                     )
-
-                    if !isSettingsVisible {
-                        settingsButton
-                            .padding(12)
-                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -270,14 +265,6 @@ struct ContentView: View {
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(AppColors.mutedText)
                     }
-                    Spacer()
-                    Button { setSettingsVisible(false) } label: {
-                        Image(systemName: "gearshape.fill")
-                            .foregroundStyle(AppColors.primaryText)
-                            .frame(width: 36, height: 36)
-                            .background(AppColors.control, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
                 }
 
                 notePicker(title: "Тоника аккорда", selection: noAnimationBinding($chordSettings.root))
@@ -285,6 +272,7 @@ struct ContentView: View {
                 stringCountPicker
                 tuningPicker
                 chordStartStringPicker
+                chordShapePicker
                 chordQualityPicker
                 chordSizePicker
                 degreeNumbersToggle
@@ -315,6 +303,7 @@ struct ContentView: View {
                 tuning: selectedTuning,
                 fretCount: fretCount,
                 markers: [],
+                barres: [],
                 selectedPositions: customPositions,
                 customMode: true,
                 onTapPosition: toggleCustomPosition,
@@ -402,18 +391,27 @@ struct ContentView: View {
     }
 
     private var chordStartStringPicker: some View {
-        UIKitMenuPicker(title: "Струна", selection: noAnimationBinding($chordSettings.startString), options: (1...stringCount).reversed().map { MenuPickerItem(value: $0, title: "\($0)") })
+        UIKitMenuPicker(title: "Струна", selection: chordStartStringBinding, options: chordStartStringOptions.map { MenuPickerItem(value: $0, title: "\($0)") })
             .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44)
     }
 
+    @ViewBuilder
+    private var chordShapePicker: some View {
+        let shapes = availableChordShapes
+        if supportsCagedChordShapes, !shapes.isEmpty {
+            UIKitMenuPicker(title: "Форма", selection: chordShapeBinding, options: shapes.map { MenuPickerItem(value: $0.id, title: $0.menuTitle) })
+                .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44)
+        }
+    }
+
     private var chordQualityPicker: some View {
-        UIKitMenuPicker(title: "Вид", selection: noAnimationBinding($chordSettings.quality), options: ChordQuality.allCases.map { MenuPickerItem(value: $0, title: $0.title) })
+        UIKitMenuPicker(title: "Вид", selection: chordQualityBinding, options: ChordQuality.allCases.map { MenuPickerItem(value: $0, title: $0.title) })
             .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44)
     }
 
     private var chordSizePicker: some View {
-        Picker("Размер", selection: noAnimationBinding($chordSettings.size)) {
-            ForEach(ChordSize.allCases) { size in
+        Picker("Размер", selection: chordSizeBinding) {
+            ForEach(availableChordSizes) { size in
                 Text(size.title).tag(size)
             }
         }
@@ -452,6 +450,10 @@ struct ContentView: View {
     }
 
     private var chordMarkers: [FretMarker] {
+        if let cagedMarkers = cagedChordMarkers {
+            return cagedMarkers
+        }
+
         let intervals = chordSettings.intervals
         let tones = chordSettings.tones
         return makeMarkers { stringIndex, fret, pitch in
@@ -462,6 +464,69 @@ struct ContentView: View {
             let degree = tones.first { $0.interval == interval }?.degree ?? ""
             let label = showsDegreeNumbers ? "\(noteNames[pitch])/\(degree)" : noteNames[pitch]
             return FretMarker(position: FretPosition(stringIndex: stringIndex, fret: fret), label: label, isRoot: interval == 0)
+        }
+    }
+
+    private var chordBarres: [ChordBarre] {
+        guard usesCagedChordShape, let shape = selectedChordShape else { return [] }
+        return shape.transposedBarres(to: chordSettings.root)
+    }
+
+    private var cagedChordMarkers: [FretMarker]? {
+        guard usesCagedChordShape, let shape = selectedChordShape else { return nil }
+        let displayedStrings = Array(selectedTuning.strings.reversed())
+        return shape.transposedNotes(to: chordSettings.root).compactMap { note in
+            let stringIndex = note.stringNumber - 1
+            guard displayedStrings.indices.contains(stringIndex), (0...fretCount).contains(note.fret) else { return nil }
+            let pitch = (displayedStrings[stringIndex].pitchClass + note.fret) % 12
+            let interval = (pitch - chordSettings.root + 12) % 12
+            let degree = chordSettings.tones.first { $0.interval == interval }?.degree ?? (interval == 9 ? "bb7" : "")
+            let label = showsDegreeNumbers && !degree.isEmpty ? "\(noteNames[pitch])/\(degree)" : noteNames[pitch]
+            return FretMarker(position: FretPosition(stringIndex: stringIndex, fret: note.fret), label: label, isRoot: interval == 0)
+        }
+    }
+
+    private var usesCagedChordShape: Bool {
+        supportsCagedChordShapes && selectedChordShape != nil
+    }
+
+    private var availableChordShapes: [ChordShape] {
+        ChordShape.all.filter { shape in
+            shape.quality == chordSettings.quality &&
+            shape.size == chordSettings.size &&
+            shape.rootString == chordSettings.startString &&
+            shape.rootString <= stringCount
+        }
+    }
+
+    private var supportsCagedChordShapes: Bool {
+        let standardTopSix = [4, 9, 2, 7, 11, 4]
+        return selectedTuning.strings.suffix(6).map(\.pitchClass) == standardTopSix
+    }
+
+    private var availableChordSizes: [ChordSize] {
+        ChordSize.available(for: chordSettings.quality)
+    }
+
+    private var chordStartStringOptions: [Int] {
+        Array(4...min(stringCount, 8))
+    }
+
+    private var selectedChordShape: ChordShape? {
+        let shapes = availableChordShapes
+        return shapes.first { $0.id == chordSettings.shapeID } ?? shapes.first
+    }
+
+    private func syncChordShape() {
+        if !availableChordSizes.contains(chordSettings.size) {
+            chordSettings.size = availableChordSizes.first ?? .triad
+        }
+        if !chordStartStringOptions.contains(chordSettings.startString) {
+            chordSettings.startString = chordStartStringOptions.last ?? 4
+        }
+        guard let firstShape = availableChordShapes.first else { return }
+        if !availableChordShapes.contains(where: { $0.id == chordSettings.shapeID }) {
+            chordSettings.shapeID = firstShape.id
         }
     }
 
@@ -509,8 +574,52 @@ struct ContentView: View {
                     if !tuningsForCount.contains(where: { $0.id == selectedTuningID }) {
                         selectedTuningID = firstTuning.id
                     }
+                    syncChordShape()
                 }
             }
+        )
+    }
+
+    private var chordStartStringBinding: Binding<Int> {
+        Binding(
+            get: { chordSettings.startString },
+            set: { newValue in
+                noAnimation {
+                    chordSettings.startString = newValue
+                    syncChordShape()
+                }
+            }
+        )
+    }
+
+    private var chordQualityBinding: Binding<ChordQuality> {
+        Binding(
+            get: { chordSettings.quality },
+            set: { newValue in
+                noAnimation {
+                    chordSettings.quality = newValue
+                    syncChordShape()
+                }
+            }
+        )
+    }
+
+    private var chordSizeBinding: Binding<ChordSize> {
+        Binding(
+            get: { chordSettings.size },
+            set: { newValue in
+                noAnimation {
+                    chordSettings.size = newValue
+                    syncChordShape()
+                }
+            }
+        )
+    }
+
+    private var chordShapeBinding: Binding<String> {
+        Binding(
+            get: { selectedChordShape?.id ?? chordSettings.shapeID },
+            set: { newValue in noAnimation { chordSettings.shapeID = newValue } }
         )
     }
 
@@ -524,7 +633,12 @@ struct ContentView: View {
     private var tuningSelectionBinding: Binding<String> {
         Binding(
             get: { selectedTuning.id },
-            set: { newValue in noAnimation { selectedTuningID = newValue } }
+            set: { newValue in
+                noAnimation {
+                    selectedTuningID = newValue
+                    syncChordShape()
+                }
+            }
         )
     }
 
