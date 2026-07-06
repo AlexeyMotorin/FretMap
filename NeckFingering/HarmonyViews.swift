@@ -116,6 +116,52 @@ private enum FunctionalChordKind: String, CaseIterable, Identifiable {
     }
 }
 
+private enum ModalBuilderMode: String, CaseIterable, Identifiable {
+    case dorian
+    case phrygian
+    case lydian
+    case mixolydian
+    case locrian
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .dorian: "Дорийский"
+        case .phrygian: "Фригийский"
+        case .lydian: "Лидийский"
+        case .mixolydian: "Миксолидийский"
+        case .locrian: "Локрийский"
+        }
+    }
+
+    var intervals: [Int] {
+        switch self {
+        case .dorian: [0, 2, 3, 5, 7, 9, 10]
+        case .phrygian: [0, 1, 3, 5, 7, 8, 10]
+        case .lydian: [0, 2, 4, 6, 7, 9, 11]
+        case .mixolydian: [0, 2, 4, 5, 7, 9, 10]
+        case .locrian: [0, 1, 3, 5, 6, 8, 10]
+        }
+    }
+
+    var cells: [(degree: String, chord: String, color: HarmonyColor)] {
+        switch self {
+        case .dorian: [("i", "m", .green), ("ii", "m", .green), ("III", "maj", .yellow), ("IV", "maj", .green), ("v", "m", .red), ("vi°", "dim", .red), ("VII", "maj", .red)]
+        case .phrygian: [("i", "m", .green), ("II", "maj", .green), ("III", "maj", .yellow), ("iv", "m", .red), ("V°", "dim", .red), ("VI", "maj", .yellow), ("vii", "m", .green)]
+        case .lydian: [("I", "maj", .green), ("II", "maj", .green), ("iii", "m", .yellow), ("iv°", "dim", .red), ("V", "maj", .red), ("vi", "m", .yellow), ("vii", "m", .green)]
+        case .mixolydian: [("I", "maj", .green), ("ii", "m", .yellow), ("iii°", "dim", .red), ("IV", "maj", .red), ("v", "m", .green), ("vi", "m", .yellow), ("VII", "maj", .green)]
+        case .locrian: [("i°", "dim", .red), ("II", "maj", .yellow), ("iii", "m", .green), ("iv", "m", .green), ("V", "maj", .red), ("VI", "maj", .yellow), ("vi", "m", .green)]
+        }
+    }
+
+    var availableDegrees: [Int] {
+        cells.enumerated().compactMap { index, cell in
+            cell.color == .red ? nil : index + 1
+        }
+    }
+}
+
 private struct FunctionalProgressionBuilder: View {
     let noteNames: [String]
     @Binding var selectedRoot: Int
@@ -281,6 +327,13 @@ private struct DegreeSquarePicker: View {
 }
 
 struct ModalHarmonyView: View {
+    let noteNames: [String]
+    @State private var selectedRoot = 0
+    @State private var selectedMode: ModalBuilderMode = .dorian
+    @State private var chordKind: FunctionalChordKind = .triad
+    @State private var chordCount = 4
+    @State private var selectedDegrees = Array(repeating: 1, count: 8)
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -307,6 +360,15 @@ struct ModalHarmonyView: View {
                     .padding(14)
                     .background(AppColors.panel, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
+
+                ModalProgressionBuilder(
+                    noteNames: noteNames,
+                    selectedRoot: $selectedRoot,
+                    selectedMode: $selectedMode,
+                    chordKind: $chordKind,
+                    chordCount: $chordCount,
+                    selectedDegrees: $selectedDegrees
+                )
             }
             .padding(18)
         }
@@ -318,6 +380,154 @@ struct ModalHarmonyView: View {
             return AppColors.control
         }
         return cell.color.color.opacity(cell.color == .neutral ? 0.18 : 0.55)
+    }
+}
+
+private struct ModalProgressionBuilder: View {
+    let noteNames: [String]
+    @Binding var selectedRoot: Int
+    @Binding var selectedMode: ModalBuilderMode
+    @Binding var chordKind: FunctionalChordKind
+    @Binding var chordCount: Int
+    @Binding var selectedDegrees: [Int]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center, spacing: 14) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Модальная последовательность")
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(AppColors.primaryText)
+                    Text("Красные ступени не предлагаются")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(AppColors.mutedText)
+                }
+
+                Spacer()
+
+                UIKitMenuPicker(title: "Тоника", selection: $selectedRoot, options: noteOptions)
+                    .frame(width: 170, height: 40)
+            }
+
+            HStack(spacing: 12) {
+                UIKitMenuPicker(title: "Лад", selection: modeBinding, options: modeOptions)
+                    .frame(width: 240, height: 40)
+
+                Picker("Аккорды", selection: $chordCount) {
+                    Text("4").tag(4)
+                    Text("8").tag(8)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 132)
+
+                Picker("Тип", selection: $chordKind) {
+                    ForEach(FunctionalChordKind.allCases) { kind in
+                        Text(kind.title).tag(kind)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 230)
+
+                Spacer()
+            }
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: 4), alignment: .leading, spacing: 16) {
+                ForEach(0..<chordCount, id: \.self) { index in
+                    let degree = validDegree(selectedDegrees[index])
+                    let cell = selectedMode.cells[degree - 1]
+                    DegreeSquarePicker(
+                        index: index,
+                        degree: degree,
+                        function: "",
+                        degreeTitle: cell.degree,
+                        chordName: chordName(for: degree),
+                        color: cell.color.color,
+                        options: degreeOptions,
+                        onSelect: { selectedDegrees[index] = $0 }
+                    )
+                }
+            }
+        }
+        .padding(18)
+        .background(AppColors.panel, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    private var noteOptions: [MenuPickerItem<Int>] {
+        noteNames.indices.map { MenuPickerItem(value: $0, title: noteNames[$0]) }
+    }
+
+    private var modeOptions: [MenuPickerItem<ModalBuilderMode>] {
+        ModalBuilderMode.allCases.map { MenuPickerItem(value: $0, title: $0.title) }
+    }
+
+    private var modeBinding: Binding<ModalBuilderMode> {
+        Binding(
+            get: { selectedMode },
+            set: { newValue in
+                selectedMode = newValue
+                normalizeSelectedDegrees()
+            }
+        )
+    }
+
+    private var degreeOptions: [MenuPickerItem<Int>] {
+        selectedMode.availableDegrees.map { degree in
+            let cell = selectedMode.cells[degree - 1]
+            return MenuPickerItem(value: degree, title: "\(degree) - \(cell.degree) - \(cell.chord)")
+        }
+    }
+
+    private func validDegree(_ degree: Int) -> Int {
+        selectedMode.availableDegrees.contains(degree) ? degree : selectedMode.availableDegrees[0]
+    }
+
+    private func normalizeSelectedDegrees() {
+        for index in selectedDegrees.indices where !selectedMode.availableDegrees.contains(selectedDegrees[index]) {
+            selectedDegrees[index] = selectedMode.availableDegrees[0]
+        }
+    }
+
+    private func chordName(for degree: Int) -> String {
+        let index = max(0, min(degree - 1, 6))
+        let pitch = (selectedRoot + selectedMode.intervals[index]) % 12
+        switch chordKind {
+        case .triad:
+            return "\(noteNames[pitch])\(triadSuffix(for: selectedMode.cells[index].chord))"
+        case .seventh:
+            return "\(noteNames[pitch])\(seventhSuffix(for: degree))"
+        }
+    }
+
+    private func triadSuffix(for chord: String) -> String {
+        switch chord {
+        case "maj": ""
+        case "m": "m"
+        case "dim": "dim"
+        default: chord
+        }
+    }
+
+    private func seventhSuffix(for degree: Int) -> String {
+        let index = max(0, min(degree - 1, 6))
+        let third = interval(from: index, steps: 2)
+        let fifth = interval(from: index, steps: 4)
+        let seventh = interval(from: index, steps: 6)
+
+        return switch (third, fifth, seventh) {
+        case (4, 7, 11): "maj7"
+        case (4, 7, 10): "7"
+        case (3, 7, 10): "m7"
+        case (3, 6, 10): "m7b5"
+        case (3, 6, 9): "dim7"
+        default: "7"
+        }
+    }
+
+    private func interval(from index: Int, steps: Int) -> Int {
+        let target = index + steps
+        let octave = target / 7
+        let wrappedIndex = target % 7
+        return selectedMode.intervals[wrappedIndex] + (12 * octave) - selectedMode.intervals[index]
     }
 }
 

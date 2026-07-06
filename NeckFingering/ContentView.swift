@@ -196,7 +196,7 @@ struct ContentView: View {
             case .functional:
                 FunctionalHarmonyView(noteNames: noteNames)
             case .modal:
-                ModalHarmonyView()
+                ModalHarmonyView(noteNames: noteNames)
             case .popular:
                 PopularHarmonyView(scale: popularScale, noteNames: noteNames)
                 popularHarmonyBottomBar
