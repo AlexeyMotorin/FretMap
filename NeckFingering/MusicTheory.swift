@@ -27,7 +27,7 @@ enum HarmonyMode: String, CaseIterable, Identifiable {
         switch self {
         case .functional: "Функциональная"
         case .modal: "Модальная"
-        case .popular: "Самые популярные"
+        case .popular: "Популярные"
         }
     }
 }

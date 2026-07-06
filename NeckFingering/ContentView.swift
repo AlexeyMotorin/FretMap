@@ -198,7 +198,7 @@ struct ContentView: View {
             case .modal:
                 ModalHarmonyView()
             case .popular:
-                PopularHarmonyView(scale: popularScale)
+                PopularHarmonyView(scale: popularScale, noteNames: noteNames)
                 popularHarmonyBottomBar
             }
         }

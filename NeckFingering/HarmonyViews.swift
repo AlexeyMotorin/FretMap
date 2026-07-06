@@ -87,6 +87,7 @@ struct ModalHarmonyView: View {
 
 struct PopularHarmonyView: View {
     let scale: ScalePattern
+    let noteNames: [String]
 
     var body: some View {
         ScrollView(.vertical) {
@@ -95,14 +96,14 @@ struct PopularHarmonyView: View {
                     Text(scale.shortName)
                         .font(.title2.weight(.bold))
                         .foregroundStyle(AppColors.primaryText)
-                    Text("Популярные ходы и модальные обороты")
+                    Text("Популярные последовательности")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(AppColors.mutedText)
                 }
 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 14)], alignment: .leading, spacing: 14) {
                     ForEach(HarmonyData.popularProgressions(for: scale)) { progression in
-                        PopularProgressionCard(progression: progression)
+                        PopularProgressionCard(progression: progression, scale: scale, noteNames: noteNames)
                     }
                 }
 
@@ -117,6 +118,9 @@ struct PopularHarmonyView: View {
 
 private struct PopularProgressionCard: View {
     let progression: PopularProgression
+    let scale: ScalePattern
+    let noteNames: [String]
+    @State private var selectedRoot = -1
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -133,6 +137,9 @@ private struct PopularProgressionCard: View {
                 PopularityMeter(value: progression.popularity)
             }
 
+            UIKitMenuPicker(title: "Тоника", selection: $selectedRoot, options: tonicOptions)
+                .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40)
+
             VStack(alignment: .leading, spacing: 6) {
                 Text(progression.title)
                     .font(.headline.weight(.bold))
@@ -147,16 +154,72 @@ private struct PopularProgressionCard: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach(Array(progression.degrees.enumerated()), id: \.offset) { _, degree in
-                        ProgressionDegreeChip(text: degree)
-                            .frame(width: max(58, CGFloat(degree.count * 13 + 28)), height: 38)
+                    ForEach(Array(displayedSteps.enumerated()), id: \.offset) { _, step in
+                        ProgressionDegreeChip(text: step)
+                            .frame(width: max(58, CGFloat(step.count * 13 + 28)), height: 38)
                     }
                 }
             }
         }
         .padding(16)
-        .frame(maxWidth: .infinity, minHeight: 160, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 204, alignment: .topLeading)
         .background(AppColors.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private var tonicOptions: [MenuPickerItem<Int>] {
+        [MenuPickerItem(value: -1, title: "Ступени")] + noteNames.indices.map { MenuPickerItem(value: $0, title: noteNames[$0]) }
+    }
+
+    private var displayedSteps: [String] {
+        guard selectedRoot >= 0 else { return progression.degrees }
+        return progression.degrees.map { chordName(for: $0, root: selectedRoot) }
+    }
+
+    private func chordName(for degree: String, root: Int) -> String {
+        let parts = degree.split(separator: "/", maxSplits: 1).map(String.init)
+        let chordPart = parts[0]
+
+        if parts.count == 2, chordPart == "V", let targetPitch = pitch(for: parts[1], root: root) {
+            return "\(noteNames[(targetPitch + 7) % 12])7"
+        }
+
+        guard let chord = chord(for: chordPart, root: root) else { return degree }
+        guard parts.count == 2, let bassPitch = pitch(for: parts[1], root: root) else { return chord }
+        return "\(chord)/\(noteNames[bassPitch])"
+    }
+
+    private func chord(for degree: String, root: Int) -> String? {
+        guard let pitch = pitch(for: degree, root: root) else { return nil }
+        let quality: String
+        if degree.contains("°") {
+            quality = "dim"
+        } else if romanToken(from: degree).first?.isLowercase == true {
+            quality = "m"
+        } else {
+            quality = ""
+        }
+        return "\(noteNames[pitch])\(quality)"
+    }
+
+    private func pitch(for degree: String, root: Int) -> Int? {
+        let accidentalOffset = degree.prefix(while: { $0 == "b" || $0 == "#" }).reduce(0) { result, character in
+            result + (character == "b" ? -1 : 1)
+        }
+        let token = romanToken(from: degree)
+
+        if let degreeNumber = Int(token), (1...scale.intervals.count).contains(degreeNumber) {
+            return (root + scale.intervals[degreeNumber - 1] + accidentalOffset + 120) % 12
+        }
+
+        let romanDegrees = ["I", "II", "III", "IV", "V", "VI", "VII"]
+        guard let index = romanDegrees.firstIndex(of: token.uppercased()), scale.intervals.indices.contains(index) else { return nil }
+        return (root + scale.intervals[index] + accidentalOffset + 120) % 12
+    }
+
+    private func romanToken(from degree: String) -> String {
+        degree
+            .trimmingCharacters(in: CharacterSet(charactersIn: "b#"))
+            .replacingOccurrences(of: "°", with: "")
     }
 }
 
