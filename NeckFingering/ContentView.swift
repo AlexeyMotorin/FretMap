@@ -140,7 +140,7 @@ struct ContentView: View {
                         selectedPositions: [],
                         customMode: false,
                         onTapPosition: nil,
-                        onSwipe: { setSettingsVisible(false) }
+                        onSwipe: isSettingsVisible ? { setSettingsVisible(false) } : nil
                     )
 
                     if !isSettingsVisible {
@@ -171,7 +171,7 @@ struct ContentView: View {
                         selectedPositions: [],
                         customMode: false,
                         onTapPosition: nil,
-                        onSwipe: { setSettingsVisible(false) }
+                        onSwipe: isSettingsVisible ? { setSettingsVisible(false) } : nil
                     )
 
                     if !isSettingsVisible {

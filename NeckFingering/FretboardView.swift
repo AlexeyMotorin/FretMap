@@ -41,25 +41,15 @@ struct FretboardView: View {
                 .frame(width: boardWidth, height: boardHeight)
                 .padding(.horizontal, 12)
                 .contentShape(Rectangle())
-                .simultaneousGesture(
-                    closeSettingsDragGesture
-                )
+                .closeSettingsOnSingleFingerDrag(onSwipe)
             }
             .scrollIndicators(.hidden)
             .background(AppColors.fretboard)
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
             .contentShape(Rectangle())
-            .simultaneousGesture(closeSettingsDragGesture)
+            .closeSettingsOnSingleFingerDrag(onSwipe)
         }
         .background(AppColors.fretboard)
-    }
-
-    private var closeSettingsDragGesture: some Gesture {
-        DragGesture(minimumDistance: 1)
-            .onChanged { value in
-                guard abs(value.translation.width) > 1 || abs(value.translation.height) > 1 else { return }
-                onSwipe?()
-            }
     }
 
     private var boardTexture: some View {
@@ -200,5 +190,23 @@ struct NoteMarker: View {
                     .stroke(isOpenString ? AppColors.openStringStroke : .clear, lineWidth: 3)
             )
             .shadow(color: .black.opacity(0.28), radius: 4, x: 0, y: 2)
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func closeSettingsOnSingleFingerDrag(_ action: (() -> Void)?) -> some View {
+        if let action {
+            highPriorityGesture(
+                DragGesture(minimumDistance: 1)
+                    .onChanged { value in
+                        guard abs(value.translation.width) > 1 || abs(value.translation.height) > 1 else { return }
+                        action()
+                    },
+                including: .all
+            )
+        } else {
+            self
+        }
     }
 }
