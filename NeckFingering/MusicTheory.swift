@@ -525,11 +525,11 @@ enum HarmonyData {
 
     static let modalRows: [ModalHarmonyRow] = [
         ModalHarmonyRow(title: "Ионийский maj", cells: [("I", "maj", .neutral), ("ii", "m", .neutral), ("iii", "m", .neutral), ("IV", "maj", .neutral), ("V", "maj", .neutral), ("vi", "m", .neutral), ("vii°", "dim", .neutral)]),
+        ModalHarmonyRow(title: "Эолийский min", cells: [("i", "m", .green), ("ii°", "dim", .red), ("III", "maj", .yellow), ("iv", "m", .green), ("v", "m", .red), ("VI", "maj", .yellow), ("VII", "maj", .red)]),
         ModalHarmonyRow(title: "Дорийский min #6", cells: [("i", "m", .green), ("ii", "m", .green), ("III", "maj", .yellow), ("IV", "maj", .green), ("v", "m", .red), ("vi°", "dim", .red), ("VII", "maj", .red)]),
         ModalHarmonyRow(title: "Фригийский min b2", cells: [("i", "m", .green), ("II", "maj", .green), ("III", "maj", .yellow), ("iv", "m", .red), ("V°", "dim", .red), ("VI", "maj", .yellow), ("vii", "m", .green)]),
         ModalHarmonyRow(title: "Лидийский maj #4", cells: [("I", "maj", .green), ("II", "maj", .green), ("iii", "m", .yellow), ("iv°", "dim", .red), ("V", "maj", .red), ("vi", "m", .yellow), ("vii", "m", .green)]),
         ModalHarmonyRow(title: "Миксолидийский maj b7", cells: [("I", "maj", .green), ("ii", "m", .yellow), ("iii°", "dim", .red), ("IV", "maj", .red), ("v", "m", .green), ("vi", "m", .yellow), ("VII", "maj", .green)]),
-        ModalHarmonyRow(title: "Эолийский min", cells: [("i", "m", .green), ("ii°", "dim", .red), ("III", "maj", .yellow), ("iv", "m", .green), ("v", "m", .red), ("VI", "maj", .yellow), ("VII", "maj", .red)]),
         ModalHarmonyRow(title: "Локрийский dim (min b2 b5)", cells: [("i°", "dim", .red), ("II", "maj", .yellow), ("iii", "m", .green), ("iv", "m", .green), ("V", "maj", .red), ("VI", "maj", .yellow), ("vi", "m", .green)])
     ]
 

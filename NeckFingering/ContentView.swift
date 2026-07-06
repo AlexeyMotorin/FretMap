@@ -194,7 +194,7 @@ struct ContentView: View {
 
             switch harmonyMode {
             case .functional:
-                FunctionalHarmonyView()
+                FunctionalHarmonyView(noteNames: noteNames)
             case .modal:
                 ModalHarmonyView()
             case .popular:

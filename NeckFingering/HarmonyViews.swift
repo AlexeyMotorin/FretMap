@@ -1,20 +1,28 @@
 import SwiftUI
 
 struct FunctionalHarmonyView: View {
-    var body: some View {
-        ScrollView([.horizontal, .vertical]) {
-            ZStack {
-                ArrowCanvas()
-                    .padding(.horizontal, 40)
-                    .padding(.vertical, 24)
+    let noteNames: [String]
+    @State private var selectedRoot = 0
+    @State private var keyMode: FunctionalKeyMode = .major
+    @State private var chordKind: FunctionalChordKind = .triad
+    @State private var chordCount = 4
+    @State private var selectedDegrees = Array(repeating: 1, count: 8)
 
+    var body: some View {
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 16) {
                     ForEach(HarmonyData.functional) { group in
                         HStack(spacing: 12) {
-                            Text("\(group.title) (\(group.symbol))")
-                                .font(.title3.weight(.bold))
-                                .foregroundStyle(AppColors.primaryText)
-                                .frame(width: 300, alignment: .leading)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("\(group.title) (\(group.symbol))")
+                                    .font(.title3.weight(.bold))
+                                    .foregroundStyle(AppColors.primaryText)
+                                Text(functionTransitions(for: group.symbol))
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(AppColors.mutedText)
+                            }
+                            .frame(width: 300, alignment: .leading)
 
                             ForEach(group.degrees, id: \.0) { degree, color in
                                 DegreeChip(text: degree, color: color.color)
@@ -23,31 +31,252 @@ struct FunctionalHarmonyView: View {
                     }
                 }
                 .padding(26)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(AppColors.panel.opacity(0.92), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                FunctionalProgressionBuilder(
+                    noteNames: noteNames,
+                    selectedRoot: $selectedRoot,
+                    keyMode: $keyMode,
+                    chordKind: $chordKind,
+                    chordCount: $chordCount,
+                    selectedDegrees: $selectedDegrees
+                )
             }
-            .frame(minWidth: 760, minHeight: 360)
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppColors.page)
     }
+
+    private func functionTransitions(for symbol: String) -> String {
+        switch symbol {
+        case "T": "T -> S, T -> D"
+        case "S": "S -> T, S -> D"
+        case "D": "D -> T"
+        default: ""
+        }
+    }
 }
 
-private struct ArrowCanvas: View {
+private enum FunctionalKeyMode: String, CaseIterable, Identifiable {
+    case major
+    case minor
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .major: "Мажор"
+        case .minor: "Минор"
+        }
+    }
+
+    var intervals: [Int] {
+        switch self {
+        case .major: [0, 2, 4, 5, 7, 9, 11]
+        case .minor: [0, 2, 3, 5, 7, 8, 10]
+        }
+    }
+
+    var qualities: [String] {
+        switch self {
+        case .major: ["", "m", "m", "", "", "m", "dim"]
+        case .minor: ["m", "dim", "", "m", "m", "", ""]
+        }
+    }
+
+    var seventhQualities: [String] {
+        switch self {
+        case .major: ["maj7", "m7", "m7", "maj7", "7", "m7", "m7b5"]
+        case .minor: ["m7", "m7b5", "maj7", "m7", "m7", "maj7", "7"]
+        }
+    }
+
+    var degreeTitles: [String] {
+        switch self {
+        case .major: ["I", "ii", "iii", "IV", "V", "vi", "vii°"]
+        case .minor: ["i", "ii°", "III", "iv", "v", "VI", "VII"]
+        }
+    }
+}
+
+private enum FunctionalChordKind: String, CaseIterable, Identifiable {
+    case triad
+    case seventh
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .triad: "Трезвучие"
+        case .seventh: "Септаккорд"
+        }
+    }
+}
+
+private struct FunctionalProgressionBuilder: View {
+    let noteNames: [String]
+    @Binding var selectedRoot: Int
+    @Binding var keyMode: FunctionalKeyMode
+    @Binding var chordKind: FunctionalChordKind
+    @Binding var chordCount: Int
+    @Binding var selectedDegrees: [Int]
+
     var body: some View {
-        Canvas { context, size in
-            func arrow(from start: CGPoint, to end: CGPoint, color: Color) {
-                var path = Path()
-                path.move(to: start)
-                path.addCurve(to: end, control1: CGPoint(x: start.x + 120, y: start.y - 100), control2: CGPoint(x: end.x - 120, y: end.y - 100))
-                context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: 5, lineCap: .round))
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center, spacing: 14) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Своя последовательность")
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(AppColors.primaryText)
+                    Text("Выбери тональность, длину и ступени")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(AppColors.mutedText)
+                }
+
+                Spacer()
+
+                UIKitMenuPicker(title: "Тоника", selection: $selectedRoot, options: noteOptions)
+                    .frame(width: 170, height: 40)
             }
 
-            arrow(from: CGPoint(x: size.width * 0.18, y: size.height * 0.28), to: CGPoint(x: size.width * 0.78, y: size.height * 0.47), color: HarmonyColor.green.color)
-            arrow(from: CGPoint(x: size.width * 0.18, y: size.height * 0.28), to: CGPoint(x: size.width * 0.78, y: size.height * 0.66), color: HarmonyColor.green.color)
-            arrow(from: CGPoint(x: size.width * 0.18, y: size.height * 0.47), to: CGPoint(x: size.width * 0.78, y: size.height * 0.28), color: HarmonyColor.blue.color)
-            arrow(from: CGPoint(x: size.width * 0.18, y: size.height * 0.47), to: CGPoint(x: size.width * 0.78, y: size.height * 0.66), color: HarmonyColor.blue.color)
-            arrow(from: CGPoint(x: size.width * 0.78, y: size.height * 0.66), to: CGPoint(x: size.width * 0.18, y: size.height * 0.28), color: HarmonyColor.red.color)
+            HStack(spacing: 12) {
+                Picker("Лад", selection: $keyMode) {
+                    ForEach(FunctionalKeyMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 220)
+
+                Picker("Аккорды", selection: $chordCount) {
+                    Text("4").tag(4)
+                    Text("8").tag(8)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 132)
+
+                Picker("Тип", selection: $chordKind) {
+                    ForEach(FunctionalChordKind.allCases) { kind in
+                        Text(kind.title).tag(kind)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 230)
+
+                Spacer()
+            }
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: 4), alignment: .leading, spacing: 16) {
+                ForEach(0..<chordCount, id: \.self) { index in
+                    let degree = selectedDegrees[index]
+                    DegreeSquarePicker(
+                        index: index,
+                        degree: degree,
+                        function: functionTitle(for: degree),
+                        degreeTitle: keyMode.degreeTitles[degree - 1],
+                        chordName: chordName(for: degree),
+                        color: functionColor(for: degree),
+                        options: degreeOptions,
+                        onSelect: { selectedDegrees[index] = $0 }
+                    )
+                }
+            }
         }
+        .padding(18)
+        .background(AppColors.panel, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    private var noteOptions: [MenuPickerItem<Int>] {
+        noteNames.indices.map { MenuPickerItem(value: $0, title: noteNames[$0]) }
+    }
+
+    private var degreeOptions: [MenuPickerItem<Int>] {
+        (1...7).map { degree in
+            MenuPickerItem(value: degree, title: "\(degree) - \(keyMode.degreeTitles[degree - 1]) - \(functionTitle(for: degree))")
+        }
+    }
+
+    private func chordName(for degree: Int) -> String {
+        let index = max(0, min(degree - 1, 6))
+        let pitch = (selectedRoot + keyMode.intervals[index]) % 12
+        switch chordKind {
+        case .triad:
+            return "\(noteNames[pitch])\(keyMode.qualities[index])"
+        case .seventh:
+            return "\(noteNames[pitch])\(keyMode.seventhQualities[index])"
+        }
+    }
+
+    private func functionTitle(for degree: Int) -> String {
+        switch degree {
+        case 1, 3, 6: "T"
+        case 2, 4: "S"
+        case 5: "D"
+        case 7: "S/D"
+        default: ""
+        }
+    }
+
+    private func functionColor(for degree: Int) -> Color {
+        switch degree {
+        case 1, 4, 5: HarmonyColor.green.color
+        case 2, 6, 7: HarmonyColor.yellow.color
+        case 3: HarmonyColor.red.color
+        default: AppColors.control
+        }
+    }
+}
+
+private struct DegreeSquarePicker: View {
+    let index: Int
+    let degree: Int
+    let function: String
+    let degreeTitle: String
+    let chordName: String
+    let color: Color
+    let options: [MenuPickerItem<Int>]
+    let onSelect: (Int) -> Void
+
+    var body: some View {
+        Menu {
+            ForEach(options) { option in
+                Button(option.title) {
+                    onSelect(option.value)
+                }
+            }
+        } label: {
+            ZStack {
+                VStack(spacing: 10) {
+                    Text(chordName)
+                        .font(.system(size: 42, weight: .black, design: .rounded))
+                        .minimumScaleFactor(0.65)
+                        .lineLimit(1)
+                    Text("\(degree) / \(degreeTitle)")
+                        .font(.title3.weight(.heavy))
+                        .minimumScaleFactor(0.7)
+                        .lineLimit(1)
+                }
+                .padding(.horizontal, 10)
+                .foregroundStyle(.white)
+
+                VStack {
+                    Text(function)
+                        .font(.title3.weight(.black))
+                        .foregroundStyle(.white.opacity(0.82))
+                    Spacer()
+                }
+                .padding(.top, 12)
+            }
+            .frame(maxWidth: .infinity)
+            .aspectRatio(1, contentMode: .fit)
+            .background(color.opacity(0.84), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .accessibilityLabel("\(index + 1): \(chordName), ступень \(degree)")
     }
 }
 
@@ -71,7 +300,7 @@ struct ModalHarmonyView: View {
                                 }
                                 .foregroundStyle(AppColors.primaryText)
                                 .frame(maxWidth: .infinity, minHeight: 54)
-                                .background(cell.color.color.opacity(cell.color == .neutral ? 0.18 : 0.55), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                .background(modalCellBackground(row: row, cell: cell), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                             }
                         }
                     }
@@ -82,6 +311,13 @@ struct ModalHarmonyView: View {
             .padding(18)
         }
         .background(AppColors.page)
+    }
+
+    private func modalCellBackground(row: ModalHarmonyRow, cell: (degree: String, chord: String, color: HarmonyColor)) -> Color {
+        if row.title.hasPrefix("Ионийский") || row.title.hasPrefix("Эолийский") {
+            return AppColors.control
+        }
+        return cell.color.color.opacity(cell.color == .neutral ? 0.18 : 0.55)
     }
 }
 
