@@ -2,11 +2,7 @@ import SwiftUI
 
 struct FunctionalHarmonyView: View {
     let noteNames: [String]
-    @State private var selectedRoot = 0
-    @State private var keyMode: FunctionalKeyMode = .major
-    @State private var chordKind: FunctionalChordKind = .triad
-    @State private var chordCount = 4
-    @State private var selectedDegrees = Array(repeating: 1, count: 8)
+    @ObservedObject var store: AppSettingsStore
 
     var body: some View {
         ScrollView(.vertical) {
@@ -36,11 +32,11 @@ struct FunctionalHarmonyView: View {
 
                 FunctionalProgressionBuilder(
                     noteNames: noteNames,
-                    selectedRoot: $selectedRoot,
-                    keyMode: $keyMode,
-                    chordKind: $chordKind,
-                    chordCount: $chordCount,
-                    selectedDegrees: $selectedDegrees
+                    selectedRoot: $store.functionalRoot,
+                    keyMode: $store.functionalKeyMode,
+                    chordKind: $store.functionalChordKind,
+                    chordCount: $store.functionalChordCount,
+                    selectedDegrees: $store.functionalSelectedDegrees
                 )
             }
             .padding(18)
@@ -60,7 +56,7 @@ struct FunctionalHarmonyView: View {
     }
 }
 
-private enum FunctionalKeyMode: String, CaseIterable, Identifiable {
+enum FunctionalKeyMode: String, CaseIterable, Identifiable, Codable {
     case major
     case minor
 
@@ -102,7 +98,7 @@ private enum FunctionalKeyMode: String, CaseIterable, Identifiable {
     }
 }
 
-private enum FunctionalChordKind: String, CaseIterable, Identifiable {
+enum FunctionalChordKind: String, CaseIterable, Identifiable, Codable {
     case triad
     case seventh
 
@@ -116,7 +112,7 @@ private enum FunctionalChordKind: String, CaseIterable, Identifiable {
     }
 }
 
-private enum ModalBuilderMode: String, CaseIterable, Identifiable {
+enum ModalBuilderMode: String, CaseIterable, Identifiable, Codable {
     case dorian
     case phrygian
     case lydian
@@ -328,11 +324,7 @@ private struct DegreeSquarePicker: View {
 
 struct ModalHarmonyView: View {
     let noteNames: [String]
-    @State private var selectedRoot = 0
-    @State private var selectedMode: ModalBuilderMode = .dorian
-    @State private var chordKind: FunctionalChordKind = .triad
-    @State private var chordCount = 4
-    @State private var selectedDegrees = Array(repeating: 1, count: 8)
+    @ObservedObject var store: AppSettingsStore
 
     var body: some View {
         ScrollView {
@@ -363,11 +355,11 @@ struct ModalHarmonyView: View {
 
                 ModalProgressionBuilder(
                     noteNames: noteNames,
-                    selectedRoot: $selectedRoot,
-                    selectedMode: $selectedMode,
-                    chordKind: $chordKind,
-                    chordCount: $chordCount,
-                    selectedDegrees: $selectedDegrees
+                    selectedRoot: $store.modalRoot,
+                    selectedMode: $store.modalMode,
+                    chordKind: $store.modalChordKind,
+                    chordCount: $store.modalChordCount,
+                    selectedDegrees: $store.modalSelectedDegrees
                 )
             }
             .padding(18)
@@ -534,6 +526,7 @@ private struct ModalProgressionBuilder: View {
 struct PopularHarmonyView: View {
     let scale: ScalePattern
     let noteNames: [String]
+    @ObservedObject var store: AppSettingsStore
 
     var body: some View {
         ScrollView(.vertical) {
@@ -549,7 +542,12 @@ struct PopularHarmonyView: View {
 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 14)], alignment: .leading, spacing: 14) {
                     ForEach(HarmonyData.popularProgressions(for: scale)) { progression in
-                        PopularProgressionCard(progression: progression, scale: scale, noteNames: noteNames)
+                        PopularProgressionCard(
+                            progression: progression,
+                            scale: scale,
+                            noteNames: noteNames,
+                            selectedRoot: popularRootBinding(for: progression.id)
+                        )
                     }
                 }
 
@@ -560,13 +558,20 @@ struct PopularHarmonyView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppColors.page)
     }
+
+    private func popularRootBinding(for progressionID: String) -> Binding<Int> {
+        Binding(
+            get: { store.popularProgressionRoots[progressionID] ?? -1 },
+            set: { store.popularProgressionRoots[progressionID] = $0 }
+        )
+    }
 }
 
 private struct PopularProgressionCard: View {
     let progression: PopularProgression
     let scale: ScalePattern
     let noteNames: [String]
-    @State private var selectedRoot = -1
+    @Binding var selectedRoot: Int
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {

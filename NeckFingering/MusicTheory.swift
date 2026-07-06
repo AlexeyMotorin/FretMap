@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum AppMode: String, CaseIterable, Identifiable {
+enum AppMode: String, CaseIterable, Identifiable, Codable {
     case chords
     case modes
     case harmony
@@ -16,7 +16,7 @@ enum AppMode: String, CaseIterable, Identifiable {
     }
 }
 
-enum HarmonyMode: String, CaseIterable, Identifiable {
+enum HarmonyMode: String, CaseIterable, Identifiable, Codable {
     case functional
     case modal
     case popular
@@ -32,7 +32,7 @@ enum HarmonyMode: String, CaseIterable, Identifiable {
     }
 }
 
-enum AccidentalStyle: String, CaseIterable, Identifiable {
+enum AccidentalStyle: String, CaseIterable, Identifiable, Codable {
     case sharps
     case flats
 
@@ -203,7 +203,7 @@ struct ScalePattern: Identifiable, Equatable {
     ]
 }
 
-enum ChordQuality: String, CaseIterable, Identifiable {
+enum ChordQuality: String, CaseIterable, Identifiable, Codable {
     case major
     case minor
     case augmented
@@ -255,7 +255,7 @@ enum ChordQuality: String, CaseIterable, Identifiable {
     }
 }
 
-enum ChordSize: String, CaseIterable, Identifiable {
+enum ChordSize: String, CaseIterable, Identifiable, Codable {
     case triad
     case majorSeventh
     case dominantSeventh
@@ -309,7 +309,7 @@ struct ChordTone {
     let degree: String
 }
 
-struct ChordSettings {
+struct ChordSettings: Codable {
     var root: Int = 0
     var quality: ChordQuality = .major
     var size: ChordSize = .triad
@@ -355,13 +355,17 @@ struct ChordShape: Identifiable, Equatable {
 
     func transposedBarres(to root: Int) -> [ChordBarre] {
         let shift = transpositionShift(to: root)
-        return barres.map { ChordBarre(fret: $0.fret + shift, fromStringNumber: $0.fromStringNumber, toStringNumber: $0.toStringNumber) }
+        return barres.compactMap { barre in
+            let fret = barre.fret + shift
+            guard fret > 0 else { return nil }
+            return ChordBarre(fret: fret, fromStringNumber: barre.fromStringNumber, toStringNumber: barre.toStringNumber)
+        }
     }
 
     private func transpositionShift(to root: Int) -> Int {
         let semitoneShift = (root - baseRoot + 12) % 12
         let shiftedFrets = notes.map { $0.fret + semitoneShift }
-        if shiftedFrets.min() ?? 0 > 12 {
+        if shiftedFrets.min() ?? 0 >= 12 {
             return semitoneShift - 12
         }
         return semitoneShift
@@ -451,7 +455,7 @@ struct ChordShape: Identifiable, Equatable {
     ]
 }
 
-struct FretPosition: Hashable, Identifiable {
+struct FretPosition: Hashable, Identifiable, Codable {
     let stringIndex: Int
     let fret: Int
     var id: String { "\(stringIndex)-\(fret)" }
@@ -509,7 +513,6 @@ struct PopularProgression: Identifiable {
     let title: String
     let category: String
     let degrees: [String]
-    let examples: [String]
     let popularity: Int
     let color: HarmonyColor
 
@@ -534,74 +537,7 @@ enum HarmonyData {
     ]
 
     static func popularProgressions(for scale: ScalePattern) -> [PopularProgression] {
-        let progressionsByScale: [String: [PopularProgression]] = [
-            "ionian": [
-                progression("ionian-pop-axis", "Поп-ось", "Beginner", ["I", "V", "vi", "IV"], ["In The Stars", "Right Now", "Praise"], 5, .green),
-                progression("ionian-pachelbel", "Канонная цепочка", "Beginner", ["I", "V", "vi", "iii", "IV", "I", "IV", "V"], ["Go West", "Good Old Fashioned Lover Boy"], 5, .yellow),
-                progression("ionian-doo-wop", "Magic changes", "Beginner", ["I", "vi", "IV", "V"], ["Baby", "Dream A Little Dream"], 4, .blue),
-                progression("ionian-step-down", "Бас вниз", "Intermediate", ["I", "V/7", "vi", "I/5", "IV"], ["Stuttering", "Sunshine Laserbeams"], 4, .green),
-                progression("ionian-secondary", "V/vi в обороте", "Intermediate", ["I", "V/vi", "vi", "IV", "V"], ["Absolute Beginners", "Pink In The Night"], 3, .red),
-                progression("ionian-borrowed-vii", "Каденция через bVII", "Advanced", ["I", "bVII", "IV", "I"], ["redesign your logo", "A Stranger I Remain"], 3, .yellow)
-            ],
-            "dorian": [
-                progression("dorian-vamp", "Дорийский вамп", "Modal", ["i", "IV", "i", "IV"], ["So What", "Oye Como Va"], 5, .green),
-                progression("dorian-backdoor", "i - VII - IV", "Modal", ["i", "VII", "IV", "i"], ["Mad World", "Scarborough Fair"], 4, .blue),
-                progression("dorian-two-four", "Минорная опора II-IV", "Modal", ["i", "ii", "IV", "i"], ["Drunken Sailor"], 3, .yellow),
-                progression("dorian-five-minor", "С мягкой доминантой", "Modal", ["i", "v", "IV", "i"], ["Riders on the Storm"], 3, .red)
-            ],
-            "phrygian": [
-                progression("phrygian-half-step", "Фригийский полутон", "Modal", ["i", "II", "i", "VII"], ["Wherever I May Roam"], 5, .red),
-                progression("phrygian-spanish", "Испанский оборот", "Modal", ["i", "VII", "VI", "V"], ["Malaguena"], 4, .yellow),
-                progression("phrygian-bii", "bII как центр тяжести", "Modal", ["i", "II", "VII", "i"], ["Set the Controls"], 4, .green),
-                progression("phrygian-dark", "Темная каденция", "Modal", ["i", "iv", "II", "i"], ["War Pigs"], 3, .blue)
-            ],
-            "lydian": [
-                progression("lydian-two", "Лидийская II ступень", "Modal", ["I", "II", "I", "V"], ["Flying in a Blue Dream"], 5, .green),
-                progression("lydian-sharp-four", "#iv° как краска", "Modal", ["I", "#iv°", "V", "I"], ["The Simpsons Theme"], 4, .yellow),
-                progression("lydian-lift", "Подъем через II", "Modal", ["I", "II", "iii", "I"], ["Dreams"], 3, .blue),
-                progression("lydian-wide", "Широкая мажорная петля", "Modal", ["I", "V", "II", "I"], ["Man on the Moon"], 3, .green)
-            ],
-            "mixolydian": [
-                progression("mixolydian-rock", "Рок-каденция bVII-IV", "Modal", ["I", "VII", "IV", "I"], ["Sweet Home Alabama", "Hey Jude"], 5, .green),
-                progression("mixolydian-v-minor", "Минорная v", "Modal", ["I", "v", "VII", "IV"], ["Norwegian Wood"], 4, .blue),
-                progression("mixolydian-plagal", "Плагальная петля", "Modal", ["I", "IV", "VII", "I"], ["Fire on the Mountain"], 4, .yellow),
-                progression("mixolydian-cadence", "Возврат через bVII", "Modal", ["I", "VII", "I", "V"], ["Sympathy for the Devil"], 3, .red)
-            ],
-            "aeolian": [
-                progression("aeolian-pop-minor", "Минорная поп-ось", "Minor", ["i", "VI", "III", "VII"], ["Numb", "The Hanging Tree"], 5, .green),
-                progression("aeolian-falling", "Нисходящая цепочка", "Minor", ["i", "VII", "VI", "VII"], ["All Along the Watchtower"], 5, .yellow),
-                progression("aeolian-subdominant", "Минорная субдоминанта", "Minor", ["i", "iv", "VII", "i"], ["Losing My Religion"], 4, .blue),
-                progression("aeolian-cinematic", "Кинематографичный минор", "Minor", ["i", "VI", "iv", "V"], ["House of the Rising Sun"], 3, .red)
-            ],
-            "locrian": [
-                progression("locrian-bii", "Опора на bII", "Modal", ["i°", "II", "i°", "iv"], ["Army of Me"], 3, .red),
-                progression("locrian-six", "Через bVI", "Modal", ["i°", "VI", "II", "i°"], ["Dust to Dust"], 2, .yellow),
-                progression("locrian-four", "Полууменьшенная петля", "Modal", ["i°", "iv", "II", "i°"], ["YYZ"], 2, .blue),
-                progression("locrian-release", "С выходом в bVII", "Modal", ["i°", "VII", "II", "i°"], ["Juicebox"], 2, .green)
-            ]
-        ]
-
-        return progressionsByScale[scale.id] ?? progressionsByScale["ionian"] ?? []
-    }
-
-    private static func progression(
-        _ id: String,
-        _ title: String,
-        _ category: String,
-        _ degrees: [String],
-        _ examples: [String],
-        _ popularity: Int,
-        _ color: HarmonyColor
-    ) -> PopularProgression {
-        PopularProgression(
-            id: id,
-            title: title,
-            category: category,
-            degrees: degrees,
-            examples: examples,
-            popularity: popularity,
-            color: color
-        )
+        MusicDatabase.popularProgressions(for: scale)
     }
 }
 

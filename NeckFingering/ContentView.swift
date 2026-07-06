@@ -1,40 +1,26 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var appMode: AppMode = .modes
-    @State private var rootNote = 0
-    @State private var selectedScaleID = ScalePattern.ionian.id
-    @State private var stringCount = 6
-    @State private var selectedTuningID = TuningPreset.standard6.id
-    @State private var fretCount = 24
-    @State private var accidentalStyle = AccidentalStyle.flats
-    @State private var isSettingsVisible = true
-    @State private var chordSettings = ChordSettings()
-    @State private var isCustomMode = false
-    @State private var customPositions: Set<FretPosition> = []
-    @State private var harmonyMode: HarmonyMode = .functional
-    @State private var popularScaleID = ScalePattern.ionian.id
-    @State private var isModeSwitcherVisible = true
-    @State private var showsDegreeNumbers = true
+    @StateObject private var store = AppSettingsStore()
 
     private let scales = ScalePattern.all
     private let tunings = TuningPreset.all
 
-    private var noteNames: [String] { accidentalStyle.noteNames }
-    private var selectedScale: ScalePattern { scales.first { $0.id == selectedScaleID } ?? .ionian }
-    private var popularScale: ScalePattern { scales.first { $0.id == popularScaleID } ?? .ionian }
-    private var compatibleTunings: [TuningPreset] { tunings.filter { $0.stringCount == stringCount } }
-    private var selectedTuning: TuningPreset { compatibleTunings.first { $0.id == selectedTuningID } ?? compatibleTunings[0] }
+    private var noteNames: [String] { store.accidentalStyle.noteNames }
+    private var selectedScale: ScalePattern { scales.first { $0.id == store.selectedScaleID } ?? .ionian }
+    private var popularScale: ScalePattern { scales.first { $0.id == store.popularScaleID } ?? .ionian }
+    private var compatibleTunings: [TuningPreset] { tunings.filter { $0.stringCount == store.stringCount } }
+    private var selectedTuning: TuningPreset { compatibleTunings.first { $0.id == store.selectedTuningID } ?? compatibleTunings[0] }
 
     var body: some View {
         GeometryReader { proxy in
-            if isCustomMode {
+            if store.isCustomMode {
                 customModeView
                     .frame(width: proxy.size.width, height: proxy.size.height)
             } else {
                 ZStack(alignment: .bottom) {
                     content
-                        .id(appMode)
+                        .id(store.appMode)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .clipped()
                         .transition(.identity)
@@ -48,14 +34,17 @@ struct ContentView: View {
                     transaction.animation = nil
                     transaction.disablesAnimations = true
                 }
-                .animation(nil, value: appMode)
+                .animation(nil, value: store.appMode)
+                .onAppear {
+                    syncSavedSelections()
+                }
             }
         }
     }
 
     @ViewBuilder
     private var content: some View {
-        switch appMode {
+        switch store.appMode {
         case .chords:
             chordsModeView
         case .modes:
@@ -67,7 +56,7 @@ struct ContentView: View {
 
     @ViewBuilder
     private var modeSwitcherOverlay: some View {
-        if isModeSwitcherVisible {
+        if store.isModeSwitcherVisible {
             topModePicker
                 .padding(.bottom, 8)
                 .padding(.horizontal, 12)
@@ -90,7 +79,7 @@ struct ContentView: View {
             .frame(maxWidth: 420)
 
             Button {
-                noAnimation { isModeSwitcherVisible = false }
+                noAnimation { store.isModeSwitcherVisible = false }
             } label: {
                 Image(systemName: "chevron.down")
                     .font(.system(size: 15, weight: .bold))
@@ -111,7 +100,7 @@ struct ContentView: View {
 
     private var showModeSwitcherButton: some View {
         Button {
-            noAnimation { isModeSwitcherVisible = true }
+            noAnimation { store.isModeSwitcherVisible = true }
         } label: {
             Image(systemName: "chevron.up")
                 .font(.system(size: 16, weight: .bold))
@@ -126,7 +115,7 @@ struct ContentView: View {
     private var modesModeView: some View {
         GeometryReader { proxy in
             HStack(alignment: .top, spacing: 0) {
-                if isSettingsVisible {
+                if store.isSettingsVisible {
                     settingsPanel
                         .frame(width: min(320, max(280, proxy.size.width * 0.27)))
                         .frame(height: proxy.size.height)
@@ -135,16 +124,16 @@ struct ContentView: View {
                 ZStack(alignment: .topLeading) {
                     FretboardView(
                         tuning: selectedTuning,
-                        fretCount: fretCount,
+                        fretCount: store.fretCount,
                         markers: scaleMarkers,
                         barres: [],
                         selectedPositions: [],
                         customMode: false,
                         onTapPosition: nil,
-                        onSwipe: isSettingsVisible ? { setSettingsVisible(false) } : nil
+                        onSwipe: store.isSettingsVisible ? { setSettingsVisible(false) } : nil
                     )
 
-                    if !isSettingsVisible {
+                    if !store.isSettingsVisible {
                         settingsButton
                             .padding(12)
                     }
@@ -165,7 +154,8 @@ struct ContentView: View {
                 ZStack(alignment: .topLeading) {
                     FretboardView(
                         tuning: selectedTuning,
-                        fretCount: fretCount,
+                        fretCount: store.fretCount,
+                        visibleFretRange: chordVisibleFretRange,
                         markers: chordMarkers,
                         barres: chordBarres,
                         selectedPositions: [],
@@ -183,7 +173,7 @@ struct ContentView: View {
 
     private var harmonyModeView: some View {
         VStack(spacing: 0) {
-            Picker("Гармония", selection: noAnimationBinding($harmonyMode)) {
+            Picker("Гармония", selection: noAnimationBinding($store.harmonyMode)) {
                 ForEach(HarmonyMode.allCases) { mode in
                     Text(mode.title).tag(mode)
                 }
@@ -192,13 +182,13 @@ struct ContentView: View {
             .padding(12)
             .background(AppColors.panel)
 
-            switch harmonyMode {
+            switch store.harmonyMode {
             case .functional:
-                FunctionalHarmonyView(noteNames: noteNames)
+                FunctionalHarmonyView(noteNames: noteNames, store: store)
             case .modal:
-                ModalHarmonyView(noteNames: noteNames)
+                ModalHarmonyView(noteNames: noteNames, store: store)
             case .popular:
-                PopularHarmonyView(scale: popularScale, noteNames: noteNames)
+                PopularHarmonyView(scale: popularScale, noteNames: noteNames, store: store)
                 popularHarmonyBottomBar
             }
         }
@@ -226,9 +216,9 @@ struct ContentView: View {
                     .buttonStyle(.plain)
                 }
 
-                notePicker(title: "Тональность", selection: noAnimationBinding($rootNote))
+                notePicker(title: "Тональность", selection: noAnimationBinding($store.rootNote))
 
-                UIKitMenuPicker(title: "Лад", selection: noAnimationBinding($selectedScaleID), options: scales.map { MenuPickerItem(value: $0.id, title: $0.name) })
+                UIKitMenuPicker(title: "Лад", selection: noAnimationBinding($store.selectedScaleID), options: scales.map { MenuPickerItem(value: $0.id, title: $0.name) })
                     .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44)
 
                 accidentalPicker
@@ -267,7 +257,7 @@ struct ContentView: View {
                     }
                 }
 
-                notePicker(title: "Тоника аккорда", selection: noAnimationBinding($chordSettings.root))
+                notePicker(title: "Тоника аккорда", selection: noAnimationBinding($store.chordSettings.root))
                 accidentalPicker
                 stringCountPicker
                 tuningPicker
@@ -278,8 +268,8 @@ struct ContentView: View {
                 degreeNumbersToggle
 
                 Button {
-                    customPositions.removeAll()
-                    isCustomMode = true
+                    store.customPositions.removeAll()
+                    store.isCustomMode = true
                 } label: {
                     Label("Кастомный режим", systemImage: "hand.tap.fill")
                         .font(.system(.subheadline, design: .rounded).weight(.bold))
@@ -301,17 +291,17 @@ struct ContentView: View {
         ZStack(alignment: .topLeading) {
             FretboardView(
                 tuning: selectedTuning,
-                fretCount: fretCount,
+                fretCount: store.fretCount,
                 markers: [],
                 barres: [],
-                selectedPositions: customPositions,
+                selectedPositions: store.customPositions,
                 customMode: true,
                 onTapPosition: toggleCustomPosition,
                 onSwipe: nil
             )
 
             Button {
-                isCustomMode = false
+                store.isCustomMode = false
             } label: {
                 Label("Назад", systemImage: "chevron.left")
                     .font(.headline.weight(.bold))
@@ -339,7 +329,7 @@ struct ContentView: View {
 
     private var popularHarmonyBottomBar: some View {
         HStack {
-            UIKitMenuPicker(title: "Лад", selection: noAnimationBinding($popularScaleID), options: ScalePattern.all.prefix(7).map { MenuPickerItem(value: $0.id, title: $0.shortName) })
+            UIKitMenuPicker(title: "Лад", selection: noAnimationBinding($store.popularScaleID), options: ScalePattern.all.prefix(7).map { MenuPickerItem(value: $0.id, title: $0.shortName) })
                 .frame(width: 320, height: 44)
             Spacer()
         }
@@ -368,7 +358,7 @@ struct ContentView: View {
     }
 
     private var accidentalPicker: some View {
-        Picker("Ноты", selection: noAnimationBinding($accidentalStyle)) {
+        Picker("Ноты", selection: noAnimationBinding($store.accidentalStyle)) {
             ForEach(AccidentalStyle.allCases) { style in
                 Text(style.title).tag(style)
             }
@@ -419,13 +409,13 @@ struct ContentView: View {
     }
 
     private var fretStepper: some View {
-        Stepper("Лады: \(fretCount)", value: noAnimationBinding($fretCount), in: 12...24, step: 1)
+        Stepper("Лады: \(store.fretCount)", value: noAnimationBinding($store.fretCount), in: 12...24, step: 1)
             .foregroundStyle(AppColors.primaryText)
             .tint(AppColors.primaryText)
     }
 
     private var degreeNumbersToggle: some View {
-        Toggle("Ступени", isOn: noAnimationBinding($showsDegreeNumbers))
+        Toggle("Ступени", isOn: noAnimationBinding($store.showsDegreeNumbers))
             .toggleStyle(.switch)
             .font(.system(.subheadline, design: .rounded).weight(.semibold))
             .foregroundStyle(AppColors.primaryText)
@@ -437,15 +427,15 @@ struct ContentView: View {
     }
 
     private var scaleSummary: String {
-        selectedScale.intervals.map { noteNames[($0 + rootNote) % 12] }.joined(separator: "  ")
+        selectedScale.intervals.map { noteNames[($0 + store.rootNote) % 12] }.joined(separator: "  ")
     }
 
     private var scaleMarkers: [FretMarker] {
         makeMarkers { stringIndex, fret, pitch in
-            guard selectedScale.intervals.contains((pitch - rootNote + 12) % 12),
-                  let degree = selectedScale.degreeLabel(for: pitch, root: rootNote) else { return nil }
-            let label = showsDegreeNumbers ? "\(noteNames[pitch])/\(degree)" : noteNames[pitch]
-            return FretMarker(position: FretPosition(stringIndex: stringIndex, fret: fret), label: label, isRoot: pitch == rootNote)
+            guard selectedScale.intervals.contains((pitch - store.rootNote + 12) % 12),
+                  let degree = selectedScale.degreeLabel(for: pitch, root: store.rootNote) else { return nil }
+            let label = store.showsDegreeNumbers ? "\(noteNames[pitch])/\(degree)" : noteNames[pitch]
+            return FretMarker(position: FretPosition(stringIndex: stringIndex, fret: fret), label: label, isRoot: pitch == store.rootNote)
         }
     }
 
@@ -454,34 +444,50 @@ struct ContentView: View {
             return cagedMarkers
         }
 
-        let intervals = chordSettings.intervals
-        let tones = chordSettings.tones
+        let intervals = store.chordSettings.intervals
+        let tones = store.chordSettings.tones
         return makeMarkers { stringIndex, fret, pitch in
             let guitarStringNumber = stringIndex + 1
-            guard guitarStringNumber <= chordSettings.startString else { return nil }
-            let interval = (pitch - chordSettings.root + 12) % 12
+            guard guitarStringNumber <= store.chordSettings.startString else { return nil }
+            let interval = (pitch - store.chordSettings.root + 12) % 12
             guard intervals.contains(interval) else { return nil }
             let degree = tones.first { $0.interval == interval }?.degree ?? ""
-            let label = showsDegreeNumbers ? "\(noteNames[pitch])/\(degree)" : noteNames[pitch]
+            let label = store.showsDegreeNumbers ? "\(noteNames[pitch])/\(degree)" : noteNames[pitch]
             return FretMarker(position: FretPosition(stringIndex: stringIndex, fret: fret), label: label, isRoot: interval == 0)
         }
     }
 
     private var chordBarres: [ChordBarre] {
         guard usesCagedChordShape, let shape = selectedChordShape else { return [] }
-        return shape.transposedBarres(to: chordSettings.root)
+        return shape.transposedBarres(to: store.chordSettings.root)
+    }
+
+    private var chordVisibleFretRange: ClosedRange<Int>? {
+        guard usesCagedChordShape else { return nil }
+        let markerFrets = chordMarkers.map { $0.position.fret }
+        let barreFrets = chordBarres.map(\.fret)
+        let frets = markerFrets + barreFrets
+        guard let minFret = frets.min(), let maxFret = frets.max() else { return nil }
+
+        if minFret == 0 {
+            return 0...min(store.fretCount, max(maxFret + 1, 4))
+        }
+
+        let start = max(1, minFret - 1)
+        let end = min(store.fretCount, max(maxFret + 1, start + 3))
+        return start...end
     }
 
     private var cagedChordMarkers: [FretMarker]? {
         guard usesCagedChordShape, let shape = selectedChordShape else { return nil }
         let displayedStrings = Array(selectedTuning.strings.reversed())
-        return shape.transposedNotes(to: chordSettings.root).compactMap { note in
+        return shape.transposedNotes(to: store.chordSettings.root).compactMap { note in
             let stringIndex = note.stringNumber - 1
-            guard displayedStrings.indices.contains(stringIndex), (0...fretCount).contains(note.fret) else { return nil }
+            guard displayedStrings.indices.contains(stringIndex), (0...store.fretCount).contains(note.fret) else { return nil }
             let pitch = (displayedStrings[stringIndex].pitchClass + note.fret) % 12
-            let interval = (pitch - chordSettings.root + 12) % 12
-            let degree = chordSettings.tones.first { $0.interval == interval }?.degree ?? (interval == 9 ? "bb7" : "")
-            let label = showsDegreeNumbers && !degree.isEmpty ? "\(noteNames[pitch])/\(degree)" : noteNames[pitch]
+            let interval = (pitch - store.chordSettings.root + 12) % 12
+            let degree = store.chordSettings.tones.first { $0.interval == interval }?.degree ?? (interval == 9 ? "bb7" : "")
+            let label = store.showsDegreeNumbers && !degree.isEmpty ? "\(noteNames[pitch])/\(degree)" : noteNames[pitch]
             return FretMarker(position: FretPosition(stringIndex: stringIndex, fret: note.fret), label: label, isRoot: interval == 0)
         }
     }
@@ -492,10 +498,10 @@ struct ContentView: View {
 
     private var availableChordShapes: [ChordShape] {
         ChordShape.all.filter { shape in
-            shape.quality == chordSettings.quality &&
-            shape.size == chordSettings.size &&
-            shape.rootString == chordSettings.startString &&
-            shape.rootString <= stringCount
+            shape.quality == store.chordSettings.quality &&
+            shape.size == store.chordSettings.size &&
+            shape.rootString == store.chordSettings.startString &&
+            shape.rootString <= store.stringCount
         }
     }
 
@@ -505,28 +511,28 @@ struct ContentView: View {
     }
 
     private var availableChordSizes: [ChordSize] {
-        ChordSize.available(for: chordSettings.quality)
+        ChordSize.available(for: store.chordSettings.quality)
     }
 
     private var chordStartStringOptions: [Int] {
-        Array(4...min(stringCount, 8))
+        Array(4...min(store.stringCount, 8))
     }
 
     private var selectedChordShape: ChordShape? {
         let shapes = availableChordShapes
-        return shapes.first { $0.id == chordSettings.shapeID } ?? shapes.first
+        return shapes.first { $0.id == store.chordSettings.shapeID } ?? shapes.first
     }
 
     private func syncChordShape() {
-        if !availableChordSizes.contains(chordSettings.size) {
-            chordSettings.size = availableChordSizes.first ?? .triad
+        if !availableChordSizes.contains(store.chordSettings.size) {
+            store.chordSettings.size = availableChordSizes.first ?? .triad
         }
-        if !chordStartStringOptions.contains(chordSettings.startString) {
-            chordSettings.startString = chordStartStringOptions.last ?? 4
+        if !chordStartStringOptions.contains(store.chordSettings.startString) {
+            store.chordSettings.startString = chordStartStringOptions.last ?? 4
         }
         guard let firstShape = availableChordShapes.first else { return }
-        if !availableChordShapes.contains(where: { $0.id == chordSettings.shapeID }) {
-            chordSettings.shapeID = firstShape.id
+        if !availableChordShapes.contains(where: { $0.id == store.chordSettings.shapeID }) {
+            store.chordSettings.shapeID = firstShape.id
         }
     }
 
@@ -535,7 +541,7 @@ struct ContentView: View {
         var markers: [FretMarker] = []
         for stringIndex in displayedStrings.indices {
             let string = displayedStrings[stringIndex]
-            for fret in 0...fretCount {
+            for fret in 0...store.fretCount {
                 let pitch = (string.pitchClass + fret) % 12
                 if let marker = builder(stringIndex, fret, pitch) {
                     markers.append(marker)
@@ -546,16 +552,16 @@ struct ContentView: View {
     }
 
     private func toggleCustomPosition(_ position: FretPosition) {
-        if customPositions.contains(position) {
-            customPositions.remove(position)
+        if store.customPositions.contains(position) {
+            store.customPositions.remove(position)
         } else {
-            customPositions.insert(position)
+            store.customPositions.insert(position)
         }
     }
 
     private var identifiedCustomChord: String? {
         let displayedStrings = Array(selectedTuning.strings.reversed())
-        let pitches = Set(customPositions.compactMap { position -> Int? in
+        let pitches = Set(store.customPositions.compactMap { position -> Int? in
             guard displayedStrings.indices.contains(position.stringIndex) else { return nil }
             return (displayedStrings[position.stringIndex].pitchClass + position.fret) % 12
         })
@@ -564,15 +570,15 @@ struct ContentView: View {
 
     private var stringCountBinding: Binding<Int> {
         Binding(
-            get: { stringCount },
+            get: { store.stringCount },
             set: { newValue in
                 noAnimation {
-                    stringCount = newValue
-                    chordSettings.startString = min(chordSettings.startString, newValue)
+                    store.stringCount = newValue
+                    store.chordSettings.startString = min(store.chordSettings.startString, newValue)
                     let tuningsForCount = tunings.filter { $0.stringCount == newValue }
                     guard let firstTuning = tuningsForCount.first else { return }
-                    if !tuningsForCount.contains(where: { $0.id == selectedTuningID }) {
-                        selectedTuningID = firstTuning.id
+                    if !tuningsForCount.contains(where: { $0.id == store.selectedTuningID }) {
+                        store.selectedTuningID = firstTuning.id
                     }
                     syncChordShape()
                 }
@@ -582,10 +588,10 @@ struct ContentView: View {
 
     private var chordStartStringBinding: Binding<Int> {
         Binding(
-            get: { chordSettings.startString },
+            get: { store.chordSettings.startString },
             set: { newValue in
                 noAnimation {
-                    chordSettings.startString = newValue
+                    store.chordSettings.startString = newValue
                     syncChordShape()
                 }
             }
@@ -594,10 +600,10 @@ struct ContentView: View {
 
     private var chordQualityBinding: Binding<ChordQuality> {
         Binding(
-            get: { chordSettings.quality },
+            get: { store.chordSettings.quality },
             set: { newValue in
                 noAnimation {
-                    chordSettings.quality = newValue
+                    store.chordSettings.quality = newValue
                     syncChordShape()
                 }
             }
@@ -606,10 +612,10 @@ struct ContentView: View {
 
     private var chordSizeBinding: Binding<ChordSize> {
         Binding(
-            get: { chordSettings.size },
+            get: { store.chordSettings.size },
             set: { newValue in
                 noAnimation {
-                    chordSettings.size = newValue
+                    store.chordSettings.size = newValue
                     syncChordShape()
                 }
             }
@@ -618,15 +624,15 @@ struct ContentView: View {
 
     private var chordShapeBinding: Binding<String> {
         Binding(
-            get: { selectedChordShape?.id ?? chordSettings.shapeID },
-            set: { newValue in noAnimation { chordSettings.shapeID = newValue } }
+            get: { selectedChordShape?.id ?? store.chordSettings.shapeID },
+            set: { newValue in noAnimation { store.chordSettings.shapeID = newValue } }
         )
     }
 
     private var modeSelectionBinding: Binding<AppMode> {
         Binding(
-            get: { appMode },
-            set: { newValue in noAnimation { appMode = newValue } }
+            get: { store.appMode },
+            set: { newValue in noAnimation { store.appMode = newValue } }
         )
     }
 
@@ -635,7 +641,7 @@ struct ContentView: View {
             get: { selectedTuning.id },
             set: { newValue in
                 noAnimation {
-                    selectedTuningID = newValue
+                    store.selectedTuningID = newValue
                     syncChordShape()
                 }
             }
@@ -654,7 +660,12 @@ struct ContentView: View {
     }
 
     private func setSettingsVisible(_ visible: Bool) {
-        noAnimation { isSettingsVisible = visible }
+        noAnimation { store.isSettingsVisible = visible }
+    }
+
+    private func syncSavedSelections() {
+        store.normalize()
+        syncChordShape()
     }
 }
 
