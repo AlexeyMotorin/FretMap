@@ -165,6 +165,7 @@ private struct FunctionalProgressionBuilder: View {
     @Binding var chordKind: FunctionalChordKind
     @Binding var chordCount: Int
     @Binding var selectedDegrees: [Int]
+    @StateObject private var audioPlayer = ProgressionAudioPlayer()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -182,6 +183,10 @@ private struct FunctionalProgressionBuilder: View {
 
                 UIKitMenuPicker(title: "Тоника", selection: $selectedRoot, options: noteOptions)
                     .frame(width: 170, height: 40)
+
+                playbackButton {
+                    audioPlayer.play(chords: playbackChords)
+                }
             }
 
             HStack(spacing: 12) {
@@ -252,6 +257,20 @@ private struct FunctionalProgressionBuilder: View {
         }
     }
 
+    private var playbackChords: [PlaybackChord] {
+        Array(selectedDegrees.prefix(chordCount)).map { degree in
+            let index = max(0, min(degree - 1, 6))
+            let root = (selectedRoot + keyMode.intervals[index]) % 12
+            let intervals = switch chordKind {
+            case .triad:
+                triadIntervals(for: keyMode.qualities[index])
+            case .seventh:
+                seventhIntervals(for: keyMode.seventhQualities[index])
+            }
+            return PlaybackChord(rootPitchClass: root, intervals: intervals)
+        }
+    }
+
     private func functionTitle(for degree: Int) -> String {
         switch degree {
         case 1, 3, 6: "T"
@@ -268,6 +287,37 @@ private struct FunctionalProgressionBuilder: View {
         case 2, 6, 7: HarmonyColor.yellow.color
         case 3: HarmonyColor.red.color
         default: AppColors.control
+        }
+    }
+
+    private func playbackButton(action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: audioPlayer.isPlaying ? "stop.fill" : "play.fill")
+                .font(.system(size: 16, weight: .black))
+                .foregroundStyle(AppColors.primaryText)
+                .frame(width: 44, height: 40)
+                .background(AppColors.control, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(audioPlayer.isPlaying ? "Остановить последовательность" : "Воспроизвести последовательность")
+    }
+
+    private func triadIntervals(for suffix: String) -> [Int] {
+        switch suffix {
+        case "m": [0, 3, 7]
+        case "dim": [0, 3, 6]
+        case "aug": [0, 4, 8]
+        default: [0, 4, 7]
+        }
+    }
+
+    private func seventhIntervals(for suffix: String) -> [Int] {
+        switch suffix {
+        case "maj7": [0, 4, 7, 11]
+        case "m7": [0, 3, 7, 10]
+        case "m7b5": [0, 3, 6, 10]
+        case "dim7": [0, 3, 6, 9]
+        default: [0, 4, 7, 10]
         }
     }
 }
@@ -382,6 +432,7 @@ private struct ModalProgressionBuilder: View {
     @Binding var chordKind: FunctionalChordKind
     @Binding var chordCount: Int
     @Binding var selectedDegrees: [Int]
+    @StateObject private var audioPlayer = ProgressionAudioPlayer()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -399,6 +450,10 @@ private struct ModalProgressionBuilder: View {
 
                 UIKitMenuPicker(title: "Тоника", selection: $selectedRoot, options: noteOptions)
                     .frame(width: 170, height: 40)
+
+                playbackButton {
+                    audioPlayer.play(chords: playbackChords)
+                }
             }
 
             HStack(spacing: 12) {
@@ -490,6 +545,21 @@ private struct ModalProgressionBuilder: View {
         }
     }
 
+    private var playbackChords: [PlaybackChord] {
+        Array(selectedDegrees.prefix(chordCount)).map { selectedDegree in
+            let degree = validDegree(selectedDegree)
+            let index = max(0, min(degree - 1, 6))
+            let root = (selectedRoot + selectedMode.intervals[index]) % 12
+            let intervals = switch chordKind {
+            case .triad:
+                triadIntervals(for: selectedMode.cells[index].chord)
+            case .seventh:
+                seventhIntervals(for: degree)
+            }
+            return PlaybackChord(rootPitchClass: root, intervals: intervals)
+        }
+    }
+
     private func triadSuffix(for chord: String) -> String {
         switch chord {
         case "maj": ""
@@ -513,6 +583,37 @@ private struct ModalProgressionBuilder: View {
         case (3, 6, 9): "dim7"
         default: "7"
         }
+    }
+
+    private func triadIntervals(for chord: String) -> [Int] {
+        switch chord {
+        case "m": [0, 3, 7]
+        case "dim": [0, 3, 6]
+        case "aug": [0, 4, 8]
+        default: [0, 4, 7]
+        }
+    }
+
+    private func seventhIntervals(for degree: Int) -> [Int] {
+        let index = max(0, min(degree - 1, 6))
+        return [
+            0,
+            interval(from: index, steps: 2),
+            interval(from: index, steps: 4),
+            interval(from: index, steps: 6)
+        ]
+    }
+
+    private func playbackButton(action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: audioPlayer.isPlaying ? "stop.fill" : "play.fill")
+                .font(.system(size: 16, weight: .black))
+                .foregroundStyle(AppColors.primaryText)
+                .frame(width: 44, height: 40)
+                .background(AppColors.control, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(audioPlayer.isPlaying ? "Остановить последовательность" : "Воспроизвести последовательность")
     }
 
     private func interval(from index: Int, steps: Int) -> Int {
