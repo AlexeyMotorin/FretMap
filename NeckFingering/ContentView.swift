@@ -1,16 +1,29 @@
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
     @StateObject private var store = AppSettingsStore()
+    @State private var isCustomTuningSheetPresented = false
+    @State private var editingCustomTuningID: String?
+    @State private var customTuningDraftName = ""
+    @State private var customTuningDraftPitchClasses: [Int] = []
+    @State private var customTuningTargetMode: AppMode = .modes
+    @FocusState private var isCustomTuningNameFocused: Bool
 
     private let scales = ScalePattern.all
     private let tunings = TuningPreset.all
+    private let manageCustomTuningID = "__manage_custom_tuning__"
 
-    private var noteNames: [String] { store.accidentalStyle.noteNames }
+    private var noteNames: [String] { noteNames(for: store.appMode == .chords || store.isCustomMode ? .chords : .modes) }
+    private var customTuningNoteNames: [String] { noteNames(for: customTuningTargetMode) }
+    private var showsDegreeNumbers: Bool { store.appMode == .chords || store.isCustomMode ? store.chordShowsDegreeNumbers : store.showsDegreeNumbers }
     private var selectedScale: ScalePattern { scales.first { $0.id == store.selectedScaleID } ?? .ionian }
     private var popularScale: ScalePattern { scales.first { $0.id == store.popularScaleID } ?? .ionian }
-    private var compatibleTunings: [TuningPreset] { tunings.filter { $0.stringCount == store.stringCount } }
-    private var selectedTuning: TuningPreset { compatibleTunings.first { $0.id == store.selectedTuningID } ?? compatibleTunings[0] }
+    private var activeFretCount: Int { store.appMode == .chords || store.isCustomMode ? store.chordFretCount : store.fretCount }
+    private var activeTuningStringCount: Int { customTuningTargetMode == .chords ? store.chordStringCount : store.stringCount }
+    private var selectedTuning: TuningPreset {
+        selectedTuning(for: store.appMode == .chords || store.isCustomMode ? .chords : .modes)
+    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -27,6 +40,12 @@ struct ContentView: View {
 
                     modeSwitcherOverlay
                         .zIndex(20)
+
+                    if isCustomTuningSheetPresented {
+                        customTuningWindow(containerSize: proxy.size)
+                            .zIndex(40)
+                            .transition(.identity)
+                    }
                 }
                 .frame(width: proxy.size.width, height: proxy.size.height)
                 .background(AppColors.page.ignoresSafeArea())
@@ -37,6 +56,9 @@ struct ContentView: View {
                 .animation(nil, value: store.appMode)
                 .onAppear {
                     syncSavedSelections()
+                }
+                .onChange(of: isCustomTuningSheetPresented) { isPresented in
+                    AppOrientationController.setSupportedOrientations(isPresented ? .portrait : .landscape)
                 }
             }
         }
@@ -154,7 +176,7 @@ struct ContentView: View {
                 ZStack(alignment: .topLeading) {
                     FretboardView(
                         tuning: selectedTuning,
-                        fretCount: store.fretCount,
+                        fretCount: store.chordFretCount,
                         visibleFretRange: chordVisibleFretRange,
                         markers: chordMarkers,
                         barres: chordBarres,
@@ -232,11 +254,11 @@ struct ContentView: View {
                 UIKitMenuPicker(title: "Лад", selection: noAnimationBinding($store.selectedScaleID), options: scales.map { MenuPickerItem(value: $0.id, title: $0.name) })
                     .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44)
 
-                accidentalPicker
+                accidentalPicker(for: .modes)
                 stringCountPicker
-                tuningPicker
+                tuningPicker(for: .modes)
                 fretStepper
-                degreeNumbersToggle
+                degreeNumbersToggle(for: .modes)
 
                 Divider().overlay(AppColors.mutedText.opacity(0.35))
 
@@ -269,12 +291,13 @@ struct ContentView: View {
                 }
 
                 notePicker(title: "Тоника аккорда", selection: noAnimationBinding($store.chordSettings.root))
-                accidentalPicker
+                accidentalPicker(for: .chords)
                 chordStringCountPicker
-                tuningPicker
+                tuningPicker(for: .chords)
                 chordQualityPicker
                 chordSizePicker
-                degreeNumbersToggle
+                chordExtensionsPicker
+                degreeNumbersToggle(for: .chords)
 
                 Button {
                     store.customPositions.removeAll()
@@ -300,7 +323,7 @@ struct ContentView: View {
         ZStack(alignment: .topLeading) {
             FretboardView(
                 tuning: selectedTuning,
-                fretCount: store.fretCount,
+                fretCount: store.chordFretCount,
                 visibleFretRange: customVisibleFretRange,
                 markers: [],
                 barres: [],
@@ -369,8 +392,8 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44)
     }
 
-    private var accidentalPicker: some View {
-        Picker("Ноты", selection: noAnimationBinding($store.accidentalStyle)) {
+    private func accidentalPicker(for mode: AppMode) -> some View {
+        Picker("Ноты", selection: accidentalStyleBinding(for: mode)) {
             ForEach(AccidentalStyle.allCases) { style in
                 Text(style.title).tag(style)
             }
@@ -396,9 +419,179 @@ struct ContentView: View {
         .pickerStyle(.segmented)
     }
 
-    private var tuningPicker: some View {
-        UIKitMenuPicker(title: "Строй", selection: tuningSelectionBinding, options: compatibleTunings.map { MenuPickerItem(value: $0.id, title: $0.name) })
+    private func tuningPicker(for mode: AppMode) -> some View {
+        UIKitMenuPicker(title: "Строй", selection: tuningSelectionBinding(for: mode), options: tuningMenuOptions(for: mode))
             .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44)
+    }
+
+    private func tuningMenuOptions(for mode: AppMode) -> [MenuPickerItem<String>] {
+        let builtIn = compatibleTunings(for: mode).map { MenuPickerItem(value: $0.id, title: $0.name) }
+        let custom = customTunings(for: mode).map { preset in
+            MenuPickerItem(value: customTuningMenuID(for: preset.id), title: preset.name)
+        }
+        return builtIn + custom + [MenuPickerItem(value: manageCustomTuningID, title: "Создать строй")]
+    }
+
+    private func customTuningWindow(containerSize: CGSize) -> some View {
+        ZStack {
+            KeyboardDismissTapObserver {
+                dismissKeyboard()
+            }
+            .frame(width: 0, height: 0)
+
+            AppColors.page
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    dismissKeyboard()
+                }
+
+            VStack(spacing: 0) {
+                HStack(spacing: 12) {
+                    Text("Создать строй")
+                        .font(.system(.title3, design: .rounded).weight(.black))
+                        .foregroundStyle(AppColors.primaryText)
+
+                    Spacer()
+
+                    Button {
+                        noAnimation { isCustomTuningSheetPresented = false }
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 15, weight: .black))
+                            .foregroundStyle(AppColors.primaryText)
+                            .frame(width: 38, height: 38)
+                            .background(AppColors.control.opacity(0.95), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 12)
+
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        if !customTuningsForTargetMode.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Сохраненные")
+                                    .font(.system(.caption, design: .rounded).weight(.bold))
+                                    .foregroundStyle(AppColors.mutedText)
+
+                                ForEach(customTuningsForTargetMode) { preset in
+                                    customTuningPresetRow(preset)
+                                }
+                            }
+                        }
+
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(editingCustomTuningID == nil ? "Новый строй" : "Редактирование")
+                                .font(.system(.headline, design: .rounded).weight(.bold))
+                                .foregroundStyle(AppColors.primaryText)
+
+                            TextField("Название строя", text: $customTuningDraftName)
+                                .textFieldStyle(.plain)
+                                .foregroundStyle(AppColors.primaryText)
+                                .focused($isCustomTuningNameFocused)
+                                .padding(.horizontal, 14)
+                                .frame(height: 44)
+                                .background(AppColors.control.opacity(0.9), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                            ForEach(0..<activeTuningStringCount, id: \.self) { visualIndex in
+                                let storageIndex = activeTuningStringCount - 1 - visualIndex
+                                UIKitMenuPicker(
+                                    title: "Струна \(visualIndex + 1)",
+                                    selection: customTuningDraftPitchBinding(storageIndex: storageIndex),
+                                    options: customTuningNoteNames.indices.map { MenuPickerItem(value: $0, title: customTuningNoteNames[$0]) }
+                                )
+                                .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40)
+                            }
+                        }
+                        .padding(12)
+                        .background(AppColors.panel.opacity(0.95), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 18)
+                }
+                .scrollDismissesKeyboard(.interactively)
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 8)
+                        .onChanged { _ in
+                            dismissKeyboard()
+                        }
+                )
+
+                HStack(spacing: 12) {
+                    Button {
+                        resetCustomTuningDraft()
+                    } label: {
+                        Text("Сбросить")
+                            .font(.system(.subheadline, design: .rounded).weight(.bold))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button {
+                        saveCustomTuningDraft()
+                    } label: {
+                        Text("OK")
+                            .font(.system(.subheadline, design: .rounded).weight(.black))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(customTuningDraftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                .padding(.horizontal, 18)
+                .padding(.bottom, 18)
+                .padding(.top, 10)
+            }
+            .frame(maxWidth: 430)
+            .background(AppColors.page)
+        }
+        .frame(width: containerSize.width, height: containerSize.height)
+        .clipped()
+        .transaction { transaction in
+            transaction.animation = nil
+            transaction.disablesAnimations = true
+        }
+    }
+
+    private func customTuningPresetRow(_ preset: CustomTuningPreset) -> some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(preset.name)
+                    .font(.system(.subheadline, design: .rounded).weight(.bold))
+                    .foregroundStyle(AppColors.primaryText)
+                Text(tuningSummary(for: preset.pitchClasses))
+                    .font(.system(.caption, design: .rounded).weight(.semibold))
+                    .foregroundStyle(AppColors.mutedText)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Button {
+                editCustomTuning(preset)
+            } label: {
+                Image(systemName: "pencil")
+                    .font(.system(size: 15, weight: .bold))
+                    .frame(width: 34, height: 34)
+            }
+            .buttonStyle(.bordered)
+
+            Button {
+                deleteCustomTuning(preset)
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 15, weight: .bold))
+                    .frame(width: 34, height: 34)
+            }
+            .buttonStyle(.bordered)
+            .tint(.red)
+        }
+        .padding(10)
+        .background(AppColors.control.opacity(0.55), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 
     private var chordQualityPicker: some View {
@@ -415,14 +608,42 @@ struct ContentView: View {
         .pickerStyle(.segmented)
     }
 
+    private var chordExtensionsPicker: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Надстройки")
+                .font(.system(.caption, design: .rounded).weight(.bold))
+                .foregroundStyle(AppColors.mutedText)
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), spacing: 8)], spacing: 8) {
+                ForEach(availableChordExtensions) { item in
+                    let isSelected = store.chordSettings.extensions.contains(item)
+                    Button {
+                        toggleChordExtension(item)
+                    } label: {
+                        Text(item.title)
+                            .font(.system(.caption, design: .rounded).weight(.black))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 34)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(isSelected ? Color.white : AppColors.primaryText)
+                    .background(
+                        isSelected ? AppColors.rootText : AppColors.control.opacity(0.8),
+                        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    )
+                }
+            }
+        }
+    }
+
     private var fretStepper: some View {
         Stepper("Лады: \(store.fretCount)", value: noAnimationBinding($store.fretCount), in: 12...24, step: 1)
             .foregroundStyle(AppColors.primaryText)
             .tint(AppColors.primaryText)
     }
 
-    private var degreeNumbersToggle: some View {
-        Toggle("Ступени", isOn: noAnimationBinding($store.showsDegreeNumbers))
+    private func degreeNumbersToggle(for mode: AppMode) -> some View {
+        Toggle("Ступени", isOn: degreeNumbersBinding(for: mode))
             .toggleStyle(.switch)
             .font(.system(.subheadline, design: .rounded).weight(.semibold))
             .foregroundStyle(AppColors.primaryText)
@@ -479,27 +700,26 @@ struct ContentView: View {
         makeMarkers { stringIndex, fret, pitch in
             guard selectedScale.intervals.contains((pitch - store.rootNote + 12) % 12),
                   let degree = selectedScale.degreeLabel(for: pitch, root: store.rootNote) else { return nil }
-            let label = store.showsDegreeNumbers ? "\(noteNames[pitch])/\(degree)" : noteNames[pitch]
+            let label = showsDegreeNumbers ? "\(noteNames[pitch])/\(degree)" : noteNames[pitch]
             return FretMarker(position: FretPosition(stringIndex: stringIndex, fret: fret), label: label, isRoot: pitch == store.rootNote)
         }
     }
 
     private var chordMarkers: [FretMarker] {
-        guard store.stringCount >= 6 else { return [] }
+        guard store.chordStringCount >= 6 else { return [] }
 
         if let cagedMarkers = cagedChordMarkers {
             return cagedMarkers
         }
 
         let intervals = store.chordSettings.intervals
-        let tones = store.chordSettings.tones
         return makeMarkers { stringIndex, fret, pitch in
             let guitarStringNumber = stringIndex + 1
             guard guitarStringNumber <= store.chordSettings.startString else { return nil }
             let interval = (pitch - store.chordSettings.root + 12) % 12
             guard intervals.contains(interval) else { return nil }
-            let degree = tones.first { $0.interval == interval }?.degree ?? ""
-            let label = store.showsDegreeNumbers ? "\(noteNames[pitch])/\(degree)" : noteNames[pitch]
+            let degree = store.chordSettings.toneLabel(for: interval) ?? ""
+            let label = showsDegreeNumbers ? "\(noteNames[pitch])/\(degree)" : noteNames[pitch]
             return FretMarker(position: FretPosition(stringIndex: stringIndex, fret: fret), label: label, isRoot: interval == 0)
         }
     }
@@ -517,47 +737,135 @@ struct ContentView: View {
         guard let minFret = frets.min(), let maxFret = frets.max() else { return nil }
 
         if minFret == 0 {
-            return 0...min(store.fretCount, max(maxFret + 1, 4))
+            return 0...min(store.chordFretCount, max(maxFret + 1, 4))
         }
 
         let start = max(1, minFret - 1)
-        let end = min(store.fretCount, max(maxFret + 1, start + 3))
+        let end = min(store.chordFretCount, max(maxFret + 1, start + 3))
         return start...end
     }
 
     private var cagedChordMarkers: [FretMarker]? {
         guard usesCagedChordShape, let shape = selectedChordShape else { return nil }
-        let displayedStrings = Array(selectedTuning.strings.reversed())
+        let displayedStrings = Array(selectedTuning(for: .chords).strings.reversed())
         return shape.transposedNotes(to: store.chordSettings.root).compactMap { note in
             let stringIndex = note.stringNumber - 1
-            guard displayedStrings.indices.contains(stringIndex), (0...store.fretCount).contains(note.fret) else { return nil }
+            guard displayedStrings.indices.contains(stringIndex), (0...store.chordFretCount).contains(note.fret) else { return nil }
             let pitch = (displayedStrings[stringIndex].pitchClass + note.fret) % 12
             let interval = (pitch - store.chordSettings.root + 12) % 12
-            let degree = store.chordSettings.tones.first { $0.interval == interval }?.degree ?? (interval == 9 ? "bb7" : "")
-            let label = store.showsDegreeNumbers && !degree.isEmpty ? "\(noteNames[pitch])/\(degree)" : noteNames[pitch]
+            let degree = store.chordSettings.toneLabel(for: interval) ?? (interval == 9 ? "bb7" : "")
+            let label = showsDegreeNumbers && !degree.isEmpty ? "\(noteNames[pitch])/\(degree)" : noteNames[pitch]
             return FretMarker(position: FretPosition(stringIndex: stringIndex, fret: note.fret), label: label, isRoot: interval == 0)
         }
     }
 
     private var usesCagedChordShape: Bool {
-        supportsCagedChordShapes && selectedChordShape != nil
+        selectedChordShape != nil
     }
 
     private var availableChordShapes: [ChordShape] {
-        ChordFingeringDatabase.shapes(
+        if store.chordIsCustomTuningEnabled || store.chordSettings.hasExtensions || !supportsCagedChordShapes {
+            return generatedChordShapes
+        }
+
+        let databaseShapes = ChordFingeringDatabase.shapes(
             quality: store.chordSettings.quality,
             size: store.chordSettings.size,
-            maxRootString: store.stringCount
+            maxRootString: store.chordStringCount
         )
+        return databaseShapes.isEmpty ? generatedChordShapes : databaseShapes
+    }
+
+    private var generatedChordShapes: [ChordShape] {
+        guard store.chordStringCount >= 4 else { return [] }
+        return Array((4...store.chordStringCount).reversed()).compactMap { rootString in
+            generatedChordShape(rootString: rootString)
+        }
+    }
+
+    private func generatedChordShape(rootString: Int) -> ChordShape? {
+        let displayedStrings = Array(selectedTuning(for: .chords).strings.reversed())
+        let rootIndex = rootString - 1
+        guard displayedStrings.indices.contains(rootIndex) else { return nil }
+
+        let maxRootFret = min(store.chordFretCount, 12)
+        guard let rootFret = (0...maxRootFret).first(where: {
+            (displayedStrings[rootIndex].pitchClass + $0) % 12 == store.chordSettings.root
+        }) else {
+            return nil
+        }
+
+        let intervalSet = store.chordSettings.intervals
+        let requiredIntervals = store.chordSettings.requiredIntervals
+        let stringNumbers = Array(max(1, rootString - 4)...rootString)
+        var notes: [ChordShape.Note] = [ChordShape.Note(stringNumber: rootString, fret: rootFret)]
+        var coveredIntervals: Set<Int> = [0]
+
+        for stringNumber in stringNumbers where stringNumber != rootString {
+            guard let note = bestGeneratedNote(
+                stringNumber: stringNumber,
+                rootFret: rootFret,
+                coveredIntervals: coveredIntervals,
+                displayedStrings: displayedStrings,
+                allowedIntervals: intervalSet
+            ) else { continue }
+
+            let pitch = (displayedStrings[stringNumber - 1].pitchClass + note.fret) % 12
+            let interval = (pitch - store.chordSettings.root + 12) % 12
+            notes.append(note)
+            coveredIntervals.insert(interval)
+        }
+
+        guard requiredIntervals.isSubset(of: coveredIntervals) else { return nil }
+
+        return ChordShape(
+            id: "generated-\(store.chordSettings.root)-\(store.chordSettings.quality.rawValue)-\(store.chordSettings.size.rawValue)-\(store.chordSettings.extensions.map(\.rawValue).joined(separator: "-"))-\(rootString)-\(rootFret)",
+            title: "Кастом от \(rootString) струны",
+            quality: store.chordSettings.quality,
+            size: store.chordSettings.size,
+            rootString: rootString,
+            baseRoot: store.chordSettings.root,
+            notes: notes.sorted { $0.stringNumber < $1.stringNumber },
+            barres: []
+        )
+    }
+
+    private func bestGeneratedNote(
+        stringNumber: Int,
+        rootFret: Int,
+        coveredIntervals: Set<Int>,
+        displayedStrings: [GuitarString],
+        allowedIntervals: Set<Int>
+    ) -> ChordShape.Note? {
+        let stringIndex = stringNumber - 1
+        guard displayedStrings.indices.contains(stringIndex) else { return nil }
+
+        let startFret = max(0, rootFret - 2)
+        let endFret = min(store.chordFretCount, rootFret + 5)
+        let candidates = (startFret...endFret).compactMap { fret -> (note: ChordShape.Note, score: Int)? in
+            let pitch = (displayedStrings[stringIndex].pitchClass + fret) % 12
+            let interval = (pitch - store.chordSettings.root + 12) % 12
+            guard allowedIntervals.contains(interval) else { return nil }
+            let duplicatePenalty = coveredIntervals.contains(interval) ? 80 : 0
+            let distancePenalty = abs(fret - rootFret) * 4
+            let openStringBonus = fret == 0 ? -3 : 0
+            return (ChordShape.Note(stringNumber: stringNumber, fret: fret), duplicatePenalty + distancePenalty + openStringBonus)
+        }
+
+        return candidates.min { $0.score < $1.score }?.note
     }
 
     private var supportsCagedChordShapes: Bool {
         let standardTopSix = [4, 9, 2, 7, 11, 4]
-        return selectedTuning.strings.suffix(6).map(\.pitchClass) == standardTopSix
+        return selectedTuning(for: .chords).strings.suffix(6).map(\.pitchClass) == standardTopSix
     }
 
     private var availableChordSizes: [ChordSize] {
         ChordSize.available(for: store.chordSettings.quality)
+    }
+
+    private var availableChordExtensions: [ChordExtension] {
+        ChordExtension.allCases.filter { $0.isAvailable(for: store.chordSettings.quality) }
     }
 
     private var selectedChordShape: ChordShape? {
@@ -587,6 +895,10 @@ struct ContentView: View {
         if !availableChordSizes.contains(store.chordSettings.size) {
             store.chordSettings.size = availableChordSizes.first ?? .triad
         }
+        let validExtensions = store.chordSettings.extensions.filter { $0.isAvailable(for: store.chordSettings.quality) }
+        if validExtensions != store.chordSettings.extensions {
+            store.chordSettings.extensions = validExtensions
+        }
         guard let firstShape = availableChordShapes.first else { return }
         if !availableChordShapes.contains(where: { $0.id == store.chordSettings.shapeID }) {
             store.chordSettings.shapeID = firstShape.id
@@ -601,8 +913,19 @@ struct ContentView: View {
         noAnimation { store.chordSettings.shapeID = shapes[nextIndex].id }
     }
 
+    private func toggleChordExtension(_ item: ChordExtension) {
+        noAnimation {
+            if store.chordSettings.extensions.contains(item) {
+                store.chordSettings.extensions.removeAll { $0 == item }
+            } else {
+                store.chordSettings.extensions.append(item)
+            }
+            syncChordShape()
+        }
+    }
+
     private var customVisibleFretRange: ClosedRange<Int> {
-        0...min(store.fretCount, 12)
+        0...min(store.chordFretCount, 12)
     }
 
     private var customPositionLabels: [FretPosition: String] {
@@ -619,7 +942,7 @@ struct ContentView: View {
         var markers: [FretMarker] = []
         for stringIndex in displayedStrings.indices {
             let string = displayedStrings[stringIndex]
-            for fret in 0...store.fretCount {
+            for fret in 0...activeFretCount {
                 let pitch = (string.pitchClass + fret) % 12
                 if let marker = builder(stringIndex, fret, pitch) {
                     markers.append(marker)
@@ -660,11 +983,34 @@ struct ContentView: View {
 
     private var chordStringCountBinding: Binding<Int> {
         Binding(
-            get: { max(store.stringCount, 6) },
+            get: { max(store.chordStringCount, 6) },
             set: { newValue in
-                noAnimation { setStringCount(max(newValue, 6)) }
+                noAnimation { setChordStringCount(max(newValue, 6)) }
             }
         )
+    }
+
+    private func customTuningDraftPitchBinding(storageIndex: Int) -> Binding<Int> {
+        Binding(
+            get: {
+                guard customTuningDraftPitchClasses.indices.contains(storageIndex) else {
+                    return defaultTuningPitchClasses(for: activeTuningStringCount)[storageIndex]
+                }
+                return customTuningDraftPitchClasses[storageIndex]
+            },
+            set: { newValue in
+                noAnimation {
+                    ensureCustomTuningDraftPitchCount()
+                    guard customTuningDraftPitchClasses.indices.contains(storageIndex) else { return }
+                    customTuningDraftPitchClasses[storageIndex] = newValue
+                }
+            }
+        )
+    }
+
+    private func dismissKeyboard() {
+        isCustomTuningNameFocused = false
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
     private var chordQualityBinding: Binding<ChordQuality> {
@@ -705,13 +1051,70 @@ struct ContentView: View {
         )
     }
 
-    private var tuningSelectionBinding: Binding<String> {
+    private func compatibleTunings(for mode: AppMode) -> [TuningPreset] {
+        tunings.filter { $0.stringCount == stringCount(for: mode) }
+    }
+
+    private func customTunings(for mode: AppMode) -> [CustomTuningPreset] {
+        store.customTuningPresets.filter { $0.stringCount == stringCount(for: mode) }
+    }
+
+    private var customTuningsForTargetMode: [CustomTuningPreset] {
+        store.customTuningPresets.filter { $0.stringCount == activeTuningStringCount }
+    }
+
+    private func selectedCustomTuning(for mode: AppMode) -> CustomTuningPreset? {
+        let stringCount = stringCount(for: mode)
+        let selectedID = mode == .chords ? store.chordSelectedCustomTuningID : store.selectedCustomTuningID
+        guard let selectedID else { return nil }
+        return store.customTuningPresets.first { $0.id == selectedID && $0.stringCount == stringCount }
+    }
+
+    private func selectedTuning(for mode: AppMode) -> TuningPreset {
+        let stringCount = stringCount(for: mode)
+        if let selectedCustomTuning = selectedCustomTuning(for: mode) {
+            return TuningPreset.custom(
+                id: customTuningMenuID(for: selectedCustomTuning.id),
+                name: selectedCustomTuning.name,
+                stringCount: stringCount,
+                pitchClasses: selectedCustomTuning.pitchClasses,
+                noteNames: noteNames(for: mode)
+            )
+        }
+        let tuningID = mode == .chords ? store.chordSelectedTuningID : store.selectedTuningID
+        let compatibleTunings = compatibleTunings(for: mode)
+        return compatibleTunings.first { $0.id == tuningID } ?? compatibleTunings[0]
+    }
+
+    private func stringCount(for mode: AppMode) -> Int {
+        mode == .chords ? store.chordStringCount : store.stringCount
+    }
+
+    private func noteNames(for mode: AppMode) -> [String] {
+        (mode == .chords ? store.chordAccidentalStyle : store.accidentalStyle).noteNames
+    }
+
+    private func tuningSelectionBinding(for mode: AppMode) -> Binding<String> {
         Binding(
-            get: { selectedTuning.id },
+            get: {
+                if let selectedCustomTuning = selectedCustomTuning(for: mode) {
+                    return customTuningMenuID(for: selectedCustomTuning.id)
+                }
+                return selectedTuning(for: mode).id
+            },
             set: { newValue in
                 noAnimation {
-                    store.selectedTuningID = newValue
-                    syncChordShape()
+                    if newValue == manageCustomTuningID {
+                        customTuningTargetMode = mode
+                        prepareNewCustomTuningDraft()
+                        isCustomTuningSheetPresented = true
+                    } else if let customID = customTuningID(fromMenuID: newValue) {
+                        setSelectedCustomTuning(customID, for: mode)
+                        syncChordShape()
+                    } else {
+                        setSelectedBuiltInTuning(newValue, for: mode)
+                        syncChordShape()
+                    }
                 }
             }
         )
@@ -719,6 +1122,36 @@ struct ContentView: View {
 
     private func noAnimationBinding<Value>(_ binding: Binding<Value>) -> Binding<Value> {
         Binding(get: { binding.wrappedValue }, set: { value in noAnimation { binding.wrappedValue = value } })
+    }
+
+    private func accidentalStyleBinding(for mode: AppMode) -> Binding<AccidentalStyle> {
+        Binding(
+            get: { mode == .chords ? store.chordAccidentalStyle : store.accidentalStyle },
+            set: { newValue in
+                noAnimation {
+                    if mode == .chords {
+                        store.chordAccidentalStyle = newValue
+                    } else {
+                        store.accidentalStyle = newValue
+                    }
+                }
+            }
+        )
+    }
+
+    private func degreeNumbersBinding(for mode: AppMode) -> Binding<Bool> {
+        Binding(
+            get: { mode == .chords ? store.chordShowsDegreeNumbers : store.showsDegreeNumbers },
+            set: { newValue in
+                noAnimation {
+                    if mode == .chords {
+                        store.chordShowsDegreeNumbers = newValue
+                    } else {
+                        store.showsDegreeNumbers = newValue
+                    }
+                }
+            }
+        )
     }
 
     private func noAnimation(_ updates: () -> Void) {
@@ -734,20 +1167,24 @@ struct ContentView: View {
 
     private func syncSavedSelections() {
         store.normalize()
-        if store.appMode == .chords {
-            ensureChordStringCount()
-        }
+        ensureChordStringCount()
         syncChordShape()
     }
 
     private func ensureChordStringCount() {
-        if store.stringCount < 6 {
-            setStringCount(6)
+        if store.chordStringCount < 6 {
+            setChordStringCount(6)
         }
     }
 
     private func setStringCount(_ count: Int) {
+        let previousCustomTuningID = store.selectedCustomTuningID
         store.stringCount = count
+        if let previousCustomTuningID,
+           !store.customTuningPresets.contains(where: { $0.id == previousCustomTuningID && $0.stringCount == count }) {
+            store.selectedCustomTuningID = nil
+            store.isCustomTuningEnabled = false
+        }
         store.chordSettings.startString = min(store.chordSettings.startString, count)
         let tuningsForCount = tunings.filter { $0.stringCount == count }
         guard let firstTuning = tuningsForCount.first else { return }
@@ -755,6 +1192,201 @@ struct ContentView: View {
             store.selectedTuningID = firstTuning.id
         }
         syncChordShape()
+    }
+
+    private func setChordStringCount(_ count: Int) {
+        let count = max(count, 6)
+        let previousCustomTuningID = store.chordSelectedCustomTuningID
+        store.chordStringCount = count
+        if let previousCustomTuningID,
+           !store.customTuningPresets.contains(where: { $0.id == previousCustomTuningID && $0.stringCount == count }) {
+            store.chordSelectedCustomTuningID = nil
+            store.chordIsCustomTuningEnabled = false
+        }
+        store.chordSettings.startString = min(store.chordSettings.startString, count)
+        let tuningsForCount = tunings.filter { $0.stringCount == count }
+        guard let firstTuning = tuningsForCount.first else { return }
+        if !tuningsForCount.contains(where: { $0.id == store.chordSelectedTuningID }) {
+            store.chordSelectedTuningID = firstTuning.id
+        }
+        syncChordShape()
+    }
+
+    private func setSelectedCustomTuning(_ customID: String, for mode: AppMode) {
+        if mode == .chords {
+            store.chordSelectedCustomTuningID = customID
+            store.chordIsCustomTuningEnabled = true
+        } else {
+            store.selectedCustomTuningID = customID
+            store.isCustomTuningEnabled = true
+        }
+    }
+
+    private func setSelectedBuiltInTuning(_ tuningID: String, for mode: AppMode) {
+        if mode == .chords {
+            store.chordSelectedCustomTuningID = nil
+            store.chordIsCustomTuningEnabled = false
+            store.chordSelectedTuningID = tuningID
+        } else {
+            store.selectedCustomTuningID = nil
+            store.isCustomTuningEnabled = false
+            store.selectedTuningID = tuningID
+        }
+    }
+
+    private func customTuningMenuID(for id: String) -> String {
+        "custom:\(id)"
+    }
+
+    private func customTuningID(fromMenuID menuID: String) -> String? {
+        guard menuID.hasPrefix("custom:") else { return nil }
+        return String(menuID.dropFirst("custom:".count))
+    }
+
+    private func tuningSummary(for pitchClasses: [Int]) -> String {
+        pitchClasses.reversed().map { customTuningNoteNames[$0] }.joined(separator: " ")
+    }
+
+    private func defaultTuningPitchClasses(for stringCount: Int) -> [Int] {
+        let fallback = tunings.first { $0.stringCount == stringCount }?.strings.map(\.pitchClass) ?? Array(repeating: 0, count: stringCount)
+        return fallback
+    }
+
+    private func ensureCustomTuningDraftPitchCount() {
+        let fallback = defaultTuningPitchClasses(for: activeTuningStringCount)
+        customTuningDraftPitchClasses = Array(customTuningDraftPitchClasses.prefix(activeTuningStringCount))
+        while customTuningDraftPitchClasses.count < activeTuningStringCount {
+            customTuningDraftPitchClasses.append(fallback[customTuningDraftPitchClasses.count])
+        }
+        customTuningDraftPitchClasses = customTuningDraftPitchClasses.map { min(max($0, 0), 11) }
+    }
+
+    private func prepareNewCustomTuningDraft() {
+        editingCustomTuningID = nil
+        customTuningDraftName = ""
+        customTuningDraftPitchClasses = selectedTuning(for: customTuningTargetMode).strings.map(\.pitchClass)
+        ensureCustomTuningDraftPitchCount()
+    }
+
+    private func resetCustomTuningDraft() {
+        prepareNewCustomTuningDraft()
+    }
+
+    private func editCustomTuning(_ preset: CustomTuningPreset) {
+        editingCustomTuningID = preset.id
+        customTuningDraftName = preset.name
+        customTuningDraftPitchClasses = preset.pitchClasses
+        ensureCustomTuningDraftPitchCount()
+    }
+
+    private func saveCustomTuningDraft() {
+        let name = customTuningDraftName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        ensureCustomTuningDraftPitchCount()
+
+        if let editingCustomTuningID,
+           let index = store.customTuningPresets.firstIndex(where: { $0.id == editingCustomTuningID }) {
+            var presets = store.customTuningPresets
+            presets[index].name = name
+            presets[index].stringCount = activeTuningStringCount
+            presets[index].pitchClasses = customTuningDraftPitchClasses
+            store.customTuningPresets = presets
+            setSelectedCustomTuning(editingCustomTuningID, for: customTuningTargetMode)
+        } else {
+            let preset = CustomTuningPreset(
+                name: name,
+                stringCount: activeTuningStringCount,
+                pitchClasses: customTuningDraftPitchClasses
+            )
+            store.customTuningPresets.append(preset)
+            setSelectedCustomTuning(preset.id, for: customTuningTargetMode)
+        }
+
+        syncChordShape()
+        isCustomTuningSheetPresented = false
+    }
+
+    private func deleteCustomTuning(_ preset: CustomTuningPreset) {
+        store.customTuningPresets.removeAll { $0.id == preset.id }
+        if store.selectedCustomTuningID == preset.id {
+            store.selectedCustomTuningID = nil
+            store.isCustomTuningEnabled = false
+        }
+        if store.chordSelectedCustomTuningID == preset.id {
+            store.chordSelectedCustomTuningID = nil
+            store.chordIsCustomTuningEnabled = false
+        }
+        if editingCustomTuningID == preset.id {
+            prepareNewCustomTuningDraft()
+        }
+        syncChordShape()
+    }
+}
+
+private struct KeyboardDismissTapObserver: UIViewRepresentable {
+    let onTapOutsideTextInput: () -> Void
+
+    func makeUIView(context: Context) -> KeyboardDismissTapView {
+        let view = KeyboardDismissTapView()
+        view.onTapOutsideTextInput = onTapOutsideTextInput
+        return view
+    }
+
+    func updateUIView(_ view: KeyboardDismissTapView, context: Context) {
+        view.onTapOutsideTextInput = onTapOutsideTextInput
+    }
+}
+
+private final class KeyboardDismissTapView: UIView, UIGestureRecognizerDelegate {
+    var onTapOutsideTextInput: () -> Void = {}
+
+    private weak var installedWindow: UIWindow?
+    private weak var tapRecognizer: UITapGestureRecognizer?
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        installRecognizer(on: window)
+    }
+
+    deinit {
+        if let tapRecognizer {
+            installedWindow?.removeGestureRecognizer(tapRecognizer)
+        }
+    }
+
+    private func installRecognizer(on newWindow: UIWindow?) {
+        guard installedWindow !== newWindow else { return }
+
+        if let tapRecognizer {
+            installedWindow?.removeGestureRecognizer(tapRecognizer)
+        }
+
+        installedWindow = newWindow
+        guard let newWindow else {
+            tapRecognizer = nil
+            return
+        }
+
+        let recognizer = UITapGestureRecognizer(target: self, action: #selector(handleTap))
+        recognizer.cancelsTouchesInView = false
+        recognizer.delegate = self
+        newWindow.addGestureRecognizer(recognizer)
+        tapRecognizer = recognizer
+    }
+
+    @objc private func handleTap() {
+        onTapOutsideTextInput()
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        var view = touch.view
+        while let currentView = view {
+            if currentView is UITextField || currentView is UITextView {
+                return false
+            }
+            view = currentView.superview
+        }
+        return true
     }
 }
 

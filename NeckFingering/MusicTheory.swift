@@ -61,12 +61,30 @@ struct GuitarString: Identifiable, Equatable {
     let pitchClass: Int
 }
 
+struct CustomTuningPreset: Identifiable, Equatable, Codable {
+    var id: String = UUID().uuidString
+    var name: String
+    var stringCount: Int
+    var pitchClasses: [Int]
+}
+
 struct TuningPreset: Identifiable, Equatable {
     let id: String
     let name: String
     let strings: [GuitarString]
 
     var stringCount: Int { strings.count }
+
+    static func custom(stringCount: Int, pitchClasses: [Int], noteNames: [String]) -> TuningPreset {
+        custom(id: "custom-\(stringCount)", name: "Кастомный", stringCount: stringCount, pitchClasses: pitchClasses, noteNames: noteNames)
+    }
+
+    static func custom(id: String, name: String, stringCount: Int, pitchClasses: [Int], noteNames: [String]) -> TuningPreset {
+        let strings = Array(pitchClasses.prefix(stringCount)).enumerated().map { index, pitchClass in
+            GuitarString(label: noteNames[pitchClass], pitchClass: pitchClass)
+        }
+        return TuningPreset(id: id, name: name, strings: strings)
+    }
 
     static let standard6 = TuningPreset(
         id: "standard-6",
@@ -261,6 +279,7 @@ enum ChordSize: String, CaseIterable, Identifiable, Codable {
     case dominantSeventh
     case minorSeventh
     case halfDiminished
+    case diminishedSeventh
 
     var id: String { rawValue }
 
@@ -271,36 +290,85 @@ enum ChordSize: String, CaseIterable, Identifiable, Codable {
         case .dominantSeventh: "7"
         case .minorSeventh: "m7"
         case .halfDiminished: "m7b5"
-        }
-    }
-
-    var intervals: [Int]? {
-        switch self {
-        case .triad: nil
-        case .majorSeventh: [0, 4, 7, 11]
-        case .dominantSeventh: [0, 4, 7, 10]
-        case .minorSeventh: [0, 3, 7, 10]
-        case .halfDiminished: [0, 3, 6, 10]
-        }
-    }
-
-    var degreeNames: [String]? {
-        switch self {
-        case .triad: nil
-        case .majorSeventh: ["1", "3", "5", "7"]
-        case .dominantSeventh: ["1", "3", "5", "b7"]
-        case .minorSeventh: ["1", "b3", "5", "b7"]
-        case .halfDiminished: ["1", "b3", "b5", "b7"]
+        case .diminishedSeventh: "dim7"
         }
     }
 
     static func available(for quality: ChordQuality) -> [ChordSize] {
         switch quality {
         case .major: [.triad, .majorSeventh, .dominantSeventh]
-        case .minor: [.triad, .minorSeventh]
-        case .diminished: [.triad, .halfDiminished]
-        case .augmented: [.triad]
+        case .minor: [.triad, .minorSeventh, .majorSeventh]
+        case .diminished: [.triad, .halfDiminished, .diminishedSeventh]
+        case .augmented: [.triad, .dominantSeventh]
         }
+    }
+}
+
+enum ChordExtension: String, CaseIterable, Identifiable, Codable {
+    case sixth
+    case thirteenth
+    case flat6
+    case flat13
+    case add9
+    case flat9
+    case sharp9
+    case add11
+    case sharp11
+    case sharp13
+    case noFifth
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .add9: "add9"
+        case .add11: "add11"
+        case .sixth: "6"
+        case .thirteenth: "13"
+        case .flat9: "b9"
+        case .sharp9: "#9"
+        case .sharp11: "#11"
+        case .flat6: "b6"
+        case .flat13: "b13"
+        case .sharp13: "#13"
+        case .noFifth: "no5"
+        }
+    }
+
+    var suffix: String {
+        switch self {
+        case .add9: "add9"
+        case .add11: "add11"
+        case .sixth: "6"
+        case .thirteenth: "13"
+        case .flat9: "b9"
+        case .sharp9: "#9"
+        case .sharp11: "#11"
+        case .flat6: "b6"
+        case .flat13: "b13"
+        case .sharp13: "#13"
+        case .noFifth: "(no5)"
+        }
+    }
+
+    var tone: ChordTone? {
+        switch self {
+        case .add9: ChordTone(interval: 2, degree: "9")
+        case .add11: ChordTone(interval: 5, degree: "11")
+        case .sixth: ChordTone(interval: 9, degree: "6")
+        case .thirteenth: ChordTone(interval: 9, degree: "13")
+        case .flat9: ChordTone(interval: 1, degree: "b9")
+        case .sharp9: ChordTone(interval: 3, degree: "#9")
+        case .sharp11: ChordTone(interval: 6, degree: "#11")
+        case .flat6: ChordTone(interval: 8, degree: "b6")
+        case .flat13: ChordTone(interval: 8, degree: "b13")
+        case .sharp13: ChordTone(interval: 10, degree: "#13")
+        case .noFifth: nil
+        }
+    }
+
+    func isAvailable(for quality: ChordQuality) -> Bool {
+        self != .noFifth || quality == .major || quality == .minor
     }
 }
 
@@ -315,9 +383,45 @@ struct ChordSettings: Codable {
     var size: ChordSize = .triad
     var startString: Int = 6
     var shapeID: String = "major-e"
+    var extensions: [ChordExtension] = []
+
+    init(
+        root: Int = 0,
+        quality: ChordQuality = .major,
+        size: ChordSize = .triad,
+        startString: Int = 6,
+        shapeID: String = "major-e",
+        extensions: [ChordExtension] = []
+    ) {
+        self.root = root
+        self.quality = quality
+        self.size = size
+        self.startString = startString
+        self.shapeID = shapeID
+        self.extensions = extensions
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case root
+        case quality
+        case size
+        case startString
+        case shapeID
+        case extensions
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        root = try container.decodeIfPresent(Int.self, forKey: .root) ?? 0
+        quality = try container.decodeIfPresent(ChordQuality.self, forKey: .quality) ?? .major
+        size = try container.decodeIfPresent(ChordSize.self, forKey: .size) ?? .triad
+        startString = try container.decodeIfPresent(Int.self, forKey: .startString) ?? 6
+        shapeID = try container.decodeIfPresent(String.self, forKey: .shapeID) ?? "major-e"
+        extensions = try container.decodeIfPresent([ChordExtension].self, forKey: .extensions) ?? []
+    }
 
     var displaySuffix: String {
-        switch size {
+        let baseSuffix: String = switch size {
         case .triad:
             switch quality {
             case .major: ""
@@ -325,26 +429,108 @@ struct ChordSettings: Codable {
             case .augmented: "aug"
             case .diminished: "dim"
             }
-        case .majorSeventh: "maj7"
-        case .dominantSeventh: "7"
+        case .majorSeventh:
+            switch quality {
+            case .major: "maj7"
+            case .minor: "m(maj7)"
+            case .augmented: "aug(maj7)"
+            case .diminished: "dim(maj7)"
+            }
+        case .dominantSeventh:
+            switch quality {
+            case .major: "7"
+            case .minor: "m7"
+            case .augmented: "aug7"
+            case .diminished: "dim7"
+            }
         case .minorSeventh: "m7"
         case .halfDiminished: "m7b5"
+        case .diminishedSeventh: "dim7"
         }
+
+        var suffix = baseSuffix
+        for item in extensionItems {
+            if item == .noFifth {
+                suffix += item.suffix
+            } else if baseSuffix.isEmpty || baseSuffix == "m" || baseSuffix == "aug" || baseSuffix == "dim" {
+                suffix += item.suffix
+            } else {
+                suffix += "/\(item.suffix)"
+            }
+        }
+        return suffix
+    }
+
+    var extensionItems: [ChordExtension] {
+        let allowed = extensions.filter { $0.isAvailable(for: quality) }
+        return ChordExtension.allCases.filter { allowed.contains($0) }
+    }
+
+    var omitsFifth: Bool {
+        extensionItems.contains(.noFifth)
+    }
+
+    var hasExtensions: Bool {
+        !extensionItems.isEmpty
+    }
+
+    var baseTones: [ChordTone] {
+        var tones = quality.triadIntervals.enumerated().map { index, interval in
+            ChordTone(interval: interval, degree: quality.triadDegrees[index])
+        }
+
+        switch size {
+        case .triad:
+            break
+        case .majorSeventh:
+            tones.append(ChordTone(interval: 11, degree: "7"))
+        case .dominantSeventh, .minorSeventh:
+            tones.append(ChordTone(interval: 10, degree: "b7"))
+        case .halfDiminished:
+            tones = [
+                ChordTone(interval: 0, degree: "1"),
+                ChordTone(interval: 3, degree: "b3"),
+                ChordTone(interval: 6, degree: "b5"),
+                ChordTone(interval: 10, degree: "b7")
+            ]
+        case .diminishedSeventh:
+            tones = [
+                ChordTone(interval: 0, degree: "1"),
+                ChordTone(interval: 3, degree: "b3"),
+                ChordTone(interval: 6, degree: "b5"),
+                ChordTone(interval: 9, degree: "bb7")
+            ]
+        }
+
+        if omitsFifth {
+            tones.removeAll { $0.degree == "5" }
+        }
+        return tones
+    }
+
+    var extensionTones: [ChordTone] {
+        extensionItems.compactMap(\.tone)
     }
 
     var tones: [ChordTone] {
-        if let intervals = size.intervals, let degreeNames = size.degreeNames {
-            return intervals.enumerated().map { index, interval in
-                ChordTone(interval: interval, degree: degreeNames[index])
-            }
-        }
-
-        return quality.triadIntervals.enumerated().map { index, interval in
-            ChordTone(interval: interval, degree: quality.triadDegrees[index])
-        }
+        uniqueTones(extensionTones + baseTones)
     }
 
     var intervals: Set<Int> { Set(tones.map(\.interval)) }
+    var requiredIntervals: Set<Int> { Set(baseTones.map(\.interval)) }
+
+    func toneLabel(for interval: Int) -> String? {
+        tones.first { $0.interval == interval }?.degree
+    }
+
+    private func uniqueTones(_ tones: [ChordTone]) -> [ChordTone] {
+        var seen: Set<Int> = []
+        return tones.filter { tone in
+            guard !seen.contains(tone.interval) else { return false }
+            seen.insert(tone.interval)
+            return true
+        }
+    }
 }
 
 struct ChordShape: Identifiable, Equatable {

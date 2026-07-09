@@ -11,7 +11,18 @@ final class AppSettingsStore: ObservableObject {
     @Published var selectedScaleID: String { didSet { save() } }
     @Published var stringCount: Int { didSet { save() } }
     @Published var selectedTuningID: String { didSet { save() } }
+    @Published var isCustomTuningEnabled: Bool { didSet { save() } }
+    @Published var customTuningPitchClasses: [Int: [Int]] { didSet { save() } }
+    @Published var customTuningPresets: [CustomTuningPreset] { didSet { save() } }
+    @Published var selectedCustomTuningID: String? { didSet { save() } }
     @Published var fretCount: Int { didSet { save() } }
+    @Published var chordStringCount: Int { didSet { save() } }
+    @Published var chordSelectedTuningID: String { didSet { save() } }
+    @Published var chordIsCustomTuningEnabled: Bool { didSet { save() } }
+    @Published var chordSelectedCustomTuningID: String? { didSet { save() } }
+    @Published var chordFretCount: Int { didSet { save() } }
+    @Published var chordAccidentalStyle: AccidentalStyle { didSet { save() } }
+    @Published var chordShowsDegreeNumbers: Bool { didSet { save() } }
     @Published var accidentalStyle: AccidentalStyle { didSet { save() } }
     @Published var isSettingsVisible: Bool { didSet { save() } }
     @Published var chordSettings: ChordSettings { didSet { save() } }
@@ -45,7 +56,18 @@ final class AppSettingsStore: ObservableObject {
         selectedScaleID = snapshot.selectedScaleID
         stringCount = snapshot.stringCount
         selectedTuningID = snapshot.selectedTuningID
+        isCustomTuningEnabled = snapshot.isCustomTuningEnabled ?? false
+        customTuningPitchClasses = snapshot.customTuningPitchClasses ?? [:]
+        customTuningPresets = snapshot.customTuningPresets ?? []
+        selectedCustomTuningID = snapshot.selectedCustomTuningID
         fretCount = snapshot.fretCount
+        chordStringCount = snapshot.chordStringCount ?? max(snapshot.stringCount, 6)
+        chordSelectedTuningID = snapshot.chordSelectedTuningID ?? snapshot.selectedTuningID
+        chordIsCustomTuningEnabled = snapshot.chordIsCustomTuningEnabled ?? (snapshot.isCustomTuningEnabled ?? false)
+        chordSelectedCustomTuningID = snapshot.chordSelectedCustomTuningID ?? snapshot.selectedCustomTuningID
+        chordFretCount = snapshot.chordFretCount ?? snapshot.fretCount
+        chordAccidentalStyle = snapshot.chordAccidentalStyle ?? snapshot.accidentalStyle
+        chordShowsDegreeNumbers = snapshot.chordShowsDegreeNumbers ?? snapshot.showsDegreeNumbers
         accidentalStyle = snapshot.accidentalStyle
         isSettingsVisible = snapshot.isSettingsVisible
         chordSettings = snapshot.chordSettings
@@ -79,7 +101,12 @@ final class AppSettingsStore: ObservableObject {
         functionalRoot = clampedPitch(functionalRoot)
         modalRoot = clampedPitch(modalRoot)
         stringCount = min(max(stringCount, 4), 8)
+        chordStringCount = min(max(chordStringCount, 6), 8)
+        customTuningPitchClasses = normalizedCustomTunings(customTuningPitchClasses)
+        migrateLegacyCustomTuningIfNeeded()
+        customTuningPresets = normalizedCustomTuningPresets(customTuningPresets)
         fretCount = min(max(fretCount, 12), 24)
+        chordFretCount = min(max(chordFretCount, 12), 24)
         functionalChordCount = functionalChordCount == 8 ? 8 : 4
         modalChordCount = modalChordCount == 8 ? 8 : 4
         functionalSelectedDegrees = normalizedDegrees(functionalSelectedDegrees, fallback: 1, allowed: Array(1...7))
@@ -93,6 +120,17 @@ final class AppSettingsStore: ObservableObject {
         }
         if !TuningPreset.all.contains(where: { $0.id == selectedTuningID && $0.stringCount == stringCount }) {
             selectedTuningID = TuningPreset.all.first { $0.stringCount == stringCount }?.id ?? TuningPreset.standard6.id
+        }
+        if !TuningPreset.all.contains(where: { $0.id == chordSelectedTuningID && $0.stringCount == chordStringCount }) {
+            chordSelectedTuningID = TuningPreset.all.first { $0.stringCount == chordStringCount }?.id ?? TuningPreset.standard6.id
+        }
+        if let selectedCustomTuningID, !customTuningPresets.contains(where: { $0.id == selectedCustomTuningID && $0.stringCount == stringCount }) {
+            self.selectedCustomTuningID = nil
+            isCustomTuningEnabled = false
+        }
+        if let chordSelectedCustomTuningID, !customTuningPresets.contains(where: { $0.id == chordSelectedCustomTuningID && $0.stringCount == chordStringCount }) {
+            self.chordSelectedCustomTuningID = nil
+            chordIsCustomTuningEnabled = false
         }
         if !ChordSize.available(for: chordSettings.quality).contains(chordSettings.size) {
             chordSettings.size = ChordSize.available(for: chordSettings.quality).first ?? .triad
@@ -120,7 +158,18 @@ final class AppSettingsStore: ObservableObject {
             selectedScaleID: selectedScaleID,
             stringCount: stringCount,
             selectedTuningID: selectedTuningID,
+            isCustomTuningEnabled: isCustomTuningEnabled,
+            customTuningPitchClasses: customTuningPitchClasses,
+            customTuningPresets: customTuningPresets,
+            selectedCustomTuningID: selectedCustomTuningID,
             fretCount: fretCount,
+            chordStringCount: chordStringCount,
+            chordSelectedTuningID: chordSelectedTuningID,
+            chordIsCustomTuningEnabled: chordIsCustomTuningEnabled,
+            chordSelectedCustomTuningID: chordSelectedCustomTuningID,
+            chordFretCount: chordFretCount,
+            chordAccidentalStyle: chordAccidentalStyle,
+            chordShowsDegreeNumbers: chordShowsDegreeNumbers,
             accidentalStyle: accidentalStyle,
             isSettingsVisible: isSettingsVisible,
             chordSettings: chordSettings,
@@ -150,6 +199,47 @@ final class AppSettingsStore: ObservableObject {
         guard let data = defaults.data(forKey: storageKey) else { return nil }
         return try? JSONDecoder().decode(AppSettingsSnapshot.self, from: data)
     }
+
+    private func normalizedCustomTunings(_ tunings: [Int: [Int]]) -> [Int: [Int]] {
+        var result = tunings
+        for stringCount in 4...8 {
+            let fallback = TuningPreset.all.first { $0.stringCount == stringCount }?.strings.map(\.pitchClass) ?? Array(repeating: 0, count: stringCount)
+            var pitches = Array((result[stringCount] ?? fallback).prefix(stringCount))
+            while pitches.count < stringCount {
+                pitches.append(fallback[pitches.count])
+            }
+            result[stringCount] = pitches.map(clampedPitch)
+        }
+        return result
+    }
+
+    private func migrateLegacyCustomTuningIfNeeded() {
+        guard customTuningPresets.isEmpty, isCustomTuningEnabled else { return }
+        let pitches = customTuningPitchClasses[stringCount] ?? TuningPreset.all.first { $0.stringCount == stringCount }?.strings.map(\.pitchClass)
+        guard let pitches else { return }
+        let preset = CustomTuningPreset(name: "Кастомный", stringCount: stringCount, pitchClasses: pitches)
+        customTuningPresets = [preset]
+        selectedCustomTuningID = preset.id
+    }
+
+    private func normalizedCustomTuningPresets(_ presets: [CustomTuningPreset]) -> [CustomTuningPreset] {
+        presets.compactMap { preset in
+            let stringCount = min(max(preset.stringCount, 4), 8)
+            let fallback = TuningPreset.all.first { $0.stringCount == stringCount }?.strings.map(\.pitchClass) ?? Array(repeating: 0, count: stringCount)
+            var pitches = Array(preset.pitchClasses.prefix(stringCount))
+            while pitches.count < stringCount {
+                pitches.append(fallback[pitches.count])
+            }
+            let name = preset.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else { return nil }
+            return CustomTuningPreset(
+                id: preset.id,
+                name: name,
+                stringCount: stringCount,
+                pitchClasses: pitches.map(clampedPitch)
+            )
+        }
+    }
 }
 
 private struct AppSettingsSnapshot: Codable {
@@ -158,7 +248,18 @@ private struct AppSettingsSnapshot: Codable {
     var selectedScaleID: String
     var stringCount: Int
     var selectedTuningID: String
+    var isCustomTuningEnabled: Bool?
+    var customTuningPitchClasses: [Int: [Int]]?
+    var customTuningPresets: [CustomTuningPreset]?
+    var selectedCustomTuningID: String?
     var fretCount: Int
+    var chordStringCount: Int?
+    var chordSelectedTuningID: String?
+    var chordIsCustomTuningEnabled: Bool?
+    var chordSelectedCustomTuningID: String?
+    var chordFretCount: Int?
+    var chordAccidentalStyle: AccidentalStyle?
+    var chordShowsDegreeNumbers: Bool?
     var accidentalStyle: AccidentalStyle
     var isSettingsVisible: Bool
     var chordSettings: ChordSettings
@@ -186,7 +287,18 @@ private struct AppSettingsSnapshot: Codable {
         selectedScaleID: ScalePattern.ionian.id,
         stringCount: 6,
         selectedTuningID: TuningPreset.standard6.id,
+        isCustomTuningEnabled: false,
+        customTuningPitchClasses: [:],
+        customTuningPresets: [],
+        selectedCustomTuningID: nil,
         fretCount: 24,
+        chordStringCount: 6,
+        chordSelectedTuningID: TuningPreset.standard6.id,
+        chordIsCustomTuningEnabled: false,
+        chordSelectedCustomTuningID: nil,
+        chordFretCount: 24,
+        chordAccidentalStyle: .flats,
+        chordShowsDegreeNumbers: true,
         accidentalStyle: .flats,
         isSettingsVisible: true,
         chordSettings: ChordSettings(),
