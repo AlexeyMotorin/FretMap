@@ -163,6 +163,17 @@ struct ContentView: View {
                         onTapPosition: nil,
                         onSwipe: nil
                     )
+                    .highPriorityGesture(chordShapeSwipeGesture)
+
+                    chordTitleOverlay
+                        .padding(12)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                        .allowsHitTesting(false)
+
+                    chordShapeCounterOverlay
+                        .padding(.trailing, 12)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                        .allowsHitTesting(false)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -251,7 +262,7 @@ struct ContentView: View {
                         Text("Аккорды")
                             .font(.title3.weight(.bold))
                             .foregroundStyle(AppColors.primaryText)
-                        Text("Тоника, строй и аппликатура")
+                        Text("Тоника, строй и тип аккорда")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(AppColors.mutedText)
                     }
@@ -261,8 +272,6 @@ struct ContentView: View {
                 accidentalPicker
                 stringCountPicker
                 tuningPicker
-                chordStartStringPicker
-                chordShapePicker
                 chordQualityPicker
                 chordSizePicker
                 degreeNumbersToggle
@@ -380,20 +389,6 @@ struct ContentView: View {
             .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44)
     }
 
-    private var chordStartStringPicker: some View {
-        UIKitMenuPicker(title: "Струна", selection: chordStartStringBinding, options: chordStartStringOptions.map { MenuPickerItem(value: $0, title: "\($0)") })
-            .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44)
-    }
-
-    @ViewBuilder
-    private var chordShapePicker: some View {
-        let shapes = availableChordShapes
-        if supportsCagedChordShapes, !shapes.isEmpty {
-            UIKitMenuPicker(title: "Форма", selection: chordShapeBinding, options: shapes.map { MenuPickerItem(value: $0.id, title: $0.menuTitle) })
-                .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44)
-        }
-    }
-
     private var chordQualityPicker: some View {
         UIKitMenuPicker(title: "Вид", selection: chordQualityBinding, options: ChordQuality.allCases.map { MenuPickerItem(value: $0, title: $0.title) })
             .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44)
@@ -424,6 +419,44 @@ struct ContentView: View {
                 transaction.animation = nil
                 transaction.disablesAnimations = true
             }
+    }
+
+    @ViewBuilder
+    private var chordTitleOverlay: some View {
+        if let shape = selectedChordShape {
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(chordDisplayName)
+                    .font(.system(.title3, design: .rounded).weight(.black))
+                    .foregroundStyle(AppColors.primaryText)
+                Text(shape.title)
+                    .font(.system(.caption, design: .rounded).weight(.bold))
+                    .foregroundStyle(AppColors.mutedText)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(AppColors.panel.opacity(0.94), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+    }
+
+    @ViewBuilder
+    private var chordShapeCounterOverlay: some View {
+        let shapes = availableChordShapes
+        if shapes.count > 1, let index = selectedChordShapeIndex {
+            VStack(spacing: 8) {
+                Image(systemName: "chevron.up")
+                    .font(.system(size: 13, weight: .black))
+                Text("\(index + 1) / \(shapes.count)")
+                    .font(.system(.headline, design: .rounded).weight(.black))
+                    .monospacedDigit()
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 13, weight: .black))
+            }
+            .foregroundStyle(AppColors.primaryText)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(AppColors.panel.opacity(0.94), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
     }
 
     private var scaleSummary: String {
@@ -500,7 +533,6 @@ struct ContentView: View {
         ChordShape.all.filter { shape in
             shape.quality == store.chordSettings.quality &&
             shape.size == store.chordSettings.size &&
-            shape.rootString == store.chordSettings.startString &&
             shape.rootString <= store.stringCount
         }
     }
@@ -514,26 +546,45 @@ struct ContentView: View {
         ChordSize.available(for: store.chordSettings.quality)
     }
 
-    private var chordStartStringOptions: [Int] {
-        Array(4...min(store.stringCount, 8))
-    }
-
     private var selectedChordShape: ChordShape? {
         let shapes = availableChordShapes
         return shapes.first { $0.id == store.chordSettings.shapeID } ?? shapes.first
+    }
+
+    private var selectedChordShapeIndex: Int? {
+        guard let selectedChordShape else { return nil }
+        return availableChordShapes.firstIndex(of: selectedChordShape)
+    }
+
+    private var chordDisplayName: String {
+        "\(noteNames[store.chordSettings.root])\(store.chordSettings.displaySuffix)"
+    }
+
+    private var chordShapeSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 18)
+            .onEnded { value in
+                let vertical = value.translation.height
+                guard abs(vertical) > abs(value.translation.width), abs(vertical) > 24 else { return }
+                selectChordShape(offset: vertical < 0 ? 1 : -1)
+            }
     }
 
     private func syncChordShape() {
         if !availableChordSizes.contains(store.chordSettings.size) {
             store.chordSettings.size = availableChordSizes.first ?? .triad
         }
-        if !chordStartStringOptions.contains(store.chordSettings.startString) {
-            store.chordSettings.startString = chordStartStringOptions.last ?? 4
-        }
         guard let firstShape = availableChordShapes.first else { return }
         if !availableChordShapes.contains(where: { $0.id == store.chordSettings.shapeID }) {
             store.chordSettings.shapeID = firstShape.id
         }
+    }
+
+    private func selectChordShape(offset: Int) {
+        let shapes = availableChordShapes
+        guard shapes.count > 1 else { return }
+        let currentIndex = selectedChordShapeIndex ?? 0
+        let nextIndex = (currentIndex + offset + shapes.count) % shapes.count
+        noAnimation { store.chordSettings.shapeID = shapes[nextIndex].id }
     }
 
     private func makeMarkers(_ builder: (Int, Int, Int) -> FretMarker?) -> [FretMarker] {
@@ -586,18 +637,6 @@ struct ContentView: View {
         )
     }
 
-    private var chordStartStringBinding: Binding<Int> {
-        Binding(
-            get: { store.chordSettings.startString },
-            set: { newValue in
-                noAnimation {
-                    store.chordSettings.startString = newValue
-                    syncChordShape()
-                }
-            }
-        )
-    }
-
     private var chordQualityBinding: Binding<ChordQuality> {
         Binding(
             get: { store.chordSettings.quality },
@@ -619,13 +658,6 @@ struct ContentView: View {
                     syncChordShape()
                 }
             }
-        )
-    }
-
-    private var chordShapeBinding: Binding<String> {
-        Binding(
-            get: { selectedChordShape?.id ?? store.chordSettings.shapeID },
-            set: { newValue in noAnimation { store.chordSettings.shapeID = newValue } }
         )
     }
 

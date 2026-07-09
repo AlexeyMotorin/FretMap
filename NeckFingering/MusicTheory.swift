@@ -316,6 +316,22 @@ struct ChordSettings: Codable {
     var startString: Int = 6
     var shapeID: String = "major-e"
 
+    var displaySuffix: String {
+        switch size {
+        case .triad:
+            switch quality {
+            case .major: ""
+            case .minor: "m"
+            case .augmented: "aug"
+            case .diminished: "dim"
+            }
+        case .majorSeventh: "maj7"
+        case .dominantSeventh: "7"
+        case .minorSeventh: "m7"
+        case .halfDiminished: "m7b5"
+        }
+    }
+
     var tones: [ChordTone] {
         if let intervals = size.intervals, let degreeNames = size.degreeNames {
             return intervals.enumerated().map { index, interval in
