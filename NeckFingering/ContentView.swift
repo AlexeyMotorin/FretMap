@@ -270,7 +270,7 @@ struct ContentView: View {
 
                 notePicker(title: "Тоника аккорда", selection: noAnimationBinding($store.chordSettings.root))
                 accidentalPicker
-                stringCountPicker
+                chordStringCountPicker
                 tuningPicker
                 chordQualityPicker
                 chordSizePicker
@@ -301,9 +301,11 @@ struct ContentView: View {
             FretboardView(
                 tuning: selectedTuning,
                 fretCount: store.fretCount,
+                visibleFretRange: customVisibleFretRange,
                 markers: [],
                 barres: [],
                 selectedPositions: store.customPositions,
+                selectedPositionLabels: customPositionLabels,
                 customMode: true,
                 onTapPosition: toggleCustomPosition,
                 onSwipe: nil
@@ -331,6 +333,7 @@ struct ContentView: View {
                     .background(AppColors.panel.opacity(0.95), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     .frame(maxWidth: .infinity, alignment: .trailing)
                     .padding(12)
+                    .allowsHitTesting(false)
             }
         }
         .background(AppColors.fretboard)
@@ -378,6 +381,15 @@ struct ContentView: View {
     private var stringCountPicker: some View {
         Picker("Струны", selection: stringCountBinding) {
             ForEach(4...8, id: \.self) { count in
+                Text("\(count)").tag(count)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    private var chordStringCountPicker: some View {
+        Picker("Струны", selection: chordStringCountBinding) {
+            ForEach(6...8, id: \.self) { count in
                 Text("\(count)").tag(count)
             }
         }
@@ -473,6 +485,8 @@ struct ContentView: View {
     }
 
     private var chordMarkers: [FretMarker] {
+        guard store.stringCount >= 6 else { return [] }
+
         if let cagedMarkers = cagedChordMarkers {
             return cagedMarkers
         }
@@ -530,11 +544,11 @@ struct ContentView: View {
     }
 
     private var availableChordShapes: [ChordShape] {
-        ChordShape.all.filter { shape in
-            shape.quality == store.chordSettings.quality &&
-            shape.size == store.chordSettings.size &&
-            shape.rootString <= store.stringCount
-        }
+        ChordFingeringDatabase.shapes(
+            quality: store.chordSettings.quality,
+            size: store.chordSettings.size,
+            maxRootString: store.stringCount
+        )
     }
 
     private var supportsCagedChordShapes: Bool {
@@ -587,6 +601,19 @@ struct ContentView: View {
         noAnimation { store.chordSettings.shapeID = shapes[nextIndex].id }
     }
 
+    private var customVisibleFretRange: ClosedRange<Int> {
+        0...min(store.fretCount, 12)
+    }
+
+    private var customPositionLabels: [FretPosition: String] {
+        let displayedStrings = Array(selectedTuning.strings.reversed())
+        return Dictionary(uniqueKeysWithValues: store.customPositions.compactMap { position in
+            guard displayedStrings.indices.contains(position.stringIndex) else { return nil }
+            let pitch = (displayedStrings[position.stringIndex].pitchClass + position.fret) % 12
+            return (position, noteNames[pitch])
+        })
+    }
+
     private func makeMarkers(_ builder: (Int, Int, Int) -> FretMarker?) -> [FretMarker] {
         let displayedStrings = Array(selectedTuning.strings.reversed())
         var markers: [FretMarker] = []
@@ -603,10 +630,13 @@ struct ContentView: View {
     }
 
     private func toggleCustomPosition(_ position: FretPosition) {
-        if store.customPositions.contains(position) {
-            store.customPositions.remove(position)
-        } else {
-            store.customPositions.insert(position)
+        noAnimation {
+            if store.customPositions.contains(position) {
+                store.customPositions.remove(position)
+            } else {
+                store.customPositions = Set(store.customPositions.filter { $0.stringIndex != position.stringIndex })
+                store.customPositions.insert(position)
+            }
         }
     }
 
@@ -623,16 +653,16 @@ struct ContentView: View {
         Binding(
             get: { store.stringCount },
             set: { newValue in
-                noAnimation {
-                    store.stringCount = newValue
-                    store.chordSettings.startString = min(store.chordSettings.startString, newValue)
-                    let tuningsForCount = tunings.filter { $0.stringCount == newValue }
-                    guard let firstTuning = tuningsForCount.first else { return }
-                    if !tuningsForCount.contains(where: { $0.id == store.selectedTuningID }) {
-                        store.selectedTuningID = firstTuning.id
-                    }
-                    syncChordShape()
-                }
+                noAnimation { setStringCount(newValue) }
+            }
+        )
+    }
+
+    private var chordStringCountBinding: Binding<Int> {
+        Binding(
+            get: { max(store.stringCount, 6) },
+            set: { newValue in
+                noAnimation { setStringCount(max(newValue, 6)) }
             }
         )
     }
@@ -664,7 +694,14 @@ struct ContentView: View {
     private var modeSelectionBinding: Binding<AppMode> {
         Binding(
             get: { store.appMode },
-            set: { newValue in noAnimation { store.appMode = newValue } }
+            set: { newValue in
+                noAnimation {
+                    store.appMode = newValue
+                    if newValue == .chords {
+                        ensureChordStringCount()
+                    }
+                }
+            }
         )
     }
 
@@ -697,6 +734,26 @@ struct ContentView: View {
 
     private func syncSavedSelections() {
         store.normalize()
+        if store.appMode == .chords {
+            ensureChordStringCount()
+        }
+        syncChordShape()
+    }
+
+    private func ensureChordStringCount() {
+        if store.stringCount < 6 {
+            setStringCount(6)
+        }
+    }
+
+    private func setStringCount(_ count: Int) {
+        store.stringCount = count
+        store.chordSettings.startString = min(store.chordSettings.startString, count)
+        let tuningsForCount = tunings.filter { $0.stringCount == count }
+        guard let firstTuning = tuningsForCount.first else { return }
+        if !tuningsForCount.contains(where: { $0.id == store.selectedTuningID }) {
+            store.selectedTuningID = firstTuning.id
+        }
         syncChordShape()
     }
 }

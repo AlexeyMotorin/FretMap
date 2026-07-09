@@ -387,88 +387,7 @@ struct ChordShape: Identifiable, Equatable {
         return semitoneShift
     }
 
-    static let all: [ChordShape] = [
-        ChordShape(id: "major-e", title: "E-shape баррэ", quality: .major, size: .triad, rootString: 6, baseRoot: 7, notes: [
-            Note(stringNumber: 1, fret: 3), Note(stringNumber: 2, fret: 3), Note(stringNumber: 3, fret: 4),
-            Note(stringNumber: 4, fret: 5), Note(stringNumber: 5, fret: 5), Note(stringNumber: 6, fret: 3)
-        ], barres: [ChordBarre(fret: 3, fromStringNumber: 1, toStringNumber: 6)]),
-        ChordShape(id: "major-d", title: "D-shape", quality: .major, size: .triad, rootString: 4, baseRoot: 7, notes: [
-            Note(stringNumber: 1, fret: 7), Note(stringNumber: 2, fret: 8), Note(stringNumber: 3, fret: 7), Note(stringNumber: 4, fret: 5)
-        ], barres: []),
-        ChordShape(id: "major-c", title: "C-shape баррэ", quality: .major, size: .triad, rootString: 5, baseRoot: 7, notes: [
-            Note(stringNumber: 1, fret: 7), Note(stringNumber: 2, fret: 8), Note(stringNumber: 3, fret: 7),
-            Note(stringNumber: 4, fret: 9), Note(stringNumber: 5, fret: 10)
-        ], barres: [ChordBarre(fret: 7, fromStringNumber: 1, toStringNumber: 3)]),
-        ChordShape(id: "major-a", title: "A-shape баррэ", quality: .major, size: .triad, rootString: 5, baseRoot: 7, notes: [
-            Note(stringNumber: 1, fret: 10), Note(stringNumber: 2, fret: 12), Note(stringNumber: 3, fret: 12),
-            Note(stringNumber: 4, fret: 12), Note(stringNumber: 5, fret: 10)
-        ], barres: [ChordBarre(fret: 10, fromStringNumber: 1, toStringNumber: 5)]),
-
-        ChordShape(id: "minor-e", title: "E-shape баррэ", quality: .minor, size: .triad, rootString: 6, baseRoot: 7, notes: [
-            Note(stringNumber: 1, fret: 3), Note(stringNumber: 2, fret: 3), Note(stringNumber: 3, fret: 3),
-            Note(stringNumber: 4, fret: 5), Note(stringNumber: 5, fret: 5), Note(stringNumber: 6, fret: 3)
-        ], barres: [ChordBarre(fret: 3, fromStringNumber: 1, toStringNumber: 6)]),
-        ChordShape(id: "minor-d", title: "D-shape", quality: .minor, size: .triad, rootString: 4, baseRoot: 7, notes: [
-            Note(stringNumber: 1, fret: 6), Note(stringNumber: 2, fret: 8), Note(stringNumber: 3, fret: 7), Note(stringNumber: 4, fret: 5)
-        ], barres: []),
-        ChordShape(id: "minor-a", title: "A-shape баррэ", quality: .minor, size: .triad, rootString: 5, baseRoot: 7, notes: [
-            Note(stringNumber: 1, fret: 10), Note(stringNumber: 2, fret: 11), Note(stringNumber: 3, fret: 12),
-            Note(stringNumber: 4, fret: 12), Note(stringNumber: 5, fret: 10)
-        ], barres: [ChordBarre(fret: 10, fromStringNumber: 1, toStringNumber: 5)]),
-
-        ChordShape(id: "dim-six", title: "Dim от 6 струны", quality: .diminished, size: .triad, rootString: 6, baseRoot: 7, notes: [
-            Note(stringNumber: 3, fret: 3), Note(stringNumber: 4, fret: 5), Note(stringNumber: 5, fret: 4), Note(stringNumber: 6, fret: 3)
-        ], barres: [ChordBarre(fret: 3, fromStringNumber: 3, toStringNumber: 6)]),
-        ChordShape(id: "dim-four", title: "Dim от 4 струны", quality: .diminished, size: .triad, rootString: 4, baseRoot: 7, notes: [
-            Note(stringNumber: 1, fret: 6), Note(stringNumber: 2, fret: 5), Note(stringNumber: 3, fret: 6), Note(stringNumber: 4, fret: 5)
-        ], barres: []),
-        ChordShape(id: "dim-five", title: "Dim от 5 струны", quality: .diminished, size: .triad, rootString: 5, baseRoot: 7, notes: [
-            Note(stringNumber: 2, fret: 11), Note(stringNumber: 3, fret: 12), Note(stringNumber: 4, fret: 11), Note(stringNumber: 5, fret: 10)
-        ], barres: []),
-
-        ChordShape(id: "maj7-six", title: "maj7", quality: .major, size: .majorSeventh, rootString: 6, baseRoot: 7, notes: [
-            Note(stringNumber: 2, fret: 3), Note(stringNumber: 3, fret: 4), Note(stringNumber: 4, fret: 4), Note(stringNumber: 6, fret: 3)
-        ], barres: []),
-        ChordShape(id: "maj7-five", title: "maj7", quality: .major, size: .majorSeventh, rootString: 5, baseRoot: 7, notes: [
-            Note(stringNumber: 2, fret: 12), Note(stringNumber: 3, fret: 11), Note(stringNumber: 4, fret: 12), Note(stringNumber: 5, fret: 10)
-        ], barres: []),
-        ChordShape(id: "maj7-four", title: "maj7", quality: .major, size: .majorSeventh, rootString: 4, baseRoot: 7, notes: [
-            Note(stringNumber: 1, fret: 2), Note(stringNumber: 2, fret: 3), Note(stringNumber: 3, fret: 4), Note(stringNumber: 4, fret: 5)
-        ], barres: []),
-
-        ChordShape(id: "dom7-six", title: "7 баррэ", quality: .major, size: .dominantSeventh, rootString: 6, baseRoot: 7, notes: [
-            Note(stringNumber: 1, fret: 3), Note(stringNumber: 2, fret: 3), Note(stringNumber: 3, fret: 4),
-            Note(stringNumber: 4, fret: 3), Note(stringNumber: 5, fret: 5), Note(stringNumber: 6, fret: 3)
-        ], barres: [ChordBarre(fret: 3, fromStringNumber: 1, toStringNumber: 6)]),
-        ChordShape(id: "dom7-five", title: "7", quality: .major, size: .dominantSeventh, rootString: 5, baseRoot: 7, notes: [
-            Note(stringNumber: 2, fret: 8), Note(stringNumber: 3, fret: 10), Note(stringNumber: 4, fret: 9), Note(stringNumber: 5, fret: 10)
-        ], barres: []),
-        ChordShape(id: "dom7-four", title: "7", quality: .major, size: .dominantSeventh, rootString: 4, baseRoot: 7, notes: [
-            Note(stringNumber: 1, fret: 7), Note(stringNumber: 2, fret: 6), Note(stringNumber: 3, fret: 7), Note(stringNumber: 4, fret: 5)
-        ], barres: []),
-
-        ChordShape(id: "m7-six", title: "m7 баррэ", quality: .minor, size: .minorSeventh, rootString: 6, baseRoot: 7, notes: [
-            Note(stringNumber: 1, fret: 3), Note(stringNumber: 2, fret: 3), Note(stringNumber: 3, fret: 3),
-            Note(stringNumber: 4, fret: 3), Note(stringNumber: 5, fret: 5), Note(stringNumber: 6, fret: 3)
-        ], barres: [ChordBarre(fret: 3, fromStringNumber: 1, toStringNumber: 6)]),
-        ChordShape(id: "m7-five", title: "m7", quality: .minor, size: .minorSeventh, rootString: 5, baseRoot: 7, notes: [
-            Note(stringNumber: 1, fret: 10), Note(stringNumber: 2, fret: 11), Note(stringNumber: 3, fret: 10),
-            Note(stringNumber: 4, fret: 12), Note(stringNumber: 5, fret: 10)
-        ], barres: []),
-        ChordShape(id: "m7-four", title: "m7", quality: .minor, size: .minorSeventh, rootString: 4, baseRoot: 7, notes: [
-            Note(stringNumber: 1, fret: 6), Note(stringNumber: 2, fret: 6), Note(stringNumber: 3, fret: 7), Note(stringNumber: 4, fret: 5)
-        ], barres: []),
-
-        ChordShape(id: "m7b5-six", title: "m7b5", quality: .diminished, size: .halfDiminished, rootString: 6, baseRoot: 7, notes: [
-            Note(stringNumber: 2, fret: 2), Note(stringNumber: 3, fret: 3), Note(stringNumber: 4, fret: 3), Note(stringNumber: 6, fret: 3)
-        ], barres: []),
-        ChordShape(id: "m7b5-five", title: "m7b5", quality: .diminished, size: .halfDiminished, rootString: 5, baseRoot: 7, notes: [
-            Note(stringNumber: 2, fret: 11), Note(stringNumber: 3, fret: 10), Note(stringNumber: 4, fret: 11), Note(stringNumber: 5, fret: 10)
-        ], barres: []),
-        ChordShape(id: "m7b5-four", title: "m7b5", quality: .diminished, size: .halfDiminished, rootString: 4, baseRoot: 7, notes: [
-            Note(stringNumber: 1, fret: 6), Note(stringNumber: 2, fret: 6), Note(stringNumber: 3, fret: 6), Note(stringNumber: 4, fret: 5)
-        ], barres: [])
-    ]
+    static var all: [ChordShape] { ChordFingeringDatabase.all }
 }
 
 struct FretPosition: Hashable, Identifiable, Codable {
@@ -562,20 +481,20 @@ enum ChordIdentifier {
         guard pitchClasses.count >= 3 else { return nil }
 
         let qualities: [(String, [Int])] = [
-            ("maj", [0, 4, 7]),
-            ("m", [0, 3, 7]),
-            ("aug", [0, 4, 8]),
-            ("dim", [0, 3, 6]),
             ("maj7", [0, 4, 7, 11]),
             ("7", [0, 4, 7, 10]),
             ("m7", [0, 3, 7, 10]),
             ("m7b5", [0, 3, 6, 10]),
-            ("dim7", [0, 3, 6, 9])
+            ("dim7", [0, 3, 6, 9]),
+            ("maj", [0, 4, 7]),
+            ("m", [0, 3, 7]),
+            ("aug", [0, 4, 8]),
+            ("dim", [0, 3, 6])
         ]
 
         for root in 0..<12 {
             let intervals = Set(pitchClasses.map { ($0 - root + 12) % 12 })
-            for quality in qualities where Set(quality.1).isSubset(of: intervals) {
+            for quality in qualities where Set(quality.1) == intervals {
                 return "\(noteNames[root]) \(quality.0)"
             }
         }

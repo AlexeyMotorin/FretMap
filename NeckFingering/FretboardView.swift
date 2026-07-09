@@ -7,6 +7,7 @@ struct FretboardView: View {
     let markers: [FretMarker]
     let barres: [ChordBarre]
     let selectedPositions: Set<FretPosition>
+    var selectedPositionLabels: [FretPosition: String] = [:]
     let customMode: Bool
     let onTapPosition: ((FretPosition) -> Void)?
     let onSwipe: (() -> Void)?
@@ -156,6 +157,18 @@ struct FretboardView: View {
         func stringWidth(horizontalPadding: CGFloat) -> CGFloat {
             max(0, boardWidth - horizontalPadding * 2)
         }
+
+        func tapTargetWidth(
+            for fret: Int,
+            openStringWidth: CGFloat,
+            horizontalPadding: CGFloat
+        ) -> CGFloat {
+            if range.lowerBound == 0, fret == 0 {
+                return max(44, openStringWidth)
+            }
+
+            return max(44, fretWidth)
+        }
     }
 
     private var boardTexture: some View {
@@ -256,18 +269,32 @@ struct FretboardView: View {
         ForEach(displayedStrings.indices, id: \.self) { stringIndex in
             ForEach(layout.visibleFrets, id: \.self) { fret in
                 let position = FretPosition(stringIndex: stringIndex, fret: fret)
-                Button {
-                    onTapPosition?(position)
-                } label: {
-                    Circle()
-                        .fill(selectedPositions.contains(position) ? AppColors.noteMarker : Color.clear)
-                        .overlay(
-                            Circle()
-                                .stroke(selectedPositions.contains(position) ? AppColors.rootText : Color.clear, lineWidth: 3)
+                ZStack {
+                    Rectangle()
+                        .fill(Color.clear)
+                        .contentShape(Rectangle())
+                        .frame(
+                            width: layout.tapTargetWidth(for: fret, openStringWidth: openStringWidth, horizontalPadding: horizontalPadding),
+                            height: 48
                         )
-                        .frame(width: 36, height: 36)
+                        .onTapGesture {
+                            onTapPosition?(position)
+                        }
+
+                    if selectedPositions.contains(position) {
+                        if let label = selectedPositionLabels[position] {
+                            NoteMarker(label: label, isRoot: false, isOpenString: position.fret == 0)
+                                .allowsHitTesting(false)
+                        } else {
+                            Circle()
+                                .fill(AppColors.noteMarker)
+                                .overlay(Circle().stroke(AppColors.rootText, lineWidth: 3))
+                                .frame(width: 36, height: 36)
+                                .shadow(color: .black.opacity(0.28), radius: 4, x: 0, y: 2)
+                                .allowsHitTesting(false)
+                        }
+                    }
                 }
-                .buttonStyle(.plain)
                 .position(x: noteX(fret, layout: layout), y: stringY(stringIndex, boardHeight: boardHeight))
             }
         }
