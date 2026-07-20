@@ -23,6 +23,7 @@ final class AppSettingsStore: ObservableObject {
     @Published var chordFretCount: Int { didSet { save() } }
     @Published var chordAccidentalStyle: AccidentalStyle { didSet { save() } }
     @Published var chordShowsDegreeNumbers: Bool { didSet { save() } }
+    @Published var chordHighlightsDegrees: Bool { didSet { save() } }
     @Published var areChordExtensionsVisible: Bool { didSet { save() } }
     @Published var accidentalStyle: AccidentalStyle { didSet { save() } }
     @Published var isSettingsVisible: Bool { didSet { save() } }
@@ -33,6 +34,7 @@ final class AppSettingsStore: ObservableObject {
     @Published var popularScaleID: String { didSet { save() } }
     @Published var isModeSwitcherVisible: Bool { didSet { save() } }
     @Published var showsDegreeNumbers: Bool { didSet { save() } }
+    @Published var highlightsScaleDegrees: Bool { didSet { save() } }
     @Published var showsScaleBoxes: Bool { didSet { save() } }
 
     @Published var functionalRoot: Int { didSet { save() } }
@@ -63,7 +65,7 @@ final class AppSettingsStore: ObservableObject {
         let snapshot = Self.loadSnapshot(from: defaults) ?? .default
         isRestoring = true
 
-        appMode = snapshot.appMode
+        appMode = .modes
         rootNote = snapshot.rootNote
         selectedScaleID = snapshot.selectedScaleID
         stringCount = snapshot.stringCount
@@ -80,16 +82,18 @@ final class AppSettingsStore: ObservableObject {
         chordFretCount = snapshot.chordFretCount ?? snapshot.fretCount
         chordAccidentalStyle = snapshot.chordAccidentalStyle ?? snapshot.accidentalStyle
         chordShowsDegreeNumbers = snapshot.chordShowsDegreeNumbers ?? snapshot.showsDegreeNumbers
+        chordHighlightsDegrees = snapshot.chordHighlightsDegrees ?? false
         areChordExtensionsVisible = snapshot.areChordExtensionsVisible ?? true
         accidentalStyle = snapshot.accidentalStyle
-        isSettingsVisible = snapshot.isSettingsVisible
+        isSettingsVisible = true
         chordSettings = snapshot.chordSettings
-        isCustomMode = snapshot.isCustomMode
+        isCustomMode = false
         customPositions = Set(snapshot.customPositions)
         harmonyMode = snapshot.harmonyMode
         popularScaleID = snapshot.popularScaleID
         isModeSwitcherVisible = snapshot.isModeSwitcherVisible
         showsDegreeNumbers = snapshot.showsDegreeNumbers
+        highlightsScaleDegrees = snapshot.highlightsScaleDegrees ?? false
         showsScaleBoxes = snapshot.showsScaleBoxes ?? false
 
         functionalRoot = snapshot.functionalRoot
@@ -210,6 +214,7 @@ final class AppSettingsStore: ObservableObject {
             chordFretCount: chordFretCount,
             chordAccidentalStyle: chordAccidentalStyle,
             chordShowsDegreeNumbers: chordShowsDegreeNumbers,
+            chordHighlightsDegrees: chordHighlightsDegrees,
             areChordExtensionsVisible: areChordExtensionsVisible,
             accidentalStyle: accidentalStyle,
             isSettingsVisible: isSettingsVisible,
@@ -220,6 +225,7 @@ final class AppSettingsStore: ObservableObject {
             popularScaleID: popularScaleID,
             isModeSwitcherVisible: isModeSwitcherVisible,
             showsDegreeNumbers: showsDegreeNumbers,
+            highlightsScaleDegrees: highlightsScaleDegrees,
             showsScaleBoxes: showsScaleBoxes,
             functionalRoot: functionalRoot,
             functionalKeyMode: functionalKeyMode,
@@ -320,6 +326,7 @@ private struct AppSettingsSnapshot: Codable {
     var chordFretCount: Int?
     var chordAccidentalStyle: AccidentalStyle?
     var chordShowsDegreeNumbers: Bool?
+    var chordHighlightsDegrees: Bool?
     var areChordExtensionsVisible: Bool?
     var accidentalStyle: AccidentalStyle
     var isSettingsVisible: Bool
@@ -330,6 +337,7 @@ private struct AppSettingsSnapshot: Codable {
     var popularScaleID: String
     var isModeSwitcherVisible: Bool
     var showsDegreeNumbers: Bool
+    var highlightsScaleDegrees: Bool?
     var showsScaleBoxes: Bool?
     var functionalRoot: Int
     var functionalKeyMode: FunctionalKeyMode
@@ -371,6 +379,7 @@ private struct AppSettingsSnapshot: Codable {
         chordFretCount: 24,
         chordAccidentalStyle: .flats,
         chordShowsDegreeNumbers: true,
+        chordHighlightsDegrees: false,
         areChordExtensionsVisible: true,
         accidentalStyle: .flats,
         isSettingsVisible: true,
@@ -381,6 +390,7 @@ private struct AppSettingsSnapshot: Codable {
         popularScaleID: ScalePattern.ionian.id,
         isModeSwitcherVisible: true,
         showsDegreeNumbers: true,
+        highlightsScaleDegrees: false,
         showsScaleBoxes: false,
         functionalRoot: 0,
         functionalKeyMode: .major,

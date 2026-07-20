@@ -13,6 +13,10 @@ struct ContentView: View {
     private let scales = ScalePattern.all
     private let tunings = TuningPreset.all
     private let manageCustomTuningID = "__manage_custom_tuning__"
+    // Temporarily disabled while the custom chord workflow is being revised.
+    private let isCustomModeAvailable = false
+    // Temporarily disabled while scale box behavior is being revised.
+    private let areScaleBoxesAvailable = false
 
     private var noteNames: [String] { noteNames(for: store.appMode == .chords || store.isCustomMode ? .chords : .modes) }
     private var customTuningNoteNames: [String] { noteNames(for: customTuningTargetMode) }
@@ -26,7 +30,7 @@ struct ContentView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            if store.isCustomMode {
+            if isCustomModeAvailable && store.isCustomMode {
                 customModeView
                     .frame(width: proxy.size.width, height: proxy.size.height)
             } else {
@@ -260,7 +264,10 @@ struct ContentView: View {
                 tuningPicker(for: .modes)
                 fretStepper
                 degreeNumbersToggle(for: .modes)
-                scaleBoxesToggle
+                degreeColorsToggle(for: .modes)
+                if areScaleBoxesAvailable {
+                    scaleBoxesToggle
+                }
 
                 Divider().overlay(AppColors.mutedText.opacity(0.35))
 
@@ -300,17 +307,20 @@ struct ContentView: View {
                 chordSizePicker
                 chordExtensionsPicker
                 degreeNumbersToggle(for: .chords)
+                degreeColorsToggle(for: .chords)
 
-                Button {
-                    store.customPositions.removeAll()
-                    store.isCustomMode = true
-                } label: {
-                    Label("Кастомный режим", systemImage: "hand.tap.fill")
-                        .font(.system(.subheadline, design: .rounded).weight(.bold))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
+                if isCustomModeAvailable {
+                    Button {
+                        store.customPositions.removeAll()
+                        store.isCustomMode = true
+                    } label: {
+                        Label("Кастомный режим", systemImage: "hand.tap.fill")
+                            .font(.system(.subheadline, design: .rounded).weight(.bold))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
-                .buttonStyle(.borderedProminent)
             }
             .padding(18)
             .padding(.bottom, 90)
@@ -705,6 +715,18 @@ struct ContentView: View {
             }
     }
 
+    private func degreeColorsToggle(for mode: AppMode) -> some View {
+        Toggle("Выделить ступени цветом", isOn: degreeColorsBinding(for: mode))
+            .toggleStyle(.switch)
+            .font(.system(.subheadline, design: .rounded).weight(.semibold))
+            .foregroundStyle(AppColors.primaryText)
+            .tint(AppColors.rootText)
+            .transaction { transaction in
+                transaction.animation = nil
+                transaction.disablesAnimations = true
+            }
+    }
+
     @ViewBuilder
     private var scaleBoxesToggle: some View {
         if selectedScale.supportsBoxes {
@@ -785,7 +807,7 @@ struct ContentView: View {
                 position: FretPosition(stringIndex: stringIndex, fret: fret),
                 label: label,
                 isRoot: pitch == store.rootNote,
-                color: scaleBoxColor(forFret: fret)
+                color: store.highlightsScaleDegrees ? degreeColor(for: degree) : nil
             )
         }
     }
@@ -838,7 +860,12 @@ struct ContentView: View {
             guard intervals.contains(interval) else { return nil }
             let degree = settings.toneLabel(for: interval) ?? ""
             let label = showsDegreeNumbers ? "\(noteNames[pitch])/\(degree)" : noteNames[pitch]
-            return FretMarker(position: FretPosition(stringIndex: stringIndex, fret: fret), label: label, isRoot: interval == 0)
+            return FretMarker(
+                position: FretPosition(stringIndex: stringIndex, fret: fret),
+                label: label,
+                isRoot: interval == 0,
+                color: store.chordHighlightsDegrees ? degreeColor(for: degree) : nil
+            )
         }
     }
 
@@ -874,7 +901,29 @@ struct ContentView: View {
             let interval = (pitch - settings.root + 12) % 12
             let degree = settings.toneLabel(for: interval) ?? (interval == 9 ? "bb7" : "")
             let label = showsDegreeNumbers && !degree.isEmpty ? "\(noteNames[pitch])/\(degree)" : noteNames[pitch]
-            return FretMarker(position: FretPosition(stringIndex: stringIndex, fret: note.fret), label: label, isRoot: interval == 0)
+            return FretMarker(
+                position: FretPosition(stringIndex: stringIndex, fret: note.fret),
+                label: label,
+                isRoot: interval == 0,
+                color: store.chordHighlightsDegrees ? degreeColor(for: degree) : nil
+            )
+        }
+    }
+
+    private func degreeColor(for label: String) -> Color? {
+        let digits = label.filter(\.isNumber)
+        guard let rawDegree = Int(digits), rawDegree > 0 else { return nil }
+        let degree = ((rawDegree - 1) % 7) + 1
+
+        switch degree {
+        case 1: return Color(red: 0.18, green: 0.50, blue: 0.92)
+        case 2: return Color(red: 0.12, green: 0.67, blue: 0.67)
+        case 3: return Color(red: 0.20, green: 0.66, blue: 0.38)
+        case 4: return Color(red: 0.82, green: 0.66, blue: 0.16)
+        case 5: return Color(red: 0.91, green: 0.43, blue: 0.16)
+        case 6: return Color(red: 0.57, green: 0.38, blue: 0.86)
+        case 7: return Color(red: 0.78, green: 0.27, blue: 0.52)
+        default: return nil
         }
     }
 
@@ -1293,6 +1342,21 @@ struct ContentView: View {
                         store.chordShowsDegreeNumbers = newValue
                     } else {
                         store.showsDegreeNumbers = newValue
+                    }
+                }
+            }
+        )
+    }
+
+    private func degreeColorsBinding(for mode: AppMode) -> Binding<Bool> {
+        Binding(
+            get: { mode == .chords ? store.chordHighlightsDegrees : store.highlightsScaleDegrees },
+            set: { newValue in
+                noAnimation {
+                    if mode == .chords {
+                        store.chordHighlightsDegrees = newValue
+                    } else {
+                        store.highlightsScaleDegrees = newValue
                     }
                 }
             }
