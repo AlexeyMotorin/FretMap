@@ -51,6 +51,7 @@ final class AppSettingsStore: ObservableObject {
     @Published var popularGlobalRoot: Int { didSet { save() } }
     @Published var popularProgressionRoots: [String: Int] { didSet { save() } }
     @Published var popularSeventhChordIndexes: [String: [Int]] { didSet { save() } }
+    @Published var popularSlashChordConfigurations: [String: [Int: PopularSlashChordConfiguration]] { didSet { save() } }
     @Published var popularRatings: [String: Int] { didSet { save() } }
     @Published var favoriteProgressionIDs: [String] { didSet { save() } }
     @Published var popularCollectionMode: PopularCollectionMode { didSet { save() } }
@@ -106,6 +107,7 @@ final class AppSettingsStore: ObservableObject {
         popularGlobalRoot = snapshot.popularGlobalRoot ?? -1
         popularProgressionRoots = snapshot.popularProgressionRoots
         popularSeventhChordIndexes = snapshot.popularSeventhChordIndexes ?? [:]
+        popularSlashChordConfigurations = snapshot.popularSlashChordConfigurations ?? [:]
         popularRatings = snapshot.popularRatings ?? [:]
         favoriteProgressionIDs = snapshot.favoriteProgressionIDs ?? []
         popularCollectionMode = snapshot.popularCollectionMode ?? .popular
@@ -221,6 +223,7 @@ final class AppSettingsStore: ObservableObject {
             popularGlobalRoot: popularGlobalRoot,
             popularProgressionRoots: popularProgressionRoots,
             popularSeventhChordIndexes: popularSeventhChordIndexes,
+            popularSlashChordConfigurations: popularSlashChordConfigurations,
             popularRatings: popularRatings,
             favoriteProgressionIDs: favoriteProgressionIDs,
             popularCollectionMode: popularCollectionMode,
@@ -329,6 +332,7 @@ private struct AppSettingsSnapshot: Codable {
     var popularGlobalRoot: Int?
     var popularProgressionRoots: [String: Int]
     var popularSeventhChordIndexes: [String: [Int]]?
+    var popularSlashChordConfigurations: [String: [Int: PopularSlashChordConfiguration]]?
     var popularRatings: [String: Int]?
     var favoriteProgressionIDs: [String]?
     var popularCollectionMode: PopularCollectionMode?
@@ -378,6 +382,7 @@ private struct AppSettingsSnapshot: Codable {
         popularGlobalRoot: -1,
         popularProgressionRoots: [:],
         popularSeventhChordIndexes: [:],
+        popularSlashChordConfigurations: [:],
         popularRatings: [:],
         favoriteProgressionIDs: [],
         popularCollectionMode: .popular,

@@ -12,6 +12,7 @@ struct UIKitMenuPicker<Value: Hashable>: UIViewRepresentable {
     let title: String
     @Binding var selection: Value
     let options: [MenuPickerItem<Value>]
+    var displaysTitle = true
 
     func makeUIView(context: Context) -> UIButton {
         let button = UIButton(type: .system)
@@ -37,7 +38,9 @@ struct UIKitMenuPicker<Value: Hashable>: UIViewRepresentable {
         configuration.titleAlignment = .leading
         configuration.titleLineBreakMode = .byTruncatingTail
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 14, bottom: 0, trailing: 12)
-        configuration.attributedTitle = AttributedString("\(title): \(selectedTitle)")
+        configuration.attributedTitle = AttributedString(
+            displaysTitle ? "\(title): \(selectedTitle)" : selectedTitle
+        )
 
         UIView.performWithoutAnimation {
             CATransaction.begin()
@@ -48,7 +51,7 @@ struct UIKitMenuPicker<Value: Hashable>: UIViewRepresentable {
                     setSelectionWithoutAnimation(item.value)
                 }
             })
-            button.accessibilityLabel = "\(title): \(selectedTitle)"
+            button.accessibilityLabel = displaysTitle ? "\(title): \(selectedTitle)" : selectedTitle
             CATransaction.commit()
             button.layoutIfNeeded()
         }

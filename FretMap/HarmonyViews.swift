@@ -748,22 +748,28 @@ struct PopularHarmonyView: View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 18) {
                 HStack(alignment: .center, spacing: 12) {
-                    Picker("Раздел", selection: $store.popularCollectionMode) {
-                        ForEach(PopularCollectionMode.allCases) { mode in
-                            Text(mode.title).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 270)
+                    HStack {
+                        Spacer(minLength: 0)
 
-                    Spacer()
+                        Picker("Раздел", selection: $store.popularCollectionMode) {
+                            ForEach(PopularCollectionMode.allCases) { mode in
+                                Text(mode.title).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 270)
+
+                        Spacer(minLength: 0)
+                    }
+                    .frame(maxWidth: .infinity)
 
                     UIKitMenuPicker(
                         title: "Сортировка",
                         selection: $store.popularSortMode,
                         options: PopularSortMode.allCases.map {
                             MenuPickerItem(value: $0, title: $0.title)
-                        }
+                        },
+                        displaysTitle: false
                     )
                     .frame(width: 190, height: 40)
 
@@ -783,8 +789,8 @@ struct PopularHarmonyView: View {
                 } else {
                     LazyVGrid(
                         columns: [
-                            GridItem(.flexible(minimum: 0), spacing: 24),
-                            GridItem(.flexible(minimum: 0), spacing: 24)
+                            GridItem(.flexible(minimum: 0), spacing: 12),
+                            GridItem(.flexible(minimum: 0), spacing: 12)
                         ],
                         alignment: .leading,
                         spacing: 18
@@ -796,6 +802,7 @@ struct PopularHarmonyView: View {
                                 globalRoot: store.popularGlobalRoot,
                                 selectedRoot: popularRootBinding(for: progression.id),
                                 seventhChordIndexes: popularSeventhIndexesBinding(for: progression.id),
+                                slashChordConfigurations: slashConfigurationsBinding(for: progression.id),
                                 rating: ratingBinding(for: progression),
                                 isFavorite: favoriteBinding(for: progression.id)
                             )
@@ -805,7 +812,8 @@ struct PopularHarmonyView: View {
 
                 Spacer(minLength: 0)
             }
-            .padding(24)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 18)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppColors.page)
@@ -862,6 +870,15 @@ struct PopularHarmonyView: View {
         )
     }
 
+    private func slashConfigurationsBinding(
+        for progressionID: String
+    ) -> Binding<[Int: PopularSlashChordConfiguration]> {
+        Binding(
+            get: { store.popularSlashChordConfigurations[progressionID] ?? [:] },
+            set: { store.popularSlashChordConfigurations[progressionID] = $0 }
+        )
+    }
+
     private func ratingBinding(for progression: PopularProgression) -> Binding<Int> {
         Binding(
             get: { store.popularRatings[progression.id] ?? 3 },
@@ -885,12 +902,46 @@ struct PopularHarmonyView: View {
     }
 }
 
+enum PopularSlashChordConfiguration: String, CaseIterable, Identifiable, Codable {
+    case triadTriad
+    case triadSeventh
+    case seventhSeventh
+    case secondTriad
+    case secondSeventh
+
+    var id: String { rawValue }
+
+    var firstIsActive: Bool {
+        switch self {
+        case .secondTriad, .secondSeventh:
+            false
+        default:
+            true
+        }
+    }
+
+    var secondIsActive: Bool {
+        true
+    }
+
+    var firstIsSeventh: Bool {
+        self == .seventhSeventh
+    }
+
+    var secondIsSeventh: Bool {
+        self == .triadSeventh
+            || self == .seventhSeventh
+            || self == .secondSeventh
+    }
+}
+
 private struct PopularProgressionCard: View {
     let progression: PopularProgression
     let noteNames: [String]
     let globalRoot: Int
     @Binding var selectedRoot: Int
     @Binding var seventhChordIndexes: [Int]
+    @Binding var slashChordConfigurations: [Int: PopularSlashChordConfiguration]
     @Binding var rating: Int
     @Binding var isFavorite: Bool
     @StateObject private var audioPlayer = ProgressionAudioPlayer()
@@ -924,56 +975,23 @@ private struct PopularProgressionCard: View {
 
             HStack(spacing: chordButtonSpacing) {
                 ForEach(progression.bars.indices, id: \.self) { barIndex in
-                    ForEach(progression.bars[barIndex].indices, id: \.self) { chordIndex in
-                        let flatIndex = progression.flatIndex(
-                            barIndex: barIndex,
-                            chordIndex: chordIndex
-                        )
-                        Button {
-                            toggleSeventh(at: flatIndex)
-                        } label: {
-                            Text(displayedChord(barIndex: barIndex, chordIndex: chordIndex))
-                                .font(.system(size: chordButtonFontSize, weight: .black, design: .rounded))
-                                .minimumScaleFactor(0.48)
-                                .lineLimit(1)
-                                .foregroundStyle(AppColors.primaryText)
-                                .padding(.horizontal, chordButtonHorizontalPadding)
-                                .frame(minWidth: 0, maxWidth: .infinity, minHeight: chordButtonHeight, maxHeight: chordButtonHeight)
-                                .background(
-                                    seventhChordIndexes.contains(flatIndex)
-                                        ? AppColors.rootText.opacity(0.72)
-                                        : AppColors.control,
-                                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                )
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Изменить тип аккорда")
-
-                        if chordIndex < progression.bars[barIndex].count - 1 {
-                            Text("/")
-                                .font(.caption.weight(.black))
-                                .foregroundStyle(AppColors.mutedText)
-                                .fixedSize()
-                        }
+                    if progression.bars[barIndex].count == 2 {
+                        slashChordMenu(barIndex: barIndex)
+                    } else {
+                        singleChordButton(barIndex: barIndex)
                     }
                 }
             }
             .frame(minWidth: 0, maxWidth: .infinity)
-            .clipped()
         }
         .padding(16)
         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 210, alignment: .topLeading)
         .background(AppColors.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(AppColors.control.opacity(0.42), lineWidth: 1)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 
     private var scale: ScalePattern { progression.scale }
 
-    private var chordCount: Int { progression.degrees.count }
+    private var chordCount: Int { progression.bars.count }
 
     private var chordButtonSpacing: CGFloat {
         chordCount > 6 ? 4 : 8
@@ -993,6 +1011,138 @@ private struct PopularProgressionCard: View {
 
     private var chordButtonHorizontalPadding: CGFloat {
         chordCount > 6 ? 3 : 8
+    }
+
+    private func singleChordButton(barIndex: Int) -> some View {
+        let flatIndex = progression.flatIndex(barIndex: barIndex, chordIndex: 0)
+        let isSeventh = seventhChordIndexes.contains(flatIndex)
+
+        return Text(displayedChord(barIndex: barIndex, chordIndex: 0))
+            .font(.system(size: chordButtonFontSize, weight: .black, design: .rounded))
+            .minimumScaleFactor(0.48)
+            .lineLimit(1)
+            .foregroundStyle(AppColors.primaryText)
+            .padding(.horizontal, chordButtonHorizontalPadding)
+            .frame(minWidth: 0, maxWidth: .infinity, minHeight: chordButtonHeight, maxHeight: chordButtonHeight)
+            .background(
+                isSeventh ? AppColors.rootText.opacity(0.72) : AppColors.control,
+                in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+            )
+            .contentShape(Rectangle())
+            .onTapGesture {
+                toggleSeventh(at: flatIndex)
+            }
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel("Изменить тип аккорда")
+            .accessibilityAction {
+                toggleSeventh(at: flatIndex)
+            }
+    }
+
+    private func slashChordMenu(barIndex: Int) -> some View {
+        let configuration = slashConfiguration(for: barIndex)
+
+        return Menu {
+            ForEach(PopularSlashChordConfiguration.allCases) { option in
+                Button {
+                    setSlashConfiguration(option, for: barIndex)
+                } label: {
+                    if option == configuration {
+                        Label(
+                            slashOptionTitle(for: barIndex, configuration: option),
+                            systemImage: "checkmark"
+                        )
+                    } else {
+                        Text(slashOptionTitle(for: barIndex, configuration: option))
+                    }
+                }
+            }
+        } label: {
+            Text(slashOptionTitle(for: barIndex, configuration: configuration))
+                .font(.system(size: chordButtonFontSize, weight: .black, design: .rounded))
+                .minimumScaleFactor(0.42)
+                .lineLimit(1)
+                .foregroundStyle(AppColors.primaryText)
+                .padding(.horizontal, chordButtonHorizontalPadding)
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: chordButtonHeight, maxHeight: chordButtonHeight)
+                .background(
+                    configuration == .triadTriad
+                        ? AppColors.control
+                        : AppColors.rootText.opacity(0.72),
+                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Выбрать типы аккордов в такте")
+    }
+
+    private func slashOptionTitle(
+        for barIndex: Int,
+        configuration: PopularSlashChordConfiguration
+    ) -> String {
+        let degrees = progression.bars[barIndex]
+        guard degrees.count == 2 else { return degrees.joined(separator: " / ") }
+
+        var names: [String] = []
+        if configuration.firstIsActive {
+            names.append(
+                chordName(
+                    for: degrees[0],
+                    isSeventh: configuration.firstIsSeventh
+                )
+            )
+        }
+        if configuration.secondIsActive {
+            names.append(
+                chordName(
+                    for: degrees[1],
+                    isSeventh: configuration.secondIsSeventh
+                )
+            )
+        }
+        return names.joined(separator: " / ")
+    }
+
+    private func chordName(for degree: String, isSeventh: Bool) -> String {
+        guard let root = effectiveRoot else { return degree }
+        return chordDescriptor(for: degree, root: root, isSeventh: isSeventh)?.name ?? degree
+    }
+
+    private func slashConfiguration(for barIndex: Int) -> PopularSlashChordConfiguration {
+        if let storedConfiguration = slashChordConfigurations[barIndex] {
+            return storedConfiguration
+        }
+
+        let firstIndex = progression.flatIndex(barIndex: barIndex, chordIndex: 0)
+        let secondIndex = progression.flatIndex(barIndex: barIndex, chordIndex: 1)
+
+        if seventhChordIndexes.contains(firstIndex) {
+            return .seventhSeventh
+        }
+        if seventhChordIndexes.contains(secondIndex) {
+            return .triadSeventh
+        }
+        return .triadTriad
+    }
+
+    private func setSlashConfiguration(
+        _ configuration: PopularSlashChordConfiguration,
+        for barIndex: Int
+    ) {
+        let firstIndex = progression.flatIndex(barIndex: barIndex, chordIndex: 0)
+        let secondIndex = progression.flatIndex(barIndex: barIndex, chordIndex: 1)
+        var indexes = Set(seventhChordIndexes)
+        indexes.remove(firstIndex)
+        indexes.remove(secondIndex)
+
+        if configuration.firstIsSeventh {
+            indexes.insert(firstIndex)
+        }
+        if configuration.secondIsSeventh {
+            indexes.insert(secondIndex)
+        }
+        seventhChordIndexes = indexes.sorted()
+        slashChordConfigurations[barIndex] = configuration
     }
 
     private var tonicOptions: [MenuPickerItem<Int>] {
@@ -1064,20 +1214,28 @@ private struct PopularProgressionCard: View {
     private var playbackChords: [PlaybackChord] {
         guard let root = effectiveRoot else { return [] }
         return progression.bars.enumerated().flatMap { barIndex, bar in
-            bar.enumerated().compactMap { chordIndex, degree in
+            let activeChordCount = activeChordCount(in: barIndex)
+            return bar.enumerated().compactMap { chordIndex, degree -> PlaybackChord? in
                 let flatIndex = progression.flatIndex(
                     barIndex: barIndex,
                     chordIndex: chordIndex
                 )
+                guard isActiveChord(barIndex: barIndex, chordIndex: chordIndex) else {
+                    return nil
+                }
                 guard let chord = chordDescriptor(
                     for: degree,
                     root: root,
-                    isSeventh: seventhChordIndexes.contains(flatIndex)
+                    isSeventh: isSeventhChord(
+                        barIndex: barIndex,
+                        chordIndex: chordIndex,
+                        flatIndex: flatIndex
+                    )
                 ) else { return nil }
                 return PlaybackChord(
                     rootPitchClass: chord.rootPitchClass,
                     intervals: chord.intervals,
-                    durationMultiplier: 1 / Double(max(bar.count, 1))
+                    durationMultiplier: 1 / Double(max(activeChordCount, 1))
                 )
             }
         }
@@ -1106,6 +1264,39 @@ private struct PopularProgressionCard: View {
             indexes.insert(index)
         }
         seventhChordIndexes = indexes.sorted()
+    }
+
+    private func isSeventhChord(
+        barIndex: Int,
+        chordIndex: Int,
+        flatIndex: Int
+    ) -> Bool {
+        guard progression.bars[barIndex].count == 2 else {
+            return seventhChordIndexes.contains(flatIndex)
+        }
+
+        let configuration = slashConfiguration(for: barIndex)
+        return chordIndex == 0
+            ? configuration.firstIsSeventh
+            : configuration.secondIsSeventh
+    }
+
+    private func isActiveChord(barIndex: Int, chordIndex: Int) -> Bool {
+        guard progression.bars[barIndex].count == 2 else { return true }
+        let configuration = slashConfiguration(for: barIndex)
+        return chordIndex == 0
+            ? configuration.firstIsActive
+            : configuration.secondIsActive
+    }
+
+    private func activeChordCount(in barIndex: Int) -> Int {
+        guard progression.bars[barIndex].count == 2 else {
+            return progression.bars[barIndex].count
+        }
+        let configuration = slashConfiguration(for: barIndex)
+        return [configuration.firstIsActive, configuration.secondIsActive]
+            .filter { $0 }
+            .count
     }
 
     private func chordDescriptor(for degree: String, root: Int, isSeventh: Bool) -> PopularChordDescriptor? {
@@ -1222,7 +1413,7 @@ private struct RatingMeter: View {
                     Capsule()
                         .fill(index <= value ? ratingColor : AppColors.control)
                         .frame(width: 14, height: 6)
-                        .frame(width: 28, height: 30)
+                        .frame(width: 20, height: 30)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
