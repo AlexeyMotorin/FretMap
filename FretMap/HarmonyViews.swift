@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct FunctionalHarmonyView: View {
     let noteNames: [String]
@@ -277,18 +278,19 @@ private struct FunctionalProgressionBuilder: View {
         }
         .padding(18)
         .background(AppColors.panel, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .alert("Название последовательности", isPresented: $isNamingProgression) {
-            TextField("Например, Куплет", text: $progressionName)
-            Button("Отмена", role: .cancel) {
-                progressionName = ""
+        .fullScreenCover(
+            isPresented: $isNamingProgression,
+            onDismiss: {
+                AppOrientationController.setSupportedOrientations(.landscape)
             }
-            Button("Сохранить") {
-                let name = progressionName.trimmingCharacters(in: .whitespacesAndNewlines)
-                onSave(name.isEmpty ? "Моя последовательность" : name)
-                progressionName = ""
-            }
-        } message: {
-            Text("Она появится во вкладке «Мои».")
+        ) {
+            ProgressionNameDialog(
+                name: $progressionName,
+                placeholder: "Например, Куплет",
+                onCancel: closeNameDialog,
+                onSave: saveNamedProgression
+            )
+            .background(TransparentPresentationBackground())
         }
     }
 
@@ -394,16 +396,37 @@ private struct FunctionalProgressionBuilder: View {
 
     private var saveButton: some View {
         Button {
-            isNamingProgression = true
+            openNameDialog()
         } label: {
-            Label("Сохранить в «Мои»", systemImage: "square.and.arrow.down")
-                .font(.caption.weight(.bold))
+            Image(systemName: "square.and.arrow.down")
+                .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(AppColors.primaryText)
-                .padding(.horizontal, 12)
-                .frame(height: 40)
+                .frame(width: 44, height: 40)
                 .background(AppColors.control, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Сохранить в «Мои»")
+    }
+
+    private func openNameDialog() {
+        AppOrientationController.setSupportedOrientations(.portrait)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            isNamingProgression = true
+        }
+    }
+
+    private func closeNameDialog() {
+        progressionName = ""
+        isNamingProgression = false
+        AppOrientationController.setSupportedOrientations(.landscape)
+    }
+
+    private func saveNamedProgression() {
+        let name = progressionName.trimmingCharacters(in: .whitespacesAndNewlines)
+        onSave(name.isEmpty ? "Моя последовательность" : name)
+        progressionName = ""
+        isNamingProgression = false
+        AppOrientationController.setSupportedOrientations(.landscape)
     }
 
     private func triadIntervals(for suffix: String) -> [Int] {
@@ -422,6 +445,110 @@ private struct FunctionalProgressionBuilder: View {
         case "m7b5": [0, 3, 6, 10]
         case "dim7": [0, 3, 6, 9]
         default: [0, 4, 7, 10]
+        }
+    }
+}
+
+private struct ProgressionNameDialog: View {
+    @Binding var name: String
+    let placeholder: String
+    let onCancel: () -> Void
+    let onSave: () -> Void
+    @FocusState private var isNameFocused: Bool
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.58)
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture(perform: cancel)
+
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Сохранить последовательность")
+                            .font(.headline.weight(.bold))
+                            .foregroundStyle(AppColors.primaryText)
+                        Text("Она появится во вкладке «Мои»")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppColors.mutedText)
+                    }
+                }
+
+                TextField(
+                    "",
+                    text: $name,
+                    prompt: Text(placeholder).foregroundColor(AppColors.mutedText)
+                )
+                .font(.body.weight(.semibold))
+                .foregroundStyle(AppColors.primaryText)
+                .textInputAutocapitalization(.sentences)
+                .submitLabel(.done)
+                .focused($isNameFocused)
+                .onSubmit(save)
+                .padding(.horizontal, 14)
+                .frame(height: 46)
+                .background(AppColors.control, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                HStack(spacing: 12) {
+                    Button("Отмена", action: cancel)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(AppColors.primaryText)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 40)
+                        .background(AppColors.control, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .buttonStyle(.plain)
+
+                    Button("Сохранить", action: save)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 40)
+                        .background(AppColors.rootText, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .buttonStyle(.plain)
+                }
+            }
+            .padding(18)
+            .frame(maxWidth: 520)
+            .background(AppColors.panel, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(AppColors.control, lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(0.35), radius: 18, y: 8)
+            .padding(20)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea(.container)
+        .onAppear {
+            isNameFocused = true
+        }
+    }
+
+    private func cancel() {
+        isNameFocused = false
+        onCancel()
+    }
+
+    private func save() {
+        isNameFocused = false
+        onSave()
+    }
+}
+
+private struct TransparentPresentationBackground: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = .clear
+        DispatchQueue.main.async {
+            view.superview?.superview?.backgroundColor = .clear
+        }
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        DispatchQueue.main.async {
+            uiView.superview?.superview?.backgroundColor = .clear
         }
     }
 }
@@ -642,18 +769,19 @@ private struct ModalProgressionBuilder: View {
         }
         .padding(18)
         .background(AppColors.panel, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .alert("Название последовательности", isPresented: $isNamingProgression) {
-            TextField("Например, Припев", text: $progressionName)
-            Button("Отмена", role: .cancel) {
-                progressionName = ""
+        .fullScreenCover(
+            isPresented: $isNamingProgression,
+            onDismiss: {
+                AppOrientationController.setSupportedOrientations(.landscape)
             }
-            Button("Сохранить") {
-                let name = progressionName.trimmingCharacters(in: .whitespacesAndNewlines)
-                onSave(name.isEmpty ? "Моя последовательность" : name)
-                progressionName = ""
-            }
-        } message: {
-            Text("Она появится во вкладке «Мои».")
+        ) {
+            ProgressionNameDialog(
+                name: $progressionName,
+                placeholder: "Например, Припев",
+                onCancel: closeNameDialog,
+                onSave: saveNamedProgression
+            )
+            .background(TransparentPresentationBackground())
         }
     }
 
@@ -810,16 +938,37 @@ private struct ModalProgressionBuilder: View {
 
     private var saveButton: some View {
         Button {
-            isNamingProgression = true
+            openNameDialog()
         } label: {
-            Label("Сохранить в «Мои»", systemImage: "square.and.arrow.down")
-                .font(.caption.weight(.bold))
+            Image(systemName: "square.and.arrow.down")
+                .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(AppColors.primaryText)
-                .padding(.horizontal, 12)
-                .frame(height: 40)
+                .frame(width: 44, height: 40)
                 .background(AppColors.control, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Сохранить в «Мои»")
+    }
+
+    private func openNameDialog() {
+        AppOrientationController.setSupportedOrientations(.portrait)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            isNamingProgression = true
+        }
+    }
+
+    private func closeNameDialog() {
+        progressionName = ""
+        isNamingProgression = false
+        AppOrientationController.setSupportedOrientations(.landscape)
+    }
+
+    private func saveNamedProgression() {
+        let name = progressionName.trimmingCharacters(in: .whitespacesAndNewlines)
+        onSave(name.isEmpty ? "Моя последовательность" : name)
+        progressionName = ""
+        isNamingProgression = false
+        AppOrientationController.setSupportedOrientations(.landscape)
     }
 
     private func interval(from index: Int, steps: Int) -> Int {
@@ -1060,10 +1209,6 @@ struct SavedHarmonyView: View {
                             .font(.system(size: 30, weight: .semibold))
                         Text("Сохранённых последовательностей пока нет")
                             .font(.headline.weight(.bold))
-                        Button("Создать первую") {
-                            isCreatingProgression = true
-                        }
-                        .buttonStyle(.borderedProminent)
                     }
                     .foregroundStyle(AppColors.mutedText)
                     .frame(maxWidth: .infinity, minHeight: 240)
@@ -1405,7 +1550,17 @@ private struct PopularProgressionCard: View {
         }
         .padding(16)
         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 210, alignment: .topLeading)
-        .background(AppColors.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(AppColors.panel)
+
+                if rating != 3 {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(progressionRatingColor(for: rating).opacity(cardRatingTintOpacity))
+                }
+            }
+        }
     }
 
     private var scale: ScalePattern { progression.scale }
@@ -1430,6 +1585,10 @@ private struct PopularProgressionCard: View {
 
     private var chordButtonHorizontalPadding: CGFloat {
         chordCount > 6 ? 3 : 8
+    }
+
+    private var cardRatingTintOpacity: Double {
+        rating <= 2 ? 0.24 : 0.18
     }
 
     private func singleChordButton(barIndex: Int) -> some View {
@@ -1856,18 +2015,22 @@ private struct RatingMeter: View {
     }
 
     private var ratingColor: Color {
-        switch value {
-        case 1:
-            Color(red: 0.43, green: 0.08, blue: 0.15)
-        case 2:
-            HarmonyColor.red.color
-        case 4:
-            HarmonyColor.yellow.color
-        case 5:
-            HarmonyColor.green.color
-        default:
-            AppColors.mutedText
-        }
+        progressionRatingColor(for: value)
+    }
+}
+
+private func progressionRatingColor(for rating: Int) -> Color {
+    switch rating {
+    case 1:
+        Color(red: 0.43, green: 0.08, blue: 0.15)
+    case 2:
+        HarmonyColor.red.color
+    case 4:
+        HarmonyColor.yellow.color
+    case 5:
+        HarmonyColor.green.color
+    default:
+        AppColors.mutedText
     }
 }
 

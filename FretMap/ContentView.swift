@@ -814,6 +814,14 @@ struct ContentView: View {
         return [0, 2, 4, 7, 9]
     }
 
+    private var appliedChordSettings: ChordSettings {
+        var settings = store.chordSettings
+        if !store.areChordExtensionsVisible {
+            settings.extensions = []
+        }
+        return settings
+    }
+
     private var chordMarkers: [FretMarker] {
         guard store.chordStringCount >= 6 else { return [] }
 
@@ -821,13 +829,14 @@ struct ContentView: View {
             return cagedMarkers
         }
 
-        let intervals = store.chordSettings.intervals
+        let settings = appliedChordSettings
+        let intervals = settings.intervals
         return makeMarkers { stringIndex, fret, pitch in
             let guitarStringNumber = stringIndex + 1
-            guard guitarStringNumber <= store.chordSettings.startString else { return nil }
-            let interval = (pitch - store.chordSettings.root + 12) % 12
+            guard guitarStringNumber <= settings.startString else { return nil }
+            let interval = (pitch - settings.root + 12) % 12
             guard intervals.contains(interval) else { return nil }
-            let degree = store.chordSettings.toneLabel(for: interval) ?? ""
+            let degree = settings.toneLabel(for: interval) ?? ""
             let label = showsDegreeNumbers ? "\(noteNames[pitch])/\(degree)" : noteNames[pitch]
             return FretMarker(position: FretPosition(stringIndex: stringIndex, fret: fret), label: label, isRoot: interval == 0)
         }
@@ -835,7 +844,7 @@ struct ContentView: View {
 
     private var chordBarres: [ChordBarre] {
         guard usesCagedChordShape, let shape = selectedChordShape else { return [] }
-        return shape.transposedBarres(to: store.chordSettings.root)
+        return shape.transposedBarres(to: appliedChordSettings.root)
     }
 
     private var chordVisibleFretRange: ClosedRange<Int>? {
@@ -856,13 +865,14 @@ struct ContentView: View {
 
     private var cagedChordMarkers: [FretMarker]? {
         guard usesCagedChordShape, let shape = selectedChordShape else { return nil }
+        let settings = appliedChordSettings
         let displayedStrings = Array(selectedTuning(for: .chords).strings.reversed())
-        return shape.transposedNotes(to: store.chordSettings.root).compactMap { note in
+        return shape.transposedNotes(to: settings.root).compactMap { note in
             let stringIndex = note.stringNumber - 1
             guard displayedStrings.indices.contains(stringIndex), (0...store.chordFretCount).contains(note.fret) else { return nil }
             let pitch = (displayedStrings[stringIndex].pitchClass + note.fret) % 12
-            let interval = (pitch - store.chordSettings.root + 12) % 12
-            let degree = store.chordSettings.toneLabel(for: interval) ?? (interval == 9 ? "bb7" : "")
+            let interval = (pitch - settings.root + 12) % 12
+            let degree = settings.toneLabel(for: interval) ?? (interval == 9 ? "bb7" : "")
             let label = showsDegreeNumbers && !degree.isEmpty ? "\(noteNames[pitch])/\(degree)" : noteNames[pitch]
             return FretMarker(position: FretPosition(stringIndex: stringIndex, fret: note.fret), label: label, isRoot: interval == 0)
         }
@@ -873,13 +883,14 @@ struct ContentView: View {
     }
 
     private var availableChordShapes: [ChordShape] {
-        if store.chordIsCustomTuningEnabled || store.chordSettings.hasExtensions || !supportsCagedChordShapes {
+        let settings = appliedChordSettings
+        if store.chordIsCustomTuningEnabled || settings.hasExtensions || !supportsCagedChordShapes {
             return generatedChordShapes
         }
 
         let databaseShapes = ChordFingeringDatabase.shapes(
-            quality: store.chordSettings.quality,
-            size: store.chordSettings.size,
+            quality: settings.quality,
+            size: settings.size,
             maxRootString: store.chordStringCount
         )
         return databaseShapes.isEmpty ? generatedChordShapes : databaseShapes
@@ -893,19 +904,20 @@ struct ContentView: View {
     }
 
     private func generatedChordShape(rootString: Int) -> ChordShape? {
+        let settings = appliedChordSettings
         let displayedStrings = Array(selectedTuning(for: .chords).strings.reversed())
         let rootIndex = rootString - 1
         guard displayedStrings.indices.contains(rootIndex) else { return nil }
 
         let maxRootFret = min(store.chordFretCount, 12)
         guard let rootFret = (0...maxRootFret).first(where: {
-            (displayedStrings[rootIndex].pitchClass + $0) % 12 == store.chordSettings.root
+            (displayedStrings[rootIndex].pitchClass + $0) % 12 == settings.root
         }) else {
             return nil
         }
 
-        let intervalSet = store.chordSettings.intervals
-        let requiredIntervals = store.chordSettings.requiredIntervals
+        let intervalSet = settings.intervals
+        let requiredIntervals = settings.requiredIntervals
         let stringNumbers = Array(max(1, rootString - 4)...rootString)
         var notes: [ChordShape.Note] = [ChordShape.Note(stringNumber: rootString, fret: rootFret)]
         var coveredIntervals: Set<Int> = [0]
@@ -920,7 +932,7 @@ struct ContentView: View {
             ) else { continue }
 
             let pitch = (displayedStrings[stringNumber - 1].pitchClass + note.fret) % 12
-            let interval = (pitch - store.chordSettings.root + 12) % 12
+            let interval = (pitch - settings.root + 12) % 12
             notes.append(note)
             coveredIntervals.insert(interval)
         }
@@ -928,12 +940,12 @@ struct ContentView: View {
         guard requiredIntervals.isSubset(of: coveredIntervals) else { return nil }
 
         return ChordShape(
-            id: "generated-\(store.chordSettings.root)-\(store.chordSettings.quality.rawValue)-\(store.chordSettings.size.rawValue)-\(store.chordSettings.extensions.map(\.rawValue).joined(separator: "-"))-\(rootString)-\(rootFret)",
+            id: "generated-\(settings.root)-\(settings.quality.rawValue)-\(settings.size.rawValue)-\(settings.extensions.map(\.rawValue).joined(separator: "-"))-\(rootString)-\(rootFret)",
             title: "Кастом от \(rootString) струны",
-            quality: store.chordSettings.quality,
-            size: store.chordSettings.size,
+            quality: settings.quality,
+            size: settings.size,
             rootString: rootString,
-            baseRoot: store.chordSettings.root,
+            baseRoot: settings.root,
             notes: notes.sorted { $0.stringNumber < $1.stringNumber },
             barres: []
         )
@@ -953,7 +965,7 @@ struct ContentView: View {
         let endFret = min(store.chordFretCount, rootFret + 5)
         let candidates = (startFret...endFret).compactMap { fret -> (note: ChordShape.Note, score: Int)? in
             let pitch = (displayedStrings[stringIndex].pitchClass + fret) % 12
-            let interval = (pitch - store.chordSettings.root + 12) % 12
+            let interval = (pitch - appliedChordSettings.root + 12) % 12
             guard allowedIntervals.contains(interval) else { return nil }
             let duplicatePenalty = coveredIntervals.contains(interval) ? 80 : 0
             let distancePenalty = abs(fret - rootFret) * 4
@@ -988,7 +1000,8 @@ struct ContentView: View {
     }
 
     private var chordDisplayName: String {
-        "\(noteNames[store.chordSettings.root])\(store.chordSettings.displaySuffix)"
+        let settings = appliedChordSettings
+        return "\(noteNames[settings.root])\(settings.displaySuffix)"
     }
 
     private var chordShapeSwipeGesture: some Gesture {
@@ -1435,7 +1448,8 @@ struct ContentView: View {
         }
 
         syncChordShape()
-        isCustomTuningSheetPresented = false
+        prepareNewCustomTuningDraft()
+        isCustomTuningNameFocused = true
     }
 
     private func deleteCustomTuning(_ preset: CustomTuningPreset) {
