@@ -56,6 +56,7 @@ final class AppSettingsStore: ObservableObject {
     @Published var favoriteProgressionIDs: [String] { didSet { save() } }
     @Published var popularCollectionMode: PopularCollectionMode { didSet { save() } }
     @Published var popularSortMode: PopularSortMode { didSet { save() } }
+    @Published var savedHarmonyProgressions: [SavedHarmonyProgression] { didSet { save() } }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -112,6 +113,7 @@ final class AppSettingsStore: ObservableObject {
         favoriteProgressionIDs = snapshot.favoriteProgressionIDs ?? []
         popularCollectionMode = snapshot.popularCollectionMode ?? .popular
         popularSortMode = snapshot.popularSortMode ?? .defaultOrder
+        savedHarmonyProgressions = snapshot.savedHarmonyProgressions ?? []
 
         isRestoring = false
         normalize()
@@ -138,6 +140,17 @@ final class AppSettingsStore: ObservableObject {
         modalSelectedChordKinds = normalizedChordKinds(modalSelectedChordKinds)
         popularRatings = popularRatings.mapValues { min(max($0, 1), 5) }
         favoriteProgressionIDs = Array(Set(favoriteProgressionIDs))
+        savedHarmonyProgressions = savedHarmonyProgressions.map { progression in
+            var normalized = progression
+            normalized.root = progression.root == -1 ? -1 : clampedPitch(progression.root)
+            normalized.degrees = Array(progression.degrees.prefix(8))
+            normalized.chordKinds = Array(progression.chordKinds.prefix(normalized.degrees.count))
+            while normalized.chordKinds.count < normalized.degrees.count {
+                normalized.chordKinds.append(.triad)
+            }
+            normalized.rating = min(max(progression.rating, 1), 5)
+            return normalized
+        }
 
         if !ScalePattern.all.contains(where: { $0.id == selectedScaleID }) {
             selectedScaleID = ScalePattern.ionian.id
@@ -227,7 +240,8 @@ final class AppSettingsStore: ObservableObject {
             popularRatings: popularRatings,
             favoriteProgressionIDs: favoriteProgressionIDs,
             popularCollectionMode: popularCollectionMode,
-            popularSortMode: popularSortMode
+            popularSortMode: popularSortMode,
+            savedHarmonyProgressions: savedHarmonyProgressions
         )
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
         defaults.set(data, forKey: Self.storageKey)
@@ -337,6 +351,7 @@ private struct AppSettingsSnapshot: Codable {
     var favoriteProgressionIDs: [String]?
     var popularCollectionMode: PopularCollectionMode?
     var popularSortMode: PopularSortMode?
+    var savedHarmonyProgressions: [SavedHarmonyProgression]?
 
     static let `default` = AppSettingsSnapshot(
         appMode: .modes,
@@ -386,6 +401,7 @@ private struct AppSettingsSnapshot: Codable {
         popularRatings: [:],
         favoriteProgressionIDs: [],
         popularCollectionMode: .popular,
-        popularSortMode: .defaultOrder
+        popularSortMode: .defaultOrder,
+        savedHarmonyProgressions: []
     )
 }

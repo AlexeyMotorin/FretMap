@@ -37,7 +37,23 @@ struct FunctionalHarmonyView: View {
                     chordKind: $store.functionalChordKind,
                     chordCount: $store.functionalChordCount,
                     selectedDegrees: $store.functionalSelectedDegrees,
-                    selectedChordKinds: $store.functionalSelectedChordKinds
+                    selectedChordKinds: $store.functionalSelectedChordKinds,
+                    onSave: { name in
+                        store.savedHarmonyProgressions.append(
+                            SavedHarmonyProgression(
+                                name: name,
+                                source: .functional,
+                                root: store.functionalRoot,
+                                functionalMode: store.functionalKeyMode,
+                                degrees: Array(store.functionalSelectedDegrees.prefix(store.functionalChordCount)),
+                                chordKinds: savedChordKinds(
+                                    kind: store.functionalChordKind,
+                                    selectedKinds: store.functionalSelectedChordKinds,
+                                    count: store.functionalChordCount
+                                )
+                            )
+                        )
+                    }
                 )
             }
             .padding(18)
@@ -54,6 +70,17 @@ struct FunctionalHarmonyView: View {
         case "D": "D -> T"
         default: ""
         }
+    }
+
+    private func savedChordKinds(
+        kind: FunctionalChordKind,
+        selectedKinds: [FunctionalChordKind],
+        count: Int
+    ) -> [FunctionalChordKind] {
+        if kind == .mixed {
+            return Array(selectedKinds.prefix(count))
+        }
+        return Array(repeating: kind, count: count)
     }
 }
 
@@ -169,7 +196,10 @@ private struct FunctionalProgressionBuilder: View {
     @Binding var chordCount: Int
     @Binding var selectedDegrees: [Int]
     @Binding var selectedChordKinds: [FunctionalChordKind]
+    let onSave: (String) -> Void
     @StateObject private var audioPlayer = ProgressionAudioPlayer()
+    @State private var isNamingProgression = false
+    @State private var progressionName = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -191,6 +221,8 @@ private struct FunctionalProgressionBuilder: View {
                 playbackButton {
                     audioPlayer.play(chords: playbackChords)
                 }
+
+                saveButton
             }
 
             HStack(spacing: 12) {
@@ -245,6 +277,19 @@ private struct FunctionalProgressionBuilder: View {
         }
         .padding(18)
         .background(AppColors.panel, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .alert("Название последовательности", isPresented: $isNamingProgression) {
+            TextField("Например, Куплет", text: $progressionName)
+            Button("Отмена", role: .cancel) {
+                progressionName = ""
+            }
+            Button("Сохранить") {
+                let name = progressionName.trimmingCharacters(in: .whitespacesAndNewlines)
+                onSave(name.isEmpty ? "Моя последовательность" : name)
+                progressionName = ""
+            }
+        } message: {
+            Text("Она появится во вкладке «Мои».")
+        }
     }
 
     private var noteOptions: [MenuPickerItem<Int>] {
@@ -345,6 +390,20 @@ private struct FunctionalProgressionBuilder: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(audioPlayer.isPlaying ? "Остановить последовательность" : "Воспроизвести последовательность")
+    }
+
+    private var saveButton: some View {
+        Button {
+            isNamingProgression = true
+        } label: {
+            Label("Сохранить в «Мои»", systemImage: "square.and.arrow.down")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(AppColors.primaryText)
+                .padding(.horizontal, 12)
+                .frame(height: 40)
+                .background(AppColors.control, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     private func triadIntervals(for suffix: String) -> [Int] {
@@ -455,7 +514,23 @@ struct ModalHarmonyView: View {
                     chordKind: $store.modalChordKind,
                     chordCount: $store.modalChordCount,
                     selectedDegrees: $store.modalSelectedDegrees,
-                    selectedChordKinds: $store.modalSelectedChordKinds
+                    selectedChordKinds: $store.modalSelectedChordKinds,
+                    onSave: { name in
+                        store.savedHarmonyProgressions.append(
+                            SavedHarmonyProgression(
+                                name: name,
+                                source: .modal,
+                                root: store.modalRoot,
+                                modalMode: store.modalMode,
+                                degrees: Array(store.modalSelectedDegrees.prefix(store.modalChordCount)),
+                                chordKinds: savedChordKinds(
+                                    kind: store.modalChordKind,
+                                    selectedKinds: store.modalSelectedChordKinds,
+                                    count: store.modalChordCount
+                                )
+                            )
+                        )
+                    }
                 )
             }
             .padding(18)
@@ -469,6 +544,17 @@ struct ModalHarmonyView: View {
         }
         return cell.color.color.opacity(cell.color == .neutral ? 0.18 : 0.55)
     }
+
+    private func savedChordKinds(
+        kind: FunctionalChordKind,
+        selectedKinds: [FunctionalChordKind],
+        count: Int
+    ) -> [FunctionalChordKind] {
+        if kind == .mixed {
+            return Array(selectedKinds.prefix(count))
+        }
+        return Array(repeating: kind, count: count)
+    }
 }
 
 private struct ModalProgressionBuilder: View {
@@ -479,7 +565,10 @@ private struct ModalProgressionBuilder: View {
     @Binding var chordCount: Int
     @Binding var selectedDegrees: [Int]
     @Binding var selectedChordKinds: [FunctionalChordKind]
+    let onSave: (String) -> Void
     @StateObject private var audioPlayer = ProgressionAudioPlayer()
+    @State private var isNamingProgression = false
+    @State private var progressionName = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -501,6 +590,8 @@ private struct ModalProgressionBuilder: View {
                 playbackButton {
                     audioPlayer.play(chords: playbackChords)
                 }
+
+                saveButton
             }
 
             HStack(spacing: 12) {
@@ -551,6 +642,19 @@ private struct ModalProgressionBuilder: View {
         }
         .padding(18)
         .background(AppColors.panel, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .alert("Название последовательности", isPresented: $isNamingProgression) {
+            TextField("Например, Припев", text: $progressionName)
+            Button("Отмена", role: .cancel) {
+                progressionName = ""
+            }
+            Button("Сохранить") {
+                let name = progressionName.trimmingCharacters(in: .whitespacesAndNewlines)
+                onSave(name.isEmpty ? "Моя последовательность" : name)
+                progressionName = ""
+            }
+        } message: {
+            Text("Она появится во вкладке «Мои».")
+        }
     }
 
     private var noteOptions: [MenuPickerItem<Int>] {
@@ -704,6 +808,20 @@ private struct ModalProgressionBuilder: View {
         .accessibilityLabel(audioPlayer.isPlaying ? "Остановить последовательность" : "Воспроизвести последовательность")
     }
 
+    private var saveButton: some View {
+        Button {
+            isNamingProgression = true
+        } label: {
+            Label("Сохранить в «Мои»", systemImage: "square.and.arrow.down")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(AppColors.primaryText)
+                .padding(.horizontal, 12)
+                .frame(height: 40)
+                .background(AppColors.control, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
     private func interval(from index: Int, steps: Int) -> Int {
         let target = index + steps
         let octave = target / 7
@@ -804,7 +922,7 @@ struct PopularHarmonyView: View {
                                 seventhChordIndexes: popularSeventhIndexesBinding(for: progression.id),
                                 slashChordConfigurations: slashConfigurationsBinding(for: progression.id),
                                 rating: ratingBinding(for: progression),
-                                isFavorite: favoriteBinding(for: progression.id)
+                                action: .favorite(favoriteBinding(for: progression.id))
                             )
                         }
                     }
@@ -902,6 +1020,307 @@ struct PopularHarmonyView: View {
     }
 }
 
+struct SavedHarmonyView: View {
+    let noteNames: [String]
+    @ObservedObject var store: AppSettingsStore
+    @State private var isCreatingProgression = false
+    @State private var progressionPendingDeletion: SavedHarmonyProgression?
+
+    var body: some View {
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 18) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Мои последовательности")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(AppColors.primaryText)
+                        Text("Сохранённые идеи из функциональной и модальной гармонии")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppColors.mutedText)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        isCreatingProgression = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(AppColors.primaryText)
+                            .frame(width: 44, height: 40)
+                            .background(AppColors.control, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Создать последовательность")
+                }
+
+                if store.savedHarmonyProgressions.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "music.note.list")
+                            .font(.system(size: 30, weight: .semibold))
+                        Text("Сохранённых последовательностей пока нет")
+                            .font(.headline.weight(.bold))
+                        Button("Создать первую") {
+                            isCreatingProgression = true
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .foregroundStyle(AppColors.mutedText)
+                    .frame(maxWidth: .infinity, minHeight: 240)
+                } else {
+                    LazyVGrid(
+                        columns: [
+                            GridItem(.flexible(minimum: 0), spacing: 12),
+                            GridItem(.flexible(minimum: 0), spacing: 12)
+                        ],
+                        alignment: .leading,
+                        spacing: 18
+                    ) {
+                        ForEach(store.savedHarmonyProgressions) { saved in
+                            PopularProgressionCard(
+                                progression: saved.popularProgression,
+                                noteNames: noteNames,
+                                globalRoot: -1,
+                                selectedRoot: savedRootBinding(for: saved.id),
+                                seventhChordIndexes: savedSeventhIndexesBinding(for: saved.id),
+                                slashChordConfigurations: .constant([:]),
+                                rating: savedRatingBinding(for: saved.id),
+                                action: .delete {
+                                    progressionPendingDeletion = saved
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 18)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(AppColors.page)
+        .fullScreenCover(isPresented: $isCreatingProgression) {
+            SavedHarmonyEditor(noteNames: noteNames, store: store)
+        }
+        .alert(
+            "Удалить последовательность?",
+            isPresented: deletionAlertBinding,
+            presenting: progressionPendingDeletion
+        ) { progression in
+            Button("Удалить", role: .destructive) {
+                store.savedHarmonyProgressions.removeAll { $0.id == progression.id }
+                progressionPendingDeletion = nil
+            }
+            Button("Отмена", role: .cancel) {
+                progressionPendingDeletion = nil
+            }
+        } message: { progression in
+            Text("«\(progression.name)» будет удалена без возможности восстановления.")
+        }
+    }
+
+    private var deletionAlertBinding: Binding<Bool> {
+        Binding(
+            get: { progressionPendingDeletion != nil },
+            set: { isPresented in
+                if !isPresented {
+                    progressionPendingDeletion = nil
+                }
+            }
+        )
+    }
+
+    private func savedRootBinding(for id: String) -> Binding<Int> {
+        Binding(
+            get: { savedProgression(id: id)?.root ?? 0 },
+            set: { newValue in
+                updateSavedProgression(id: id) { $0.root = newValue }
+            }
+        )
+    }
+
+    private func savedSeventhIndexesBinding(for id: String) -> Binding<[Int]> {
+        Binding(
+            get: { savedProgression(id: id)?.seventhChordIndexes ?? [] },
+            set: { newIndexes in
+                updateSavedProgression(id: id) { progression in
+                    let indexes = Set(newIndexes)
+                    progression.chordKinds = progression.degrees.indices.map {
+                        indexes.contains($0) ? .seventh : .triad
+                    }
+                }
+            }
+        )
+    }
+
+    private func savedRatingBinding(for id: String) -> Binding<Int> {
+        Binding(
+            get: { savedProgression(id: id)?.rating ?? 3 },
+            set: { newValue in
+                updateSavedProgression(id: id) {
+                    $0.rating = min(max(newValue, 1), 5)
+                }
+            }
+        )
+    }
+
+    private func savedProgression(id: String) -> SavedHarmonyProgression? {
+        store.savedHarmonyProgressions.first { $0.id == id }
+    }
+
+    private func updateSavedProgression(
+        id: String,
+        update: (inout SavedHarmonyProgression) -> Void
+    ) {
+        guard let index = store.savedHarmonyProgressions.firstIndex(where: { $0.id == id }) else { return }
+        update(&store.savedHarmonyProgressions[index])
+    }
+}
+
+private struct SavedHarmonyEditor: View {
+    enum EditorMode: String, CaseIterable, Identifiable {
+        case functional
+        case modal
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .functional: "Функциональная"
+            case .modal: "Модальная"
+            }
+        }
+    }
+
+    let noteNames: [String]
+    @ObservedObject var store: AppSettingsStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var editorMode: EditorMode = .functional
+    @State private var functionalRoot = 0
+    @State private var functionalMode: FunctionalKeyMode = .major
+    @State private var functionalKind: FunctionalChordKind = .triad
+    @State private var functionalCount = 4
+    @State private var functionalDegrees = Array(repeating: 1, count: 8)
+    @State private var functionalKinds = Array(repeating: FunctionalChordKind.triad, count: 8)
+    @State private var modalRoot = 0
+    @State private var modalMode: ModalBuilderMode = .dorian
+    @State private var modalKind: FunctionalChordKind = .triad
+    @State private var modalCount = 4
+    @State private var modalDegrees = Array(repeating: 1, count: 8)
+    @State private var modalKinds = Array(repeating: FunctionalChordKind.triad, count: 8)
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 16) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(AppColors.primaryText)
+                        .frame(width: 44, height: 40)
+                        .background(AppColors.control, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }
+                .buttonStyle(.plain)
+
+                Picker("Тип гармонии", selection: $editorMode) {
+                    ForEach(EditorMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 460)
+
+                Spacer()
+            }
+            .padding(14)
+            .background(AppColors.panel)
+
+            ScrollView(.vertical) {
+                Group {
+                    switch editorMode {
+                    case .functional:
+                        FunctionalProgressionBuilder(
+                            noteNames: noteNames,
+                            selectedRoot: $functionalRoot,
+                            keyMode: $functionalMode,
+                            chordKind: $functionalKind,
+                            chordCount: $functionalCount,
+                            selectedDegrees: $functionalDegrees,
+                            selectedChordKinds: $functionalKinds,
+                            onSave: saveFunctional
+                        )
+                    case .modal:
+                        ModalProgressionBuilder(
+                            noteNames: noteNames,
+                            selectedRoot: $modalRoot,
+                            selectedMode: $modalMode,
+                            chordKind: $modalKind,
+                            chordCount: $modalCount,
+                            selectedDegrees: $modalDegrees,
+                            selectedChordKinds: $modalKinds,
+                            onSave: saveModal
+                        )
+                    }
+                }
+                .padding(18)
+            }
+        }
+        .background(AppColors.page)
+    }
+
+    private func saveFunctional(name: String) {
+        store.savedHarmonyProgressions.append(
+            SavedHarmonyProgression(
+                name: name,
+                source: .functional,
+                root: functionalRoot,
+                functionalMode: functionalMode,
+                degrees: Array(functionalDegrees.prefix(functionalCount)),
+                chordKinds: resolvedChordKinds(
+                    kind: functionalKind,
+                    selectedKinds: functionalKinds,
+                    count: functionalCount
+                )
+            )
+        )
+        dismiss()
+    }
+
+    private func saveModal(name: String) {
+        store.savedHarmonyProgressions.append(
+            SavedHarmonyProgression(
+                name: name,
+                source: .modal,
+                root: modalRoot,
+                modalMode: modalMode,
+                degrees: Array(modalDegrees.prefix(modalCount)),
+                chordKinds: resolvedChordKinds(
+                    kind: modalKind,
+                    selectedKinds: modalKinds,
+                    count: modalCount
+                )
+            )
+        )
+        dismiss()
+    }
+
+    private func resolvedChordKinds(
+        kind: FunctionalChordKind,
+        selectedKinds: [FunctionalChordKind],
+        count: Int
+    ) -> [FunctionalChordKind] {
+        if kind == .mixed {
+            return Array(selectedKinds.prefix(count))
+        }
+        return Array(repeating: kind, count: count)
+    }
+}
+
+private enum ProgressionCardAction {
+    case favorite(Binding<Bool>)
+    case delete(() -> Void)
+}
+
 enum PopularSlashChordConfiguration: String, CaseIterable, Identifiable, Codable {
     case triadTriad
     case triadSeventh
@@ -943,7 +1362,7 @@ private struct PopularProgressionCard: View {
     @Binding var seventhChordIndexes: [Int]
     @Binding var slashChordConfigurations: [Int: PopularSlashChordConfiguration]
     @Binding var rating: Int
-    @Binding var isFavorite: Bool
+    let action: ProgressionCardAction
     @StateObject private var audioPlayer = ProgressionAudioPlayer()
 
     var body: some View {
@@ -953,7 +1372,7 @@ private struct PopularProgressionCard: View {
 
                 Spacer()
 
-                favoriteButton
+                actionButton
 
                 tonicMenu
 
@@ -1197,18 +1616,32 @@ private struct PopularProgressionCard: View {
         )?.name ?? degree
     }
 
-    private var favoriteButton: some View {
-        Button {
-            isFavorite.toggle()
-        } label: {
-            Image(systemName: isFavorite ? "star.fill" : "star")
-                .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(isFavorite ? HarmonyColor.yellow.color : AppColors.primaryText)
-                .frame(width: 40, height: 38)
-                .background(AppColors.control, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    @ViewBuilder
+    private var actionButton: some View {
+        switch action {
+        case .favorite(let isFavorite):
+            Button {
+                isFavorite.wrappedValue.toggle()
+            } label: {
+                Image(systemName: isFavorite.wrappedValue ? "star.fill" : "star")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(isFavorite.wrappedValue ? HarmonyColor.yellow.color : AppColors.primaryText)
+                    .frame(width: 40, height: 38)
+                    .background(AppColors.control, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isFavorite.wrappedValue ? "Удалить из избранного" : "Добавить в избранное")
+        case .delete(let delete):
+            Button(role: .destructive, action: delete) {
+                Image(systemName: "trash")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(HarmonyColor.red.color)
+                    .frame(width: 40, height: 38)
+                    .background(AppColors.control, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Удалить последовательность")
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(isFavorite ? "Удалить из избранного" : "Добавить в избранное")
     }
 
     private var playbackChords: [PlaybackChord] {

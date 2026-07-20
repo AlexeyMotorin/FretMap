@@ -222,6 +222,8 @@ struct ContentView: View {
                 ModalHarmonyView(noteNames: noteNames, store: store)
             case .popular:
                 PopularHarmonyView(noteNames: noteNames, store: store)
+            case .saved:
+                SavedHarmonyView(noteNames: noteNames, store: store)
             }
         }
     }
