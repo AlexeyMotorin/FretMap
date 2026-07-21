@@ -164,6 +164,7 @@ private struct FunctionalProgressionBuilder: View {
                         function: functionTitle(for: degree),
                         degreeTitle: keyMode.degreeTitles[degree - 1],
                         chordName: chordName(for: degree, at: index),
+                        portraitChordFontSize: 22,
                         color: functionColor(for: degree),
                         options: degreeOptions,
                         onSelect: { option in

@@ -44,6 +44,7 @@ struct DegreeSquarePicker: View {
     let function: String
     let degreeTitle: String
     let chordName: String
+    var portraitChordFontSize: CGFloat = 26
     let color: Color
     let options: [MenuPickerItem<DegreeChordOption>]
     let onSelect: (DegreeChordOption) -> Void
@@ -63,7 +64,7 @@ struct DegreeSquarePicker: View {
             ZStack {
                 VStack(spacing: isPortrait ? 5 : 10) {
                     Text(chordName)
-                        .font(.system(size: isPortrait ? 26 : 42, weight: .black, design: .rounded))
+                        .font(.system(size: isPortrait ? portraitChordFontSize : 42, weight: .black, design: .rounded))
                         .minimumScaleFactor(0.55)
                         .lineLimit(1)
                     Text("\(degree) / \(degreeTitle)")

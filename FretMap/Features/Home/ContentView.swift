@@ -74,9 +74,9 @@ struct ContentView: View {
 
                     if isCustomTuningSheetPresented {
                         customTuningWindow(
-                            containerSize: customTuningLayoutSize == .zero
-                                ? proxy.size
-                                : customTuningLayoutSize
+                            containerSize: isCustomTuningNameFocused && customTuningLayoutSize != .zero
+                                ? customTuningLayoutSize
+                                : proxy.size
                         )
                             .zIndex(40)
                             .transition(.identity)
@@ -103,6 +103,7 @@ struct ContentView: View {
         }
         .onChange(of: isCustomTuningSheetPresented) { isPresented in
             if !isPresented {
+                isCustomTuningNameFocused = false
                 customTuningLayoutSize = .zero
             }
             AppOrientationController.setSupportedOrientations(
@@ -653,6 +654,8 @@ struct ContentView: View {
 
     private func customTuningWindow(containerSize: CGSize) -> some View {
         let horizontalContentPadding: CGFloat = 18
+        let windowWidth = activeWindowWidth ?? containerSize.width
+        let layoutWidth = min(430, windowWidth)
 
         return ZStack {
             KeyboardDismissTapObserver {
@@ -785,10 +788,11 @@ struct ContentView: View {
                 .padding(.bottom, 20)
                 .padding(.top, 12)
             }
-            .frame(maxWidth: 430, maxHeight: .infinity)
+            .frame(width: layoutWidth)
+            .frame(maxHeight: .infinity)
             .ignoresSafeArea(.keyboard, edges: .bottom)
         }
-        .frame(width: containerSize.width, height: containerSize.height)
+        .frame(width: windowWidth, height: containerSize.height)
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .clipped()
         .transaction { transaction in
@@ -799,16 +803,17 @@ struct ContentView: View {
 
     private func updateCustomTuningLayoutSize(with newSize: CGSize) {
         guard newSize.width > 0, newSize.height > 0 else { return }
-
-        let currentSize = customTuningLayoutSize
-        let orientationChanged = currentSize != .zero
-            && (newSize.width > newSize.height) != (currentSize.width > currentSize.height)
-        let isAtLeastCurrentSize = newSize.width >= currentSize.width
-            && newSize.height >= currentSize.height
-
-        if currentSize == .zero || orientationChanged || isAtLeastCurrentSize {
+        if !isCustomTuningNameFocused {
             customTuningLayoutSize = newSize
         }
+    }
+
+    private var activeWindowWidth: CGFloat? {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow)?
+            .bounds.width
     }
 
     private func customTuningPresetRow(_ preset: CustomTuningPreset) -> some View {
