@@ -38,8 +38,10 @@ struct UIKitMenuPicker<Value: Hashable>: UIViewRepresentable {
         configuration.titleAlignment = .leading
         configuration.titleLineBreakMode = .byTruncatingTail
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 14, bottom: 0, trailing: 12)
+        let localizedTitle = L10n.string(title)
+        let localizedSelection = L10n.string(selectedTitle)
         configuration.attributedTitle = AttributedString(
-            displaysTitle ? "\(title): \(selectedTitle)" : selectedTitle
+            displaysTitle ? "\(localizedTitle): \(localizedSelection)" : localizedSelection
         )
 
         UIView.performWithoutAnimation {
@@ -47,11 +49,13 @@ struct UIKitMenuPicker<Value: Hashable>: UIViewRepresentable {
             CATransaction.setDisableActions(true)
             button.configuration = configuration
             button.menu = UIMenu(children: options.map { item in
-                UIAction(title: item.title, state: item.value == selection ? .on : .off) { _ in
+                UIAction(title: L10n.string(item.title), state: item.value == selection ? .on : .off) { _ in
                     setSelectionWithoutAnimation(item.value)
                 }
             })
-            button.accessibilityLabel = displaysTitle ? "\(title): \(selectedTitle)" : selectedTitle
+            button.accessibilityLabel = displaysTitle
+                ? "\(localizedTitle): \(localizedSelection)"
+                : localizedSelection
             CATransaction.commit()
             button.layoutIfNeeded()
         }

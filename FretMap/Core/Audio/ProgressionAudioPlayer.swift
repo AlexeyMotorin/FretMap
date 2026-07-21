@@ -1,6 +1,7 @@
 import AVFoundation
 import Combine
 import Foundation
+import OSLog
 
 struct PlaybackChord {
     let rootPitchClass: Int
@@ -66,7 +67,12 @@ final class ProgressionAudioPlayer: ObservableObject {
 
         player.stop()
         if !engine.isRunning {
-            try? engine.start()
+            do {
+                try engine.start()
+            } catch {
+                AppLogger.audio.error("Failed to start audio engine: \(error.localizedDescription, privacy: .public)")
+                return
+            }
         }
 
         player.scheduleBuffer(buffer, at: nil, options: []) { [weak self] in
@@ -94,9 +100,13 @@ final class ProgressionAudioPlayer: ObservableObject {
     private func configureAudioSession() {
         #if os(iOS)
         let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
-        try? session.setPreferredSampleRate(sampleRate)
-        try? session.setActive(true)
+        do {
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try session.setPreferredSampleRate(sampleRate)
+            try session.setActive(true)
+        } catch {
+            AppLogger.audio.error("Failed to configure audio session: \(error.localizedDescription, privacy: .public)")
+        }
         #endif
     }
 

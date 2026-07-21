@@ -1,9 +1,10 @@
 import Foundation
 import Combine
+import OSLog
 
 final class AppSettingsStore: ObservableObject {
     private static let storageKey = "neckFingering.appSettings.v1"
-    private let defaults: UserDefaults
+    private let persistence: SettingsPersisting
     private var isRestoring = false
 
     @Published var appMode: AppMode { didSet { save() } }
@@ -61,9 +62,9 @@ final class AppSettingsStore: ObservableObject {
     @Published var savedHarmonyProgressions: [SavedHarmonyProgression] { didSet { save() } }
     @Published var harmonyTempoBPM: Double { didSet { save() } }
 
-    init(defaults: UserDefaults = .standard) {
-        self.defaults = defaults
-        let snapshot = Self.loadSnapshot(from: defaults) ?? .default
+    init(persistence: SettingsPersisting = UserDefaultsSettingsPersistence()) {
+        self.persistence = persistence
+        let snapshot = Self.loadSnapshot(from: persistence) ?? .default
         isRestoring = true
 
         appMode = .modes
@@ -253,13 +254,22 @@ final class AppSettingsStore: ObservableObject {
             savedHarmonyProgressions: savedHarmonyProgressions,
             harmonyTempoBPM: harmonyTempoBPM
         )
-        guard let data = try? JSONEncoder().encode(snapshot) else { return }
-        defaults.set(data, forKey: Self.storageKey)
+        do {
+            let data = try JSONEncoder().encode(snapshot)
+            persistence.set(data, forKey: Self.storageKey)
+        } catch {
+            AppLogger.persistence.error("Failed to encode settings: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
-    private static func loadSnapshot(from defaults: UserDefaults) -> AppSettingsSnapshot? {
-        guard let data = defaults.data(forKey: storageKey) else { return nil }
-        return try? JSONDecoder().decode(AppSettingsSnapshot.self, from: data)
+    private static func loadSnapshot(from persistence: SettingsPersisting) -> AppSettingsSnapshot? {
+        guard let data = persistence.data(forKey: storageKey) else { return nil }
+        do {
+            return try JSONDecoder().decode(AppSettingsSnapshot.self, from: data)
+        } catch {
+            AppLogger.persistence.error("Failed to decode settings: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
     }
 
     private func normalizedCustomTunings(_ tunings: [Int: [Int]]) -> [Int: [Int]] {

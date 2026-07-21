@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UIKit
+import OSLog
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
@@ -31,7 +32,7 @@ enum AppOrientationController {
         }
 
         windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: orientations)) { error in
-            print("Failed to update interface orientation: \(error.localizedDescription)")
+            AppLogger.orientation.error("Failed to update interface orientation: \(error.localizedDescription, privacy: .public)")
         }
     }
 }

@@ -1,101 +1,5 @@
 import SwiftUI
 
-enum AppMode: String, CaseIterable, Identifiable, Codable {
-    case chords
-    case modes
-    case harmony
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .chords: "Аккорды"
-        case .modes: "Лады"
-        case .harmony: "Гармония"
-        }
-    }
-}
-
-enum HarmonyMode: String, CaseIterable, Identifiable, Codable {
-    case functional
-    case modal
-    case popular
-    case saved
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .functional: "Функциональная"
-        case .modal: "Модальная"
-        case .popular: "Популярные"
-        case .saved: "Мои"
-        }
-    }
-}
-
-enum SavedHarmonySource: String, Codable {
-    case functional
-    case modal
-}
-
-struct SavedHarmonyProgression: Identifiable, Codable, Equatable {
-    var id: String = UUID().uuidString
-    var name: String
-    var source: SavedHarmonySource
-    var root: Int
-    var functionalMode: FunctionalKeyMode?
-    var modalMode: ModalBuilderMode?
-    var degrees: [Int]
-    var chordKinds: [FunctionalChordKind]
-    var rating: Int = 3
-
-    var scale: ScalePattern {
-        switch source {
-        case .functional:
-            return functionalMode == .minor ? .aeolian : .ionian
-        case .modal:
-            switch modalMode ?? .dorian {
-            case .dorian: return .dorian
-            case .phrygian: return .phrygian
-            case .lydian: return .lydian
-            case .mixolydian: return .mixolydian
-            case .locrian: return .locrian
-            }
-        }
-    }
-
-    var degreeTitles: [String] {
-        switch source {
-        case .functional:
-            return (functionalMode ?? .major).degreeTitles
-        case .modal:
-            return (modalMode ?? .dorian).cells.map(\.degree)
-        }
-    }
-
-    var popularProgression: PopularProgression {
-        let bars = degrees.map { degree -> [String] in
-            let index = min(max(degree - 1, 0), degreeTitles.count - 1)
-            return [degreeTitles[index]]
-        }
-        return PopularProgression(
-            id: "\(scale.id)-saved-\(id)",
-            title: name,
-            category: source == .functional ? "Функциональная" : "Модальная",
-            bars: bars,
-            popularity: rating,
-            color: .neutral
-        )
-    }
-
-    var seventhChordIndexes: [Int] {
-        chordKinds.enumerated().compactMap { index, kind in
-            kind == .seventh ? index : nil
-        }
-    }
-}
-
 enum AccidentalStyle: String, CaseIterable, Identifiable, Codable {
     case sharps
     case flats
@@ -320,10 +224,10 @@ enum ChordQuality: String, CaseIterable, Identifiable, Codable {
 
     var title: String {
         switch self {
-        case .major: "Мажорный"
-        case .minor: "Минорный"
-        case .augmented: "Увеличенный"
-        case .diminished: "Уменьшенный"
+        case .major: L10n.string("Мажорный")
+        case .minor: L10n.string("Минорный")
+        case .augmented: L10n.string("Увеличенный")
+        case .diminished: L10n.string("Уменьшенный")
         }
     }
 
@@ -374,7 +278,7 @@ enum ChordSize: String, CaseIterable, Identifiable, Codable {
 
     var title: String {
         switch self {
-        case .triad: "Трезвучие"
+        case .triad: L10n.string("Трезвучие")
         case .majorSeventh: "maj7"
         case .dominantSeventh: "7"
         case .minorSeventh: "m7"
@@ -795,22 +699,4 @@ enum ChordIdentifier {
 
         return nil
     }
-}
-
-enum AppColors {
-    static let page = Color(red: 0.08, green: 0.09, blue: 0.12).opacity(0.82)
-    static let panel = Color(red: 0.12, green: 0.13, blue: 0.18).opacity(0.72)
-    static let control = Color(red: 0.24, green: 0.28, blue: 0.38)
-    static let fretboard = Color(red: 0.15, green: 0.19, blue: 0.23)
-    static let nut = Color(red: 0.47, green: 0.54, blue: 0.64)
-    static let string = Color(red: 0.68, green: 0.76, blue: 0.86)
-    static let stringGlow = Color(red: 0.72, green: 0.84, blue: 1.0)
-    static let inlay = Color(red: 0.65, green: 0.72, blue: 0.76)
-    static let noteMarker = Color.white
-    static let barre = Color(red: 0.13, green: 0.74, blue: 0.46)
-    static let rootText = Color(red: 0.18, green: 0.48, blue: 0.86)
-    static let noteText = Color(red: 0.07, green: 0.08, blue: 0.09)
-    static let openStringStroke = Color(red: 0.92, green: 0.67, blue: 0.22)
-    static let primaryText = Color.white.opacity(0.92)
-    static let mutedText = Color(red: 0.72, green: 0.77, blue: 0.84)
 }
