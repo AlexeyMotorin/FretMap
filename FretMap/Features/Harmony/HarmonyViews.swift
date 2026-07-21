@@ -849,80 +849,102 @@ struct PopularHarmonyView: View {
     private var isPortrait: Bool { verticalSizeClass != .compact }
 
     var body: some View {
-        ScrollViewReader { scrollProxy in
-            ScrollView(.vertical) {
+        Group {
+            if displayedProgressions.isEmpty {
                 VStack(alignment: .leading, spacing: 18) {
-                    Color.clear
-                        .frame(height: 0)
-                        .id("popular-harmony-top")
-
-                if isPortrait {
-                    VStack(spacing: 10) {
-                        collectionPicker
-                        HStack(spacing: 10) {
-                            sortPicker
-                            tonicPicker
-                        }
-                    }
-                } else {
-                    HStack(alignment: .center, spacing: 12) {
-                        HStack {
-                            Spacer(minLength: 0)
-                            collectionPicker.frame(width: 270)
-                            Spacer(minLength: 0)
-                        }
-                        .frame(maxWidth: .infinity)
-
-                        sortPicker.frame(width: 190)
-                        tonicPicker.frame(width: 168)
-                    }
-                }
-
-                HarmonyTempoSlider(bpm: $store.harmonyTempoBPM)
-                    .frame(maxWidth: isPortrait ? .infinity : 420)
-
-                if displayedProgressions.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "star")
-                            .font(.system(size: 28, weight: .semibold))
-                        Text("В избранном пока ничего нет")
-                            .font(.headline.weight(.bold))
-                    }
-                    .foregroundStyle(AppColors.mutedText)
-                    .frame(maxWidth: .infinity, minHeight: 220)
-                } else {
-                    LazyVGrid(
-                        columns: progressionColumns,
-                        alignment: .leading,
-                        spacing: 18
-                    ) {
-                        ForEach(displayedProgressions) { progression in
-                            PopularProgressionCard(
-                                progression: progression,
-                                noteNames: noteNames,
-                                globalRoot: store.popularGlobalRoot,
-                                selectedRoot: popularRootBinding(for: progression.id),
-                                seventhChordIndexes: popularSeventhIndexesBinding(for: progression.id),
-                                slashChordConfigurations: slashConfigurationsBinding(for: progression.id),
-                                rating: ratingBinding(for: progression),
-                                tempoBPM: store.harmonyTempoBPM,
-                                action: .favorite(favoriteBinding(for: progression.id))
-                            )
-                        }
-                    }
-                }
-
-                    Spacer(minLength: 0)
+                    popularControls
+                    tempoSlider
+                    favoriteEmptyState
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .offset(y: isPortrait ? -80 : 0)
                 }
                 .padding(.horizontal, isPortrait ? 16 : 12)
                 .padding(.vertical, 18)
-            }
-            .onAppear {
-                scrollProxy.scrollTo("popular-harmony-top", anchor: .top)
+            } else {
+                ScrollViewReader { scrollProxy in
+                    ScrollView(.vertical) {
+                        VStack(alignment: .leading, spacing: 18) {
+                            Color.clear
+                                .frame(height: 0)
+                                .id("popular-harmony-top")
+
+                            popularControls
+                            tempoSlider
+
+                            LazyVGrid(
+                                columns: progressionColumns,
+                                alignment: .leading,
+                                spacing: 18
+                            ) {
+                                ForEach(displayedProgressions) { progression in
+                                    PopularProgressionCard(
+                                        progression: progression,
+                                        noteNames: noteNames,
+                                        globalRoot: store.popularGlobalRoot,
+                                        selectedRoot: popularRootBinding(for: progression.id),
+                                        seventhChordIndexes: popularSeventhIndexesBinding(for: progression.id),
+                                        slashChordConfigurations: slashConfigurationsBinding(for: progression.id),
+                                        rating: ratingBinding(for: progression),
+                                        tempoBPM: store.harmonyTempoBPM,
+                                        action: .favorite(favoriteBinding(for: progression.id))
+                                    )
+                                }
+                            }
+
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, isPortrait ? 16 : 12)
+                        .padding(.vertical, 18)
+                    }
+                    .onAppear {
+                        scrollProxy.scrollTo("popular-harmony-top", anchor: .top)
+                    }
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.clear)
+    }
+
+    @ViewBuilder
+    private var popularControls: some View {
+        if isPortrait {
+            VStack(spacing: 10) {
+                collectionPicker
+                HStack(spacing: 10) {
+                    sortPicker
+                    tonicPicker
+                }
+            }
+        } else {
+            HStack(alignment: .center, spacing: 12) {
+                HStack {
+                    Spacer(minLength: 0)
+                    collectionPicker.frame(width: 270)
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity)
+
+                sortPicker.frame(width: 190)
+                tonicPicker.frame(width: 168)
+            }
+        }
+    }
+
+    private var tempoSlider: some View {
+        HarmonyTempoSlider(bpm: $store.harmonyTempoBPM)
+            .frame(maxWidth: isPortrait ? .infinity : 420)
+    }
+
+    private var favoriteEmptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "star")
+                .font(.system(size: 28, weight: .semibold))
+            Text("В избранном пока ничего нет")
+                .font(.headline.weight(.bold))
+                .multilineTextAlignment(.center)
+        }
+        .foregroundStyle(AppColors.mutedText)
     }
 
     private var collectionPicker: some View {
@@ -1057,76 +1079,28 @@ struct SavedHarmonyView: View {
     private var isPortrait: Bool { verticalSizeClass != .compact }
 
     var body: some View {
-        ScrollView(.vertical) {
-            VStack(alignment: .leading, spacing: 18) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Мои последовательности")
-                            .font(.title3.weight(.bold))
-                            .foregroundStyle(AppColors.primaryText)
-                        Text("Сохранённые идеи из функциональной и модальной гармонии")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(AppColors.mutedText)
-                    }
-
-                    Spacer()
-
-                    Button {
-                        isCreatingProgression = true
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(AppColors.primaryText)
-                            .frame(width: 44, height: 40)
-                            .background(AppColors.control, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Создать последовательность")
+        Group {
+            if store.savedHarmonyProgressions.isEmpty {
+                VStack(alignment: .leading, spacing: 18) {
+                    savedHeader
+                    tempoSlider
+                    savedEmptyState
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .offset(y: isPortrait ? -80 : 0)
                 }
-
-                HarmonyTempoSlider(bpm: $store.harmonyTempoBPM)
-                    .frame(maxWidth: isPortrait ? .infinity : 420)
-
-                if store.savedHarmonyProgressions.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "music.note.list")
-                            .font(.system(size: 30, weight: .semibold))
-                        Text("Сохранённых последовательностей пока нет")
-                            .font(.headline.weight(.bold))
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.horizontal, isPortrait ? 16 : 12)
+                .padding(.vertical, 18)
+            } else {
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: 18) {
+                        savedHeader
+                        tempoSlider
+                        savedProgressionGrid
                     }
-                    .foregroundStyle(AppColors.mutedText)
-                    .frame(maxWidth: .infinity, minHeight: 240, alignment: .center)
-                } else {
-                    LazyVGrid(
-                        columns: Array(
-                            repeating: GridItem(.flexible(minimum: 0), spacing: 12),
-                            count: isPortrait ? 1 : 2
-                        ),
-                        alignment: .leading,
-                        spacing: 18
-                    ) {
-                        ForEach(store.savedHarmonyProgressions) { saved in
-                            PopularProgressionCard(
-                                progression: saved.popularProgression,
-                                noteNames: noteNames,
-                                globalRoot: -1,
-                                selectedRoot: savedRootBinding(for: saved.id),
-                                seventhChordIndexes: savedSeventhIndexesBinding(for: saved.id),
-                                slashChordConfigurations: .constant([:]),
-                                rating: savedRatingBinding(for: saved.id),
-                                tempoBPM: store.harmonyTempoBPM,
-                                action: .delete {
-                                    progressionPendingDeletion = saved
-                                }
-                            )
-                        }
-                    }
+                    .padding(.horizontal, isPortrait ? 16 : 12)
+                    .padding(.vertical, 18)
                 }
             }
-            .padding(.horizontal, isPortrait ? 16 : 12)
-            .padding(.vertical, 18)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.clear)
@@ -1147,6 +1121,76 @@ struct SavedHarmonyView: View {
             }
         } message: { progression in
             Text("«\(progression.name)» будет удалена без возможности восстановления.")
+        }
+    }
+
+    private var savedHeader: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Мои последовательности")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(AppColors.primaryText)
+                Text("Сохранённые идеи из функциональной и модальной гармонии")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppColors.mutedText)
+            }
+
+            Spacer()
+
+            Button {
+                isCreatingProgression = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(AppColors.primaryText)
+                    .frame(width: 44, height: 40)
+                    .background(AppColors.control, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Создать последовательность")
+        }
+    }
+
+    private var tempoSlider: some View {
+        HarmonyTempoSlider(bpm: $store.harmonyTempoBPM)
+            .frame(maxWidth: isPortrait ? .infinity : 420)
+    }
+
+    private var savedEmptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "music.note.list")
+                .font(.system(size: 30, weight: .semibold))
+            Text("Сохранённых последовательностей пока нет")
+                .font(.headline.weight(.bold))
+                .multilineTextAlignment(.center)
+        }
+        .foregroundStyle(AppColors.mutedText)
+    }
+
+    private var savedProgressionGrid: some View {
+        LazyVGrid(
+            columns: Array(
+                repeating: GridItem(.flexible(minimum: 0), spacing: 12),
+                count: isPortrait ? 1 : 2
+            ),
+            alignment: .leading,
+            spacing: 18
+        ) {
+            ForEach(store.savedHarmonyProgressions) { saved in
+                PopularProgressionCard(
+                    progression: saved.popularProgression,
+                    noteNames: noteNames,
+                    globalRoot: -1,
+                    selectedRoot: savedRootBinding(for: saved.id),
+                    seventhChordIndexes: savedSeventhIndexesBinding(for: saved.id),
+                    slashChordConfigurations: .constant([:]),
+                    rating: savedRatingBinding(for: saved.id),
+                    tempoBPM: store.harmonyTempoBPM,
+                    action: .delete {
+                        progressionPendingDeletion = saved
+                    }
+                )
+            }
         }
     }
 

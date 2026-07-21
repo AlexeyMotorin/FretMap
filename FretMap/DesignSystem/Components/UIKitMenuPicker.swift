@@ -8,11 +8,19 @@ struct MenuPickerItem<Value: Hashable>: Identifiable {
     var id: Value { value }
 }
 
+struct MenuPickerSection<Value: Hashable>: Identifiable {
+    let title: String
+    let items: [MenuPickerItem<Value>]
+
+    var id: String { title }
+}
+
 struct UIKitMenuPicker<Value: Hashable>: UIViewRepresentable {
     let title: String
     @Binding var selection: Value
     let options: [MenuPickerItem<Value>]
     var displaysTitle = true
+    var additionalSections: [MenuPickerSection<Value>] = []
 
     func makeUIView(context: Context) -> UIButton {
         let button = UIButton(type: .system)
@@ -48,11 +56,22 @@ struct UIKitMenuPicker<Value: Hashable>: UIViewRepresentable {
             CATransaction.begin()
             CATransaction.setDisableActions(true)
             button.configuration = configuration
-            button.menu = UIMenu(children: options.map { item in
+            let primaryActions = options.map { item in
                 UIAction(title: L10n.string(item.title), state: item.value == selection ? .on : .off) { _ in
                     setSelectionWithoutAnimation(item.value)
                 }
-            })
+            }
+            let nestedMenus = additionalSections.map { section in
+                UIMenu(
+                    title: L10n.string(section.title),
+                    children: section.items.map { item in
+                        UIAction(title: L10n.string(item.title), state: item.value == selection ? .on : .off) { _ in
+                            setSelectionWithoutAnimation(item.value)
+                        }
+                    }
+                )
+            }
+            button.menu = UIMenu(children: primaryActions + nestedMenus)
             button.accessibilityLabel = displaysTitle
                 ? "\(localizedTitle): \(localizedSelection)"
                 : localizedSelection
@@ -62,7 +81,8 @@ struct UIKitMenuPicker<Value: Hashable>: UIViewRepresentable {
     }
 
     private var selectedTitle: String {
-        options.first { $0.value == selection }?.title ?? options.first?.title ?? ""
+        let allOptions = options + additionalSections.flatMap(\.items)
+        return allOptions.first { $0.value == selection }?.title ?? allOptions.first?.title ?? ""
     }
 
     private func setSelectionWithoutAnimation(_ value: Value) {

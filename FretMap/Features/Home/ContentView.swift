@@ -22,6 +22,7 @@ struct ContentView: View {
     @State private var customTuningDraftName = ""
     @State private var customTuningDraftPitchClasses: [Int] = []
     @State private var customTuningTargetMode: AppMode = .modes
+    @State private var customTuningLayoutSize: CGSize = .zero
     @FocusState private var isCustomTuningNameFocused: Bool
 
     private let scales = ScalePattern.all
@@ -72,13 +73,24 @@ struct ContentView: View {
                     }
 
                     if isCustomTuningSheetPresented {
-                        customTuningWindow(containerSize: proxy.size)
+                        customTuningWindow(
+                            containerSize: customTuningLayoutSize == .zero
+                                ? proxy.size
+                                : customTuningLayoutSize
+                        )
                             .zIndex(40)
                             .transition(.identity)
+                            .onAppear {
+                                updateCustomTuningLayoutSize(with: proxy.size)
+                            }
+                            .onChange(of: proxy.size) { newSize in
+                                updateCustomTuningLayoutSize(with: newSize)
+                            }
                     }
             }
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
         }
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .ignoresSafeArea(.container, edges: .bottom)
         .transaction { transaction in
             transaction.animation = nil
@@ -90,6 +102,9 @@ struct ContentView: View {
             AppOrientationController.setSupportedOrientations(.allButUpsideDown)
         }
         .onChange(of: isCustomTuningSheetPresented) { isPresented in
+            if !isPresented {
+                customTuningLayoutSize = .zero
+            }
             AppOrientationController.setSupportedOrientations(
                 isPresented ? .portrait : supportedOrientations(for: store.appMode)
             )
@@ -265,7 +280,7 @@ struct ContentView: View {
             let isPortrait = isPortraitLayout
 
             VStack(spacing: 0) {
-                Picker("Гармония", selection: noAnimationBinding($store.harmonyMode)) {
+                Picker("Гармония", selection: harmonyModeSelection) {
                     ForEach(HarmonyMode.allCases) { mode in
                         if isPortrait {
                             Image(systemName: harmonyModeIcon(for: mode))
@@ -434,7 +449,17 @@ struct ContentView: View {
 
                 notePicker(title: "Тональность", selection: noAnimationBinding($store.rootNote))
 
-                UIKitMenuPicker(title: "Лад", selection: noAnimationBinding($store.selectedScaleID), options: scales.map { MenuPickerItem(value: $0.id, title: $0.name) })
+                UIKitMenuPicker(
+                    title: "Лад",
+                    selection: noAnimationBinding($store.selectedScaleID),
+                    options: ScalePattern.primary.map { MenuPickerItem(value: $0.id, title: $0.name) },
+                    additionalSections: [
+                        MenuPickerSection(
+                            title: "Ещё…",
+                            items: ScalePattern.additional.map { MenuPickerItem(value: $0.id, title: $0.name) }
+                        )
+                    ]
+                )
                     .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44)
 
                 accidentalPicker(for: .modes)
@@ -627,7 +652,9 @@ struct ContentView: View {
     }
 
     private func customTuningWindow(containerSize: CGSize) -> some View {
-        ZStack {
+        let horizontalContentPadding: CGFloat = 18
+
+        return ZStack {
             KeyboardDismissTapObserver {
                 dismissKeyboard()
             }
@@ -651,16 +678,17 @@ struct ContentView: View {
                         noAnimation { isCustomTuningSheetPresented = false }
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 15, weight: .black))
+                            .font(.system(size: 16, weight: .black))
                             .foregroundStyle(AppColors.primaryText)
-                            .frame(width: 38, height: 38)
+                            .frame(width: 44, height: 44)
                             .background(AppColors.control.opacity(0.95), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Отмена")
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
-                .padding(.bottom, 12)
+                .padding(.horizontal, horizontalContentPadding)
+                .padding(.top, 20)
+                .padding(.bottom, 16)
 
                 ScrollView(.vertical) {
                     VStack(alignment: .leading, spacing: 14) {
@@ -713,12 +741,12 @@ struct ContentView: View {
                                 .background(AppColors.control.opacity(0.9), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                             }
                         }
-                        .padding(12)
+                        .padding(.vertical, 12)
                         .background(AppColors.panel.opacity(0.95), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
                         allStringsSemitoneControl
                     }
-                    .padding(.horizontal, 18)
+                    .padding(.horizontal, horizontalContentPadding)
                     .padding(.vertical, 18)
                 }
                 .scrollDismissesKeyboard(.interactively)
@@ -735,8 +763,9 @@ struct ContentView: View {
                     } label: {
                         Text("Сбросить")
                             .font(.system(.subheadline, design: .rounded).weight(.bold))
+                            .padding(.horizontal, 16)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 44)
+                            .frame(minHeight: 48)
                     }
                     .buttonStyle(.bordered)
 
@@ -745,25 +774,40 @@ struct ContentView: View {
                     } label: {
                         Text("OK")
                             .font(.system(.subheadline, design: .rounded).weight(.black))
+                            .padding(.horizontal, 16)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 44)
+                            .frame(minHeight: 48)
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(customTuningDraftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-                .padding(.horizontal, 18)
-                .padding(.bottom, 18)
-                .padding(.top, 10)
+                .padding(.horizontal, horizontalContentPadding)
+                .padding(.bottom, 20)
+                .padding(.top, 12)
             }
-            .frame(maxWidth: 430)
-            .background(AppColors.panel.opacity(0.88))
-            .padding(.horizontal, 16)
+            .frame(maxWidth: 430, maxHeight: .infinity)
+            .ignoresSafeArea(.keyboard, edges: .bottom)
         }
         .frame(width: containerSize.width, height: containerSize.height)
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .clipped()
         .transaction { transaction in
             transaction.animation = nil
             transaction.disablesAnimations = true
+        }
+    }
+
+    private func updateCustomTuningLayoutSize(with newSize: CGSize) {
+        guard newSize.width > 0, newSize.height > 0 else { return }
+
+        let currentSize = customTuningLayoutSize
+        let orientationChanged = currentSize != .zero
+            && (newSize.width > newSize.height) != (currentSize.width > currentSize.height)
+        let isAtLeastCurrentSize = newSize.width >= currentSize.width
+            && newSize.height >= currentSize.height
+
+        if currentSize == .zero || orientationChanged || isAtLeastCurrentSize {
+            customTuningLayoutSize = newSize
         }
     }
 
@@ -786,7 +830,7 @@ struct ContentView: View {
             } label: {
                 Image(systemName: "pencil")
                     .font(.system(size: 15, weight: .bold))
-                    .frame(width: 34, height: 34)
+                    .frame(width: 40, height: 40)
             }
             .buttonStyle(.bordered)
 
@@ -795,7 +839,7 @@ struct ContentView: View {
             } label: {
                 Image(systemName: "trash")
                     .font(.system(size: 15, weight: .bold))
-                    .frame(width: 34, height: 34)
+                    .frame(width: 40, height: 40)
             }
             .buttonStyle(.bordered)
             .tint(.red)
@@ -832,7 +876,7 @@ struct ContentView: View {
             Image(systemName: systemName)
                 .font(.system(size: 15, weight: .black))
                 .foregroundStyle(AppColors.primaryText)
-                .frame(width: 38, height: 32)
+                .frame(width: 42, height: 36)
                 .background(AppColors.panel.opacity(0.9), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -1483,9 +1527,25 @@ struct ContentView: View {
             isModeSelectionVisible = false
             if mode == .chords {
                 ensureChordStringCount()
+            } else if mode == .harmony, store.harmonyMode == .popular {
+                store.popularCollectionMode = .popular
             }
         }
         updateSupportedOrientations(for: mode)
+    }
+
+    private var harmonyModeSelection: Binding<HarmonyMode> {
+        Binding(
+            get: { store.harmonyMode },
+            set: { mode in
+                noAnimation {
+                    store.harmonyMode = mode
+                    if mode == .popular {
+                        store.popularCollectionMode = .popular
+                    }
+                }
+            }
+        )
     }
 
     private func returnToModeSelection() {

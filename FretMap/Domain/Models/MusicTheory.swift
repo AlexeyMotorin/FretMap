@@ -192,10 +192,39 @@ struct ScalePattern: Identifiable, Equatable {
     static let blues = ScalePattern(id: "blues", name: "Блюз", shortName: "Блюз", intervals: [0, 3, 5, 6, 7, 10], degreeNames: ["1", "b3", "4", "b5", "5", "b7"])
     static let chromatic = ScalePattern(id: "chromatic", name: "Хроматика", shortName: "Хроматика", intervals: Array(0...11), degreeNames: ["1", "b2", "2", "b3", "3", "4", "b5", "5", "b6", "6", "b7", "7"])
 
-    static let all: [ScalePattern] = [
+    static let harmonicMinor = ScalePattern(id: "harmonic-minor", name: "Гармонический минор", shortName: "Гарм. минор", intervals: [0, 2, 3, 5, 7, 8, 11], degreeNames: ["1", "2", "b3", "4", "5", "b6", "7"])
+    static let melodicMinor = ScalePattern(id: "melodic-minor", name: "Мелодический минор", shortName: "Мелод. минор", intervals: [0, 2, 3, 5, 7, 9, 11], degreeNames: ["1", "2", "b3", "4", "5", "6", "7"])
+    static let harmonicMajor = ScalePattern(id: "harmonic-major", name: "Гармонический мажор", shortName: "Гарм. мажор", intervals: [0, 2, 4, 5, 7, 8, 11], degreeNames: ["1", "2", "3", "4", "5", "b6", "7"])
+    static let doubleHarmonicMajor = ScalePattern(id: "double-harmonic-major", name: "Дважды гармонический мажор", shortName: "Двойной гарм. мажор", intervals: [0, 1, 4, 5, 7, 8, 11], degreeNames: ["1", "b2", "3", "4", "5", "b6", "7"])
+    static let hungarianMinor = ScalePattern(id: "hungarian-minor", name: "Венгерский минор", shortName: "Венгерский минор", intervals: [0, 2, 3, 6, 7, 8, 11], degreeNames: ["1", "2", "b3", "#4", "5", "b6", "7"])
+    static let neapolitanMinor = ScalePattern(id: "neapolitan-minor", name: "Неаполитанский минор", shortName: "Неапол. минор", intervals: [0, 1, 3, 5, 7, 8, 11], degreeNames: ["1", "b2", "b3", "4", "5", "b6", "7"])
+    static let neapolitanMajor = ScalePattern(id: "neapolitan-major", name: "Неаполитанский мажор", shortName: "Неапол. мажор", intervals: [0, 1, 3, 5, 7, 9, 11], degreeNames: ["1", "b2", "b3", "4", "5", "6", "7"])
+    static let phrygianDominant = ScalePattern(id: "phrygian-dominant", name: "Фригийский доминантовый", shortName: "Фригийский дом.", intervals: [0, 1, 4, 5, 7, 8, 10], degreeNames: ["1", "b2", "3", "4", "5", "b6", "b7"])
+    static let lydianDominant = ScalePattern(id: "lydian-dominant", name: "Лидийский доминантовый", shortName: "Лидийский дом.", intervals: [0, 2, 4, 6, 7, 9, 10], degreeNames: ["1", "2", "3", "#4", "5", "6", "b7"])
+    static let altered = ScalePattern(id: "altered", name: "Альтерированный (Суперлокрийский)", shortName: "Альтерированный", intervals: [0, 1, 3, 4, 6, 8, 10], degreeNames: ["1", "b2", "#2", "3", "b5", "#5", "b7"])
+    static let wholeTone = ScalePattern(id: "whole-tone", name: "Целотоновый", shortName: "Целотоновый", intervals: [0, 2, 4, 6, 8, 10], degreeNames: ["1", "2", "3", "#4", "#5", "b7"])
+    static let diminishedWholeHalf = ScalePattern(id: "diminished-whole-half", name: "Уменьшенный тон-полутон", shortName: "Тон-полутон", intervals: [0, 2, 3, 5, 6, 8, 9, 11], degreeNames: ["1", "2", "b3", "4", "b5", "b6", "6", "7"])
+    static let diminishedHalfWhole = ScalePattern(id: "diminished-half-whole", name: "Уменьшенный полутон-тон", shortName: "Полутон-тон", intervals: [0, 1, 3, 4, 6, 7, 9, 10], degreeNames: ["1", "b2", "#2", "3", "b5", "5", "6", "b7"])
+    static let dominantBebop = ScalePattern(id: "dominant-bebop", name: "Доминантовый бибоп", shortName: "Доминант. бибоп", intervals: [0, 2, 4, 5, 7, 9, 10, 11], degreeNames: ["1", "2", "3", "4", "5", "6", "b7", "7"])
+    static let majorBlues = ScalePattern(id: "major-blues", name: "Мажорный блюз", shortName: "Мажорный блюз", intervals: [0, 2, 3, 4, 7, 9], degreeNames: ["1", "2", "b3", "3", "5", "6"])
+    static let minorSixPentatonic = ScalePattern(id: "minor-six-pentatonic", name: "Минорная пентатоника с 6", shortName: "Мин. пента +6", intervals: [0, 3, 5, 7, 9], degreeNames: ["1", "b3", "4", "5", "6"])
+    static let hirajoshi = ScalePattern(id: "hirajoshi", name: "Хирадзёси", shortName: "Хирадзёси", intervals: [0, 2, 3, 7, 8], degreeNames: ["1", "2", "b3", "5", "b6"])
+    static let inSen = ScalePattern(id: "in-sen", name: "Ин-сэн", shortName: "Ин-сэн", intervals: [0, 1, 5, 7, 10], degreeNames: ["1", "b2", "4", "5", "b7"])
+
+    static let primary: [ScalePattern] = [
         .ionian, .dorian, .phrygian, .lydian, .mixolydian, .aeolian, .locrian,
         .majorPentatonic, .minorPentatonic, .blues, .chromatic
     ]
+
+    static let additional: [ScalePattern] = [
+        .harmonicMinor, .melodicMinor, .harmonicMajor, .doubleHarmonicMajor,
+        .hungarianMinor, .neapolitanMinor, .neapolitanMajor,
+        .phrygianDominant, .lydianDominant, .altered,
+        .wholeTone, .diminishedWholeHalf, .diminishedHalfWhole, .dominantBebop,
+        .majorBlues, .minorSixPentatonic, .hirajoshi, .inSen
+    ]
+
+    static let all: [ScalePattern] = primary + additional
 }
 
 struct ScaleBox: Identifiable, Equatable {
