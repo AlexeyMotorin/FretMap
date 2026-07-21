@@ -324,7 +324,6 @@ struct ContentView: View {
             chordShapeCounterOverlay
                 .padding(.trailing, 12)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-                .allowsHitTesting(false)
         }
     }
 
@@ -1008,13 +1007,31 @@ struct ContentView: View {
         let shapes = availableChordShapes
         if shapes.count > 1, let index = selectedChordShapeIndex {
             VStack(spacing: 8) {
-                Image(systemName: "chevron.up")
-                    .font(.system(size: 13, weight: .black))
+                Button {
+                    selectChordShape(offset: 1)
+                } label: {
+                    Image(systemName: "chevron.up")
+                        .font(.system(size: 13, weight: .black))
+                        .frame(width: 32, height: 24)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Следующая форма аккорда")
+
                 Text("\(index + 1) / \(shapes.count)")
                     .font(.system(.headline, design: .rounded).weight(.black))
                     .monospacedDigit()
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 13, weight: .black))
+
+                Button {
+                    selectChordShape(offset: -1)
+                } label: {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 13, weight: .black))
+                        .frame(width: 32, height: 24)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Предыдущая форма аккорда")
             }
             .foregroundStyle(AppColors.primaryText)
             .padding(.horizontal, 12)

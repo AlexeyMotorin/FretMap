@@ -41,10 +41,10 @@ struct FunctionalHarmonyView: View {
                         noteNames: noteNames,
                         selectedRoot: $store.functionalRoot,
                         keyMode: $store.functionalKeyMode,
-                        chordKind: $store.functionalChordKind,
                         chordCount: $store.functionalChordCount,
                         selectedDegrees: $store.functionalSelectedDegrees,
                         selectedChordKinds: $store.functionalSelectedChordKinds,
+                        tempoBPM: $store.harmonyTempoBPM,
                         onSave: { name in
                             store.savedHarmonyProgressions.append(
                                 SavedHarmonyProgression(
@@ -53,11 +53,7 @@ struct FunctionalHarmonyView: View {
                                     root: store.functionalRoot,
                                     functionalMode: store.functionalKeyMode,
                                     degrees: Array(store.functionalSelectedDegrees.prefix(store.functionalChordCount)),
-                                    chordKinds: savedChordKinds(
-                                        kind: store.functionalChordKind,
-                                        selectedKinds: store.functionalSelectedChordKinds,
-                                        count: store.functionalChordCount
-                                    )
+                                    chordKinds: Array(store.functionalSelectedChordKinds.prefix(store.functionalChordCount))
                                 )
                             )
                         }
@@ -100,16 +96,6 @@ struct FunctionalHarmonyView: View {
         }
     }
 
-    private func savedChordKinds(
-        kind: FunctionalChordKind,
-        selectedKinds: [FunctionalChordKind],
-        count: Int
-    ) -> [FunctionalChordKind] {
-        if kind == .mixed {
-            return Array(selectedKinds.prefix(count))
-        }
-        return Array(repeating: kind, count: count)
-    }
 }
 
 enum FunctionalKeyMode: String, CaseIterable, Identifiable, Codable {
@@ -154,7 +140,7 @@ enum FunctionalKeyMode: String, CaseIterable, Identifiable, Codable {
     }
 }
 
-enum FunctionalChordKind: String, CaseIterable, Identifiable, Codable {
+enum FunctionalChordKind: String, CaseIterable, Identifiable, Codable, Hashable {
     case triad
     case seventh
     case mixed
@@ -209,21 +195,16 @@ enum ModalBuilderMode: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    var availableDegrees: [Int] {
-        cells.enumerated().compactMap { index, cell in
-            cell.color == .red ? nil : index + 1
-        }
-    }
 }
 
 private struct FunctionalProgressionBuilder: View {
     let noteNames: [String]
     @Binding var selectedRoot: Int
     @Binding var keyMode: FunctionalKeyMode
-    @Binding var chordKind: FunctionalChordKind
     @Binding var chordCount: Int
     @Binding var selectedDegrees: [Int]
     @Binding var selectedChordKinds: [FunctionalChordKind]
+    @Binding var tempoBPM: Double
     let onSave: (String) -> Void
     @StateObject private var audioPlayer = ProgressionAudioPlayer()
     @State private var isNamingProgression = false
@@ -241,7 +222,7 @@ private struct FunctionalProgressionBuilder: View {
                         UIKitMenuPicker(title: "Тоника", selection: $selectedRoot, options: noteOptions)
                             .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40)
                         playbackButton {
-                            audioPlayer.play(chords: playbackChords)
+                            audioPlayer.play(chords: playbackChords, bpm: tempoBPM)
                         }
                         saveButton
                     }
@@ -253,7 +234,7 @@ private struct FunctionalProgressionBuilder: View {
                     UIKitMenuPicker(title: "Тоника", selection: $selectedRoot, options: noteOptions)
                         .frame(width: 170, height: 40)
                     playbackButton {
-                        audioPlayer.play(chords: playbackChords)
+                        audioPlayer.play(chords: playbackChords, bpm: tempoBPM)
                     }
                     saveButton
                 }
@@ -263,15 +244,15 @@ private struct FunctionalProgressionBuilder: View {
                 VStack(spacing: 10) {
                     keyModePicker
                     chordCountPicker
-                    chordKindPicker
                 }
             } else {
                 HStack(spacing: 12) {
                     keyModePicker.frame(maxWidth: .infinity)
                     chordCountPicker.frame(width: 132)
-                    chordKindPicker.frame(maxWidth: .infinity)
                 }
             }
+
+            HarmonyTempoSlider(bpm: $tempoBPM)
 
             LazyVGrid(columns: progressionColumns, alignment: .leading, spacing: 16) {
                 ForEach(0..<chordCount, id: \.self) { index in
@@ -284,8 +265,10 @@ private struct FunctionalProgressionBuilder: View {
                         chordName: chordName(for: degree, at: index),
                         color: functionColor(for: degree),
                         options: degreeOptions,
-                        onSelect: { selectedDegrees[index] = $0 },
-                        onLongPress: chordKind == .mixed ? { toggleChordKind(at: index) } : nil
+                        onSelect: { option in
+                            selectedDegrees[index] = option.degree
+                            selectedChordKinds[index] = option.kind
+                        }
                     )
                 }
             }
@@ -338,15 +321,6 @@ private struct FunctionalProgressionBuilder: View {
         .pickerStyle(.segmented)
     }
 
-    private var chordKindPicker: some View {
-        Picker("Тип", selection: chordKindBinding) {
-            ForEach(FunctionalChordKind.allCases) { kind in
-                Text(kind.title).tag(kind)
-            }
-        }
-        .pickerStyle(.segmented)
-    }
-
     private var progressionColumns: [GridItem] {
         let spacing: CGFloat = isPortrait ? 8 : 16
         return Array(repeating: GridItem(.flexible(minimum: 0), spacing: spacing), count: 4)
@@ -356,32 +330,29 @@ private struct FunctionalProgressionBuilder: View {
         noteNames.indices.map { MenuPickerItem(value: $0, title: noteNames[$0]) }
     }
 
-    private var degreeOptions: [MenuPickerItem<Int>] {
-        (1...7).map { degree in
-            MenuPickerItem(value: degree, title: "\(degree) - \(keyMode.degreeTitles[degree - 1]) - \(functionTitle(for: degree))")
+    private var degreeOptions: [MenuPickerItem<DegreeChordOption>] {
+        (1...7).flatMap { degree in
+            [FunctionalChordKind.triad, .seventh].map { kind in
+                MenuPickerItem(
+                    value: DegreeChordOption(degree: degree, kind: kind),
+                    title: "\(keyMode.degreeTitles[degree - 1]) - \(chordName(for: degree, kind: kind))"
+                )
+            }
         }
     }
 
-    private var chordKindBinding: Binding<FunctionalChordKind> {
-        Binding(
-            get: { chordKind },
-            set: { newValue in
-                if newValue == .mixed, chordKind != .mixed {
-                    selectedChordKinds = Array(repeating: chordKind, count: 8)
-                }
-                chordKind = newValue
-            }
-        )
-    }
-
     private func selectedChordKind(at index: Int) -> FunctionalChordKind {
-        chordKind == .mixed ? selectedChordKinds[index] : chordKind
+        selectedChordKinds[index] == .seventh ? .seventh : .triad
     }
 
     private func chordName(for degree: Int, at position: Int) -> String {
+        chordName(for: degree, kind: selectedChordKind(at: position))
+    }
+
+    private func chordName(for degree: Int, kind: FunctionalChordKind) -> String {
         let index = max(0, min(degree - 1, 6))
         let pitch = (selectedRoot + keyMode.intervals[index]) % 12
-        switch selectedChordKind(at: position) {
+        switch kind {
         case .triad:
             return "\(noteNames[pitch])\(keyMode.qualities[index])"
         case .seventh:
@@ -405,10 +376,6 @@ private struct FunctionalProgressionBuilder: View {
             }
             return PlaybackChord(rootPitchClass: root, intervals: intervals)
         }
-    }
-
-    private func toggleChordKind(at index: Int) {
-        selectedChordKinds[index] = selectedChordKinds[index] == .seventh ? .triad : .seventh
     }
 
     private func functionTitle(for degree: Int) -> String {
@@ -601,6 +568,44 @@ private struct TransparentPresentationBackground: UIViewRepresentable {
     }
 }
 
+private struct HarmonyTempoSlider: View {
+    @Binding var bpm: Double
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Text("Темп")
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(AppColors.primaryText)
+
+            Text("40")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(AppColors.mutedText)
+
+            Slider(value: $bpm, in: 40...200, step: 5)
+                .tint(AppColors.rootText)
+
+            Text("200")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(AppColors.mutedText)
+
+            Text("\(Int(bpm)) BPM")
+                .font(.caption.weight(.bold).monospacedDigit())
+                .foregroundStyle(AppColors.primaryText)
+                .frame(width: 66, alignment: .trailing)
+        }
+        .padding(.horizontal, 12)
+        .frame(minHeight: 42)
+        .background(AppColors.control.opacity(0.56), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Темп \(Int(bpm)) BPM")
+    }
+}
+
+private struct DegreeChordOption: Hashable {
+    let degree: Int
+    let kind: FunctionalChordKind
+}
+
 private struct DegreeSquarePicker: View {
     let index: Int
     let degree: Int
@@ -608,28 +613,13 @@ private struct DegreeSquarePicker: View {
     let degreeTitle: String
     let chordName: String
     let color: Color
-    let options: [MenuPickerItem<Int>]
-    let onSelect: (Int) -> Void
-    let onLongPress: (() -> Void)?
+    let options: [MenuPickerItem<DegreeChordOption>]
+    let onSelect: (DegreeChordOption) -> Void
     @Environment(\.verticalSizeClass) private var verticalSizeClass
 
     private var isPortrait: Bool { verticalSizeClass != .compact }
 
-    @ViewBuilder
     var body: some View {
-        if let onLongPress {
-            degreeMenu
-                .highPriorityGesture(
-                    LongPressGesture(minimumDuration: 0.5)
-                        .onEnded { _ in onLongPress() }
-                )
-                .accessibilityHint("Долгое нажатие меняет тип аккорда")
-        } else {
-            degreeMenu
-        }
-    }
-
-    private var degreeMenu: some View {
         Menu {
             ForEach(options) { option in
                 Button(option.title) {
@@ -711,10 +701,10 @@ struct ModalHarmonyView: View {
                         noteNames: noteNames,
                         selectedRoot: $store.modalRoot,
                         selectedMode: $store.modalMode,
-                        chordKind: $store.modalChordKind,
                         chordCount: $store.modalChordCount,
                         selectedDegrees: $store.modalSelectedDegrees,
                         selectedChordKinds: $store.modalSelectedChordKinds,
+                        tempoBPM: $store.harmonyTempoBPM,
                         onSave: { name in
                             store.savedHarmonyProgressions.append(
                                 SavedHarmonyProgression(
@@ -723,11 +713,7 @@ struct ModalHarmonyView: View {
                                     root: store.modalRoot,
                                     modalMode: store.modalMode,
                                     degrees: Array(store.modalSelectedDegrees.prefix(store.modalChordCount)),
-                                    chordKinds: savedChordKinds(
-                                        kind: store.modalChordKind,
-                                        selectedKinds: store.modalSelectedChordKinds,
-                                        count: store.modalChordCount
-                                    )
+                                    chordKinds: Array(store.modalSelectedChordKinds.prefix(store.modalChordCount))
                                 )
                             )
                         }
@@ -748,26 +734,16 @@ struct ModalHarmonyView: View {
         return cell.color.color.opacity(cell.color == .neutral ? 0.18 : 0.55)
     }
 
-    private func savedChordKinds(
-        kind: FunctionalChordKind,
-        selectedKinds: [FunctionalChordKind],
-        count: Int
-    ) -> [FunctionalChordKind] {
-        if kind == .mixed {
-            return Array(selectedKinds.prefix(count))
-        }
-        return Array(repeating: kind, count: count)
-    }
 }
 
 private struct ModalProgressionBuilder: View {
     let noteNames: [String]
     @Binding var selectedRoot: Int
     @Binding var selectedMode: ModalBuilderMode
-    @Binding var chordKind: FunctionalChordKind
     @Binding var chordCount: Int
     @Binding var selectedDegrees: [Int]
     @Binding var selectedChordKinds: [FunctionalChordKind]
+    @Binding var tempoBPM: Double
     let onSave: (String) -> Void
     @StateObject private var audioPlayer = ProgressionAudioPlayer()
     @State private var isNamingProgression = false
@@ -785,7 +761,7 @@ private struct ModalProgressionBuilder: View {
                         UIKitMenuPicker(title: "Тоника", selection: $selectedRoot, options: noteOptions)
                             .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40)
                         playbackButton {
-                            audioPlayer.play(chords: playbackChords)
+                            audioPlayer.play(chords: playbackChords, bpm: tempoBPM)
                         }
                         saveButton
                     }
@@ -797,7 +773,7 @@ private struct ModalProgressionBuilder: View {
                     UIKitMenuPicker(title: "Тоника", selection: $selectedRoot, options: noteOptions)
                         .frame(width: 170, height: 40)
                     playbackButton {
-                        audioPlayer.play(chords: playbackChords)
+                        audioPlayer.play(chords: playbackChords, bpm: tempoBPM)
                     }
                     saveButton
                 }
@@ -808,16 +784,16 @@ private struct ModalProgressionBuilder: View {
                     UIKitMenuPicker(title: "Лад", selection: modeBinding, options: modeOptions)
                         .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40)
                     chordCountPicker
-                    chordKindPicker
                 }
             } else {
                 HStack(spacing: 12) {
                     UIKitMenuPicker(title: "Лад", selection: modeBinding, options: modeOptions)
                         .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40)
                     chordCountPicker.frame(width: 132)
-                    chordKindPicker.frame(maxWidth: .infinity)
                 }
             }
+
+            HarmonyTempoSlider(bpm: $tempoBPM)
 
             LazyVGrid(columns: progressionColumns, alignment: .leading, spacing: 16) {
                 ForEach(0..<chordCount, id: \.self) { index in
@@ -831,8 +807,10 @@ private struct ModalProgressionBuilder: View {
                         chordName: chordName(for: degree, at: index),
                         color: cell.color.color,
                         options: degreeOptions,
-                        onSelect: { selectedDegrees[index] = $0 },
-                        onLongPress: chordKind == .mixed ? { toggleChordKind(at: index) } : nil
+                        onSelect: { option in
+                            selectedDegrees[index] = option.degree
+                            selectedChordKinds[index] = option.kind
+                        }
                     )
                 }
             }
@@ -858,29 +836,15 @@ private struct ModalProgressionBuilder: View {
     }
 
     private var builderTitle: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Модальная последовательность")
-                .font(.title3.weight(.bold))
-                .foregroundStyle(AppColors.primaryText)
-            Text("Красные ступени не предлагаются")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(AppColors.mutedText)
-        }
+        Text("Модальная последовательность")
+            .font(.title3.weight(.bold))
+            .foregroundStyle(AppColors.primaryText)
     }
 
     private var chordCountPicker: some View {
         Picker("Аккорды", selection: $chordCount) {
             Text("4").tag(4)
             Text("8").tag(8)
-        }
-        .pickerStyle(.segmented)
-    }
-
-    private var chordKindPicker: some View {
-        Picker("Тип", selection: chordKindBinding) {
-            ForEach(FunctionalChordKind.allCases) { kind in
-                Text(kind.title).tag(kind)
-            }
         }
         .pickerStyle(.segmented)
     }
@@ -908,43 +872,40 @@ private struct ModalProgressionBuilder: View {
         )
     }
 
-    private var chordKindBinding: Binding<FunctionalChordKind> {
-        Binding(
-            get: { chordKind },
-            set: { newValue in
-                if newValue == .mixed, chordKind != .mixed {
-                    selectedChordKinds = Array(repeating: chordKind, count: 8)
-                }
-                chordKind = newValue
+    private var degreeOptions: [MenuPickerItem<DegreeChordOption>] {
+        (1...7).flatMap { degree in
+            let degreeTitle = selectedMode.cells[degree - 1].degree
+            return [FunctionalChordKind.triad, .seventh].map { kind in
+                MenuPickerItem(
+                    value: DegreeChordOption(degree: degree, kind: kind),
+                    title: "\(degreeTitle) - \(chordName(for: degree, kind: kind))"
+                )
             }
-        )
-    }
-
-    private var degreeOptions: [MenuPickerItem<Int>] {
-        selectedMode.availableDegrees.map { degree in
-            let cell = selectedMode.cells[degree - 1]
-            return MenuPickerItem(value: degree, title: "\(degree) - \(cell.degree) - \(cell.chord)")
         }
     }
 
     private func validDegree(_ degree: Int) -> Int {
-        selectedMode.availableDegrees.contains(degree) ? degree : selectedMode.availableDegrees[0]
+        min(max(degree, 1), 7)
     }
 
     private func normalizeSelectedDegrees() {
-        for index in selectedDegrees.indices where !selectedMode.availableDegrees.contains(selectedDegrees[index]) {
-            selectedDegrees[index] = selectedMode.availableDegrees[0]
+        for index in selectedDegrees.indices {
+            selectedDegrees[index] = validDegree(selectedDegrees[index])
         }
     }
 
     private func selectedChordKind(at index: Int) -> FunctionalChordKind {
-        chordKind == .mixed ? selectedChordKinds[index] : chordKind
+        selectedChordKinds[index] == .seventh ? .seventh : .triad
     }
 
     private func chordName(for degree: Int, at position: Int) -> String {
+        chordName(for: degree, kind: selectedChordKind(at: position))
+    }
+
+    private func chordName(for degree: Int, kind: FunctionalChordKind) -> String {
         let index = max(0, min(degree - 1, 6))
         let pitch = (selectedRoot + selectedMode.intervals[index]) % 12
-        switch selectedChordKind(at: position) {
+        switch kind {
         case .triad:
             return "\(noteNames[pitch])\(triadSuffix(for: selectedMode.cells[index].chord))"
         case .seventh:
@@ -969,10 +930,6 @@ private struct ModalProgressionBuilder: View {
             }
             return PlaybackChord(rootPitchClass: root, intervals: intervals)
         }
-    }
-
-    private func toggleChordKind(at index: Int) {
-        selectedChordKinds[index] = selectedChordKinds[index] == .seventh ? .triad : .seventh
     }
 
     private func triadSuffix(for chord: String) -> String {
@@ -1139,6 +1096,9 @@ struct PopularHarmonyView: View {
                     }
                 }
 
+                HarmonyTempoSlider(bpm: $store.harmonyTempoBPM)
+                    .frame(maxWidth: isPortrait ? .infinity : 420)
+
                 if displayedProgressions.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "star")
@@ -1163,6 +1123,7 @@ struct PopularHarmonyView: View {
                                 seventhChordIndexes: popularSeventhIndexesBinding(for: progression.id),
                                 slashChordConfigurations: slashConfigurationsBinding(for: progression.id),
                                 rating: ratingBinding(for: progression),
+                                tempoBPM: store.harmonyTempoBPM,
                                 action: .favorite(favoriteBinding(for: progression.id))
                             )
                         }
@@ -1341,6 +1302,9 @@ struct SavedHarmonyView: View {
                     .accessibilityLabel("Создать последовательность")
                 }
 
+                HarmonyTempoSlider(bpm: $store.harmonyTempoBPM)
+                    .frame(maxWidth: isPortrait ? .infinity : 420)
+
                 if store.savedHarmonyProgressions.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "music.note.list")
@@ -1370,6 +1334,7 @@ struct SavedHarmonyView: View {
                                 seventhChordIndexes: savedSeventhIndexesBinding(for: saved.id),
                                 slashChordConfigurations: .constant([:]),
                                 rating: savedRatingBinding(for: saved.id),
+                                tempoBPM: store.harmonyTempoBPM,
                                 action: .delete {
                                     progressionPendingDeletion = saved
                                 }
@@ -1482,13 +1447,11 @@ private struct SavedHarmonyEditor: View {
     @State private var editorMode: EditorMode = .functional
     @State private var functionalRoot = 0
     @State private var functionalMode: FunctionalKeyMode = .major
-    @State private var functionalKind: FunctionalChordKind = .triad
     @State private var functionalCount = 4
     @State private var functionalDegrees = Array(repeating: 1, count: 8)
     @State private var functionalKinds = Array(repeating: FunctionalChordKind.triad, count: 8)
     @State private var modalRoot = 0
     @State private var modalMode: ModalBuilderMode = .dorian
-    @State private var modalKind: FunctionalChordKind = .triad
     @State private var modalCount = 4
     @State private var modalDegrees = Array(repeating: 1, count: 8)
     @State private var modalKinds = Array(repeating: FunctionalChordKind.triad, count: 8)
@@ -1528,10 +1491,10 @@ private struct SavedHarmonyEditor: View {
                             noteNames: noteNames,
                             selectedRoot: $functionalRoot,
                             keyMode: $functionalMode,
-                            chordKind: $functionalKind,
                             chordCount: $functionalCount,
                             selectedDegrees: $functionalDegrees,
                             selectedChordKinds: $functionalKinds,
+                            tempoBPM: $store.harmonyTempoBPM,
                             onSave: saveFunctional
                         )
                     case .modal:
@@ -1539,10 +1502,10 @@ private struct SavedHarmonyEditor: View {
                             noteNames: noteNames,
                             selectedRoot: $modalRoot,
                             selectedMode: $modalMode,
-                            chordKind: $modalKind,
                             chordCount: $modalCount,
                             selectedDegrees: $modalDegrees,
                             selectedChordKinds: $modalKinds,
+                            tempoBPM: $store.harmonyTempoBPM,
                             onSave: saveModal
                         )
                     }
@@ -1561,11 +1524,7 @@ private struct SavedHarmonyEditor: View {
                 root: functionalRoot,
                 functionalMode: functionalMode,
                 degrees: Array(functionalDegrees.prefix(functionalCount)),
-                chordKinds: resolvedChordKinds(
-                    kind: functionalKind,
-                    selectedKinds: functionalKinds,
-                    count: functionalCount
-                )
+                chordKinds: Array(functionalKinds.prefix(functionalCount))
             )
         )
         dismiss()
@@ -1579,26 +1538,12 @@ private struct SavedHarmonyEditor: View {
                 root: modalRoot,
                 modalMode: modalMode,
                 degrees: Array(modalDegrees.prefix(modalCount)),
-                chordKinds: resolvedChordKinds(
-                    kind: modalKind,
-                    selectedKinds: modalKinds,
-                    count: modalCount
-                )
+                chordKinds: Array(modalKinds.prefix(modalCount))
             )
         )
         dismiss()
     }
 
-    private func resolvedChordKinds(
-        kind: FunctionalChordKind,
-        selectedKinds: [FunctionalChordKind],
-        count: Int
-    ) -> [FunctionalChordKind] {
-        if kind == .mixed {
-            return Array(selectedKinds.prefix(count))
-        }
-        return Array(repeating: kind, count: count)
-    }
 }
 
 private enum ProgressionCardAction {
@@ -1647,6 +1592,7 @@ private struct PopularProgressionCard: View {
     @Binding var seventhChordIndexes: [Int]
     @Binding var slashChordConfigurations: [Int: PopularSlashChordConfiguration]
     @Binding var rating: Int
+    let tempoBPM: Double
     let action: ProgressionCardAction
     @StateObject private var audioPlayer = ProgressionAudioPlayer()
 
@@ -1975,7 +1921,7 @@ private struct PopularProgressionCard: View {
 
     private var playbackButton: some View {
         Button {
-            audioPlayer.play(chords: playbackChords)
+            audioPlayer.play(chords: playbackChords, bpm: tempoBPM)
         } label: {
             Image(systemName: audioPlayer.isPlaying ? "stop.fill" : "play.fill")
                 .font(.system(size: 15, weight: .black))

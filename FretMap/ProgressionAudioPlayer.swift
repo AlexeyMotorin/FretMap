@@ -41,7 +41,7 @@ final class ProgressionAudioPlayer: ObservableObject {
         engine.connect(player, to: engine.mainMixerNode, format: format)
     }
 
-    func play(chords: [PlaybackChord]) {
+    func play(chords: [PlaybackChord], bpm: Double = 120) {
         guard !chords.isEmpty else { return }
 
         if isPlaying {
@@ -56,7 +56,9 @@ final class ProgressionAudioPlayer: ObservableObject {
         let voicedChords = makeVoicedChords(from: chords)
         guard !voicedChords.isEmpty else { return }
 
-        let chordDuration = max(0.5, PianoSampleLibrary.shared.sampleDuration / 2 - 1)
+        let baseChordDuration = max(0.5, PianoSampleLibrary.shared.sampleDuration / 2 - 1)
+        let normalizedBPM = min(max(bpm, 40), 200)
+        let chordDuration = baseChordDuration * (120 / normalizedBPM)
         let buffer = makeBuffer(voicedChords: voicedChords, chordDuration: chordDuration)
         let totalDuration = chordDuration * voicedChords.reduce(0) {
             $0 + $1.durationMultiplier
