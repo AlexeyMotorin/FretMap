@@ -15,7 +15,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 }
 
 enum AppOrientationController {
-    static var supportedOrientations: UIInterfaceOrientationMask = .landscape
+    static var supportedOrientations: UIInterfaceOrientationMask = .allButUpsideDown
 
     static func setSupportedOrientations(_ orientations: UIInterfaceOrientationMask) {
         supportedOrientations = orientations
@@ -25,6 +25,11 @@ enum AppOrientationController {
         }
 
         windowScene.windows.first(where: \.isKeyWindow)?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+
+        guard orientations != .allButUpsideDown else {
+            return
+        }
+
         windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: orientations)) { error in
             print("Failed to update interface orientation: \(error.localizedDescription)")
         }

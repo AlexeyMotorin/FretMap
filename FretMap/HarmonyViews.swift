@@ -4,64 +4,91 @@ import UIKit
 struct FunctionalHarmonyView: View {
     let noteNames: [String]
     @ObservedObject var store: AppSettingsStore
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+
+    private var isPortrait: Bool { verticalSizeClass != .compact }
 
     var body: some View {
-        ScrollView(.vertical) {
-            VStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 16) {
-                    ForEach(HarmonyData.functional) { group in
-                        HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("\(group.title) (\(group.symbol))")
-                                    .font(.title3.weight(.bold))
-                                    .foregroundStyle(AppColors.primaryText)
-                                Text(functionTransitions(for: group.symbol))
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(AppColors.mutedText)
-                            }
-                            .frame(width: 300, alignment: .leading)
+        GeometryReader { proxy in
+            let horizontalPadding: CGFloat = isPortrait ? 16 : 18
+            let contentWidth = max(0, proxy.size.width - horizontalPadding * 2)
 
-                            ForEach(group.degrees, id: \.0) { degree, color in
-                                DegreeChip(text: degree, color: color.color)
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 18) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        ForEach(HarmonyData.functional) { group in
+                            Group {
+                                if isPortrait {
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        functionalGroupTitle(group)
+                                        functionalDegreeChips(group)
+                                    }
+                                } else {
+                                    HStack(spacing: 12) {
+                                        functionalGroupTitle(group)
+                                            .frame(width: 300, alignment: .leading)
+                                        functionalDegreeChips(group)
+                                    }
+                                }
                             }
                         }
                     }
-                }
-                .padding(26)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(AppColors.panel.opacity(0.92), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .padding(isPortrait ? 16 : 26)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(AppColors.panel.opacity(0.92), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
 
-                FunctionalProgressionBuilder(
-                    noteNames: noteNames,
-                    selectedRoot: $store.functionalRoot,
-                    keyMode: $store.functionalKeyMode,
-                    chordKind: $store.functionalChordKind,
-                    chordCount: $store.functionalChordCount,
-                    selectedDegrees: $store.functionalSelectedDegrees,
-                    selectedChordKinds: $store.functionalSelectedChordKinds,
-                    onSave: { name in
-                        store.savedHarmonyProgressions.append(
-                            SavedHarmonyProgression(
-                                name: name,
-                                source: .functional,
-                                root: store.functionalRoot,
-                                functionalMode: store.functionalKeyMode,
-                                degrees: Array(store.functionalSelectedDegrees.prefix(store.functionalChordCount)),
-                                chordKinds: savedChordKinds(
-                                    kind: store.functionalChordKind,
-                                    selectedKinds: store.functionalSelectedChordKinds,
-                                    count: store.functionalChordCount
+                    FunctionalProgressionBuilder(
+                        noteNames: noteNames,
+                        selectedRoot: $store.functionalRoot,
+                        keyMode: $store.functionalKeyMode,
+                        chordKind: $store.functionalChordKind,
+                        chordCount: $store.functionalChordCount,
+                        selectedDegrees: $store.functionalSelectedDegrees,
+                        selectedChordKinds: $store.functionalSelectedChordKinds,
+                        onSave: { name in
+                            store.savedHarmonyProgressions.append(
+                                SavedHarmonyProgression(
+                                    name: name,
+                                    source: .functional,
+                                    root: store.functionalRoot,
+                                    functionalMode: store.functionalKeyMode,
+                                    degrees: Array(store.functionalSelectedDegrees.prefix(store.functionalChordCount)),
+                                    chordKinds: savedChordKinds(
+                                        kind: store.functionalChordKind,
+                                        selectedKinds: store.functionalSelectedChordKinds,
+                                        count: store.functionalChordCount
+                                    )
                                 )
                             )
-                        )
-                    }
-                )
+                        }
+                    )
+                }
+                .frame(width: contentWidth, alignment: .topLeading)
+                .padding(.horizontal, horizontalPadding)
+                .padding(.vertical, horizontalPadding)
             }
-            .padding(18)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppColors.page)
+        .background(Color.clear)
+    }
+
+    private func functionalGroupTitle(_ group: FunctionalHarmonyGroup) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("\(group.title) (\(group.symbol))")
+                .font(isPortrait ? .headline.weight(.bold) : .title3.weight(.bold))
+                .foregroundStyle(AppColors.primaryText)
+            Text(functionTransitions(for: group.symbol))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(AppColors.mutedText)
+        }
+    }
+
+    private func functionalDegreeChips(_ group: FunctionalHarmonyGroup) -> some View {
+        HStack(spacing: 8) {
+            ForEach(group.degrees, id: \.0) { degree, color in
+                DegreeChip(text: degree, color: color.color)
+            }
+        }
     }
 
     private func functionTransitions(for symbol: String) -> String {
@@ -201,87 +228,76 @@ private struct FunctionalProgressionBuilder: View {
     @StateObject private var audioPlayer = ProgressionAudioPlayer()
     @State private var isNamingProgression = false
     @State private var progressionName = ""
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+
+    private var isPortrait: Bool { verticalSizeClass != .compact }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .center, spacing: 14) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Своя последовательность")
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(AppColors.primaryText)
-                    Text("Выбери тональность, длину и ступени")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(AppColors.mutedText)
-                }
-
-                Spacer()
-
-                UIKitMenuPicker(title: "Тоника", selection: $selectedRoot, options: noteOptions)
-                    .frame(width: 170, height: 40)
-
-                playbackButton {
-                    audioPlayer.play(chords: playbackChords)
-                }
-
-                saveButton
-            }
-
-            HStack(spacing: 12) {
-                Picker("Лад", selection: $keyMode) {
-                    ForEach(FunctionalKeyMode.allCases) { mode in
-                        Text(mode.title).tag(mode)
+            if isPortrait {
+                VStack(alignment: .leading, spacing: 10) {
+                    builderTitle
+                    HStack(spacing: 10) {
+                        UIKitMenuPicker(title: "Тоника", selection: $selectedRoot, options: noteOptions)
+                            .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40)
+                        playbackButton {
+                            audioPlayer.play(chords: playbackChords)
+                        }
+                        saveButton
                     }
                 }
-                .pickerStyle(.segmented)
-                .frame(width: 220)
-
-                Picker("Аккорды", selection: $chordCount) {
-                    Text("4").tag(4)
-                    Text("8").tag(8)
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 132)
-
-                Picker("Тип", selection: chordKindBinding) {
-                    ForEach(FunctionalChordKind.allCases) { kind in
-                        Text(kind.title).tag(kind)
+            } else {
+                HStack(alignment: .center, spacing: 14) {
+                    builderTitle
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    UIKitMenuPicker(title: "Тоника", selection: $selectedRoot, options: noteOptions)
+                        .frame(width: 170, height: 40)
+                    playbackButton {
+                        audioPlayer.play(chords: playbackChords)
                     }
+                    saveButton
                 }
-                .pickerStyle(.segmented)
-                .frame(width: 330)
-
-                Spacer()
             }
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: 4), alignment: .leading, spacing: 16) {
+            if isPortrait {
+                VStack(spacing: 10) {
+                    keyModePicker
+                    chordCountPicker
+                    chordKindPicker
+                }
+            } else {
+                HStack(spacing: 12) {
+                    keyModePicker.frame(maxWidth: .infinity)
+                    chordCountPicker.frame(width: 132)
+                    chordKindPicker.frame(maxWidth: .infinity)
+                }
+            }
+
+            LazyVGrid(columns: progressionColumns, alignment: .leading, spacing: 16) {
                 ForEach(0..<chordCount, id: \.self) { index in
                     let degree = selectedDegrees[index]
-                    ZStack(alignment: .topTrailing) {
-                        DegreeSquarePicker(
-                            index: index,
-                            degree: degree,
-                            function: functionTitle(for: degree),
-                            degreeTitle: keyMode.degreeTitles[degree - 1],
-                            chordName: chordName(for: degree, at: index),
-                            color: functionColor(for: degree),
-                            options: degreeOptions,
-                            onSelect: { selectedDegrees[index] = $0 }
-                        )
-
-                        if chordKind == .mixed {
-                            chordKindButton(at: index)
-                                .padding(8)
-                        }
-                    }
+                    DegreeSquarePicker(
+                        index: index,
+                        degree: degree,
+                        function: functionTitle(for: degree),
+                        degreeTitle: keyMode.degreeTitles[degree - 1],
+                        chordName: chordName(for: degree, at: index),
+                        color: functionColor(for: degree),
+                        options: degreeOptions,
+                        onSelect: { selectedDegrees[index] = $0 },
+                        onLongPress: chordKind == .mixed ? { toggleChordKind(at: index) } : nil
+                    )
                 }
             }
         }
         .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(AppColors.panel, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .clipped()
         .fullScreenCover(
             isPresented: $isNamingProgression,
             onDismiss: {
-                AppOrientationController.setSupportedOrientations(.landscape)
+                AppOrientationController.setSupportedOrientations(.allButUpsideDown)
             }
         ) {
             ProgressionNameDialog(
@@ -292,6 +308,48 @@ private struct FunctionalProgressionBuilder: View {
             )
             .background(TransparentPresentationBackground())
         }
+    }
+
+    private var builderTitle: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Своя последовательность")
+                .font(.title3.weight(.bold))
+                .foregroundStyle(AppColors.primaryText)
+            Text("Выбери тональность, длину и ступени")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(AppColors.mutedText)
+        }
+    }
+
+    private var keyModePicker: some View {
+        Picker("Лад", selection: $keyMode) {
+            ForEach(FunctionalKeyMode.allCases) { mode in
+                Text(mode.title).tag(mode)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    private var chordCountPicker: some View {
+        Picker("Аккорды", selection: $chordCount) {
+            Text("4").tag(4)
+            Text("8").tag(8)
+        }
+        .pickerStyle(.segmented)
+    }
+
+    private var chordKindPicker: some View {
+        Picker("Тип", selection: chordKindBinding) {
+            ForEach(FunctionalChordKind.allCases) { kind in
+                Text(kind.title).tag(kind)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    private var progressionColumns: [GridItem] {
+        let spacing: CGFloat = isPortrait ? 8 : 16
+        return Array(repeating: GridItem(.flexible(minimum: 0), spacing: spacing), count: 4)
     }
 
     private var noteOptions: [MenuPickerItem<Int>] {
@@ -349,18 +407,8 @@ private struct FunctionalProgressionBuilder: View {
         }
     }
 
-    private func chordKindButton(at index: Int) -> some View {
-        Button {
-            selectedChordKinds[index] = selectedChordKinds[index] == .seventh ? .triad : .seventh
-        } label: {
-            Text(selectedChordKinds[index] == .seventh ? "7" : "3")
-                .font(.caption.weight(.black))
-                .foregroundStyle(.white)
-                .frame(width: 30, height: 28)
-                .background(.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(selectedChordKinds[index] == .seventh ? "Септаккорд" : "Трезвучие")
+    private func toggleChordKind(at index: Int) {
+        selectedChordKinds[index] = selectedChordKinds[index] == .seventh ? .triad : .seventh
     }
 
     private func functionTitle(for degree: Int) -> String {
@@ -418,7 +466,7 @@ private struct FunctionalProgressionBuilder: View {
     private func closeNameDialog() {
         progressionName = ""
         isNamingProgression = false
-        AppOrientationController.setSupportedOrientations(.landscape)
+        AppOrientationController.setSupportedOrientations(.allButUpsideDown)
     }
 
     private func saveNamedProgression() {
@@ -426,7 +474,7 @@ private struct FunctionalProgressionBuilder: View {
         onSave(name.isEmpty ? "Моя последовательность" : name)
         progressionName = ""
         isNamingProgression = false
-        AppOrientationController.setSupportedOrientations(.landscape)
+        AppOrientationController.setSupportedOrientations(.allButUpsideDown)
     }
 
     private func triadIntervals(for suffix: String) -> [Int] {
@@ -562,8 +610,26 @@ private struct DegreeSquarePicker: View {
     let color: Color
     let options: [MenuPickerItem<Int>]
     let onSelect: (Int) -> Void
+    let onLongPress: (() -> Void)?
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
 
+    private var isPortrait: Bool { verticalSizeClass != .compact }
+
+    @ViewBuilder
     var body: some View {
+        if let onLongPress {
+            degreeMenu
+                .highPriorityGesture(
+                    LongPressGesture(minimumDuration: 0.5)
+                        .onEnded { _ in onLongPress() }
+                )
+                .accessibilityHint("Долгое нажатие меняет тип аккорда")
+        } else {
+            degreeMenu
+        }
+    }
+
+    private var degreeMenu: some View {
         Menu {
             ForEach(options) { option in
                 Button(option.title) {
@@ -572,26 +638,26 @@ private struct DegreeSquarePicker: View {
             }
         } label: {
             ZStack {
-                VStack(spacing: 10) {
+                VStack(spacing: isPortrait ? 5 : 10) {
                     Text(chordName)
-                        .font(.system(size: 42, weight: .black, design: .rounded))
-                        .minimumScaleFactor(0.65)
+                        .font(.system(size: isPortrait ? 26 : 42, weight: .black, design: .rounded))
+                        .minimumScaleFactor(0.55)
                         .lineLimit(1)
                     Text("\(degree) / \(degreeTitle)")
-                        .font(.title3.weight(.heavy))
-                        .minimumScaleFactor(0.7)
+                        .font(isPortrait ? .subheadline.weight(.heavy) : .title3.weight(.heavy))
+                        .minimumScaleFactor(0.6)
                         .lineLimit(1)
                 }
-                .padding(.horizontal, 10)
+                .padding(.horizontal, isPortrait ? 4 : 10)
                 .foregroundStyle(.white)
 
                 VStack {
                     Text(function)
-                        .font(.title3.weight(.black))
+                        .font(isPortrait ? .caption.weight(.black) : .title3.weight(.black))
                         .foregroundStyle(.white.opacity(0.82))
                     Spacer()
                 }
-                .padding(.top, 12)
+                .padding(.top, isPortrait ? 6 : 12)
             }
             .frame(maxWidth: .infinity)
             .aspectRatio(1, contentMode: .fit)
@@ -606,63 +672,73 @@ private struct DegreeSquarePicker: View {
 struct ModalHarmonyView: View {
     let noteNames: [String]
     @ObservedObject var store: AppSettingsStore
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+
+    private var isPortrait: Bool { verticalSizeClass != .compact }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                ForEach(HarmonyData.modalRows) { row in
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(row.title)
-                            .font(.headline.weight(.bold))
-                            .foregroundStyle(AppColors.primaryText)
+        GeometryReader { proxy in
+            let horizontalPadding: CGFloat = isPortrait ? 16 : 18
+            let contentWidth = max(0, proxy.size.width - horizontalPadding * 2)
 
-                        HStack(spacing: 8) {
-                            ForEach(row.cells, id: \.degree) { cell in
-                                VStack(spacing: 5) {
-                                    Text(cell.degree)
-                                        .font(.headline.weight(.bold))
-                                    Text(cell.chord)
-                                        .font(.caption.weight(.semibold))
-                                }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(HarmonyData.modalRows) { row in
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(row.title)
+                                .font(.headline.weight(.bold))
                                 .foregroundStyle(AppColors.primaryText)
-                                .frame(maxWidth: .infinity, minHeight: 54)
-                                .background(modalCellBackground(row: row, cell: cell), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                            HStack(spacing: 8) {
+                                ForEach(row.cells, id: \.degree) { cell in
+                                    VStack(spacing: 5) {
+                                        Text(cell.degree)
+                                            .font(.headline.weight(.bold))
+                                        Text(cell.chord)
+                                            .font(.caption.weight(.semibold))
+                                    }
+                                    .foregroundStyle(AppColors.primaryText)
+                                    .frame(maxWidth: .infinity, minHeight: 54)
+                                    .background(modalCellBackground(row: row, cell: cell), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                }
                             }
                         }
+                        .padding(isPortrait ? 10 : 14)
+                        .background(AppColors.panel, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
-                    .padding(14)
-                    .background(AppColors.panel, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                }
 
-                ModalProgressionBuilder(
-                    noteNames: noteNames,
-                    selectedRoot: $store.modalRoot,
-                    selectedMode: $store.modalMode,
-                    chordKind: $store.modalChordKind,
-                    chordCount: $store.modalChordCount,
-                    selectedDegrees: $store.modalSelectedDegrees,
-                    selectedChordKinds: $store.modalSelectedChordKinds,
-                    onSave: { name in
-                        store.savedHarmonyProgressions.append(
-                            SavedHarmonyProgression(
-                                name: name,
-                                source: .modal,
-                                root: store.modalRoot,
-                                modalMode: store.modalMode,
-                                degrees: Array(store.modalSelectedDegrees.prefix(store.modalChordCount)),
-                                chordKinds: savedChordKinds(
-                                    kind: store.modalChordKind,
-                                    selectedKinds: store.modalSelectedChordKinds,
-                                    count: store.modalChordCount
+                    ModalProgressionBuilder(
+                        noteNames: noteNames,
+                        selectedRoot: $store.modalRoot,
+                        selectedMode: $store.modalMode,
+                        chordKind: $store.modalChordKind,
+                        chordCount: $store.modalChordCount,
+                        selectedDegrees: $store.modalSelectedDegrees,
+                        selectedChordKinds: $store.modalSelectedChordKinds,
+                        onSave: { name in
+                            store.savedHarmonyProgressions.append(
+                                SavedHarmonyProgression(
+                                    name: name,
+                                    source: .modal,
+                                    root: store.modalRoot,
+                                    modalMode: store.modalMode,
+                                    degrees: Array(store.modalSelectedDegrees.prefix(store.modalChordCount)),
+                                    chordKinds: savedChordKinds(
+                                        kind: store.modalChordKind,
+                                        selectedKinds: store.modalSelectedChordKinds,
+                                        count: store.modalChordCount
+                                    )
                                 )
                             )
-                        )
-                    }
-                )
+                        }
+                    )
+                }
+                .frame(width: contentWidth, alignment: .topLeading)
+                .padding(.horizontal, horizontalPadding)
+                .padding(.vertical, horizontalPadding)
             }
-            .padding(18)
         }
-        .background(AppColors.page)
+        .background(Color.clear)
     }
 
     private func modalCellBackground(row: ModalHarmonyRow, cell: (degree: String, chord: String, color: HarmonyColor)) -> Color {
@@ -696,83 +772,79 @@ private struct ModalProgressionBuilder: View {
     @StateObject private var audioPlayer = ProgressionAudioPlayer()
     @State private var isNamingProgression = false
     @State private var progressionName = ""
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+
+    private var isPortrait: Bool { verticalSizeClass != .compact }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .center, spacing: 14) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Модальная последовательность")
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(AppColors.primaryText)
-                    Text("Красные ступени не предлагаются")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(AppColors.mutedText)
-                }
-
-                Spacer()
-
-                UIKitMenuPicker(title: "Тоника", selection: $selectedRoot, options: noteOptions)
-                    .frame(width: 170, height: 40)
-
-                playbackButton {
-                    audioPlayer.play(chords: playbackChords)
-                }
-
-                saveButton
-            }
-
-            HStack(spacing: 12) {
-                UIKitMenuPicker(title: "Лад", selection: modeBinding, options: modeOptions)
-                    .frame(width: 240, height: 40)
-
-                Picker("Аккорды", selection: $chordCount) {
-                    Text("4").tag(4)
-                    Text("8").tag(8)
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 132)
-
-                Picker("Тип", selection: chordKindBinding) {
-                    ForEach(FunctionalChordKind.allCases) { kind in
-                        Text(kind.title).tag(kind)
+            if isPortrait {
+                VStack(alignment: .leading, spacing: 10) {
+                    builderTitle
+                    HStack(spacing: 10) {
+                        UIKitMenuPicker(title: "Тоника", selection: $selectedRoot, options: noteOptions)
+                            .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40)
+                        playbackButton {
+                            audioPlayer.play(chords: playbackChords)
+                        }
+                        saveButton
                     }
                 }
-                .pickerStyle(.segmented)
-                .frame(width: 330)
-
-                Spacer()
+            } else {
+                HStack(alignment: .center, spacing: 14) {
+                    builderTitle
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    UIKitMenuPicker(title: "Тоника", selection: $selectedRoot, options: noteOptions)
+                        .frame(width: 170, height: 40)
+                    playbackButton {
+                        audioPlayer.play(chords: playbackChords)
+                    }
+                    saveButton
+                }
             }
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16), count: 4), alignment: .leading, spacing: 16) {
+            if isPortrait {
+                VStack(spacing: 10) {
+                    UIKitMenuPicker(title: "Лад", selection: modeBinding, options: modeOptions)
+                        .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40)
+                    chordCountPicker
+                    chordKindPicker
+                }
+            } else {
+                HStack(spacing: 12) {
+                    UIKitMenuPicker(title: "Лад", selection: modeBinding, options: modeOptions)
+                        .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40)
+                    chordCountPicker.frame(width: 132)
+                    chordKindPicker.frame(maxWidth: .infinity)
+                }
+            }
+
+            LazyVGrid(columns: progressionColumns, alignment: .leading, spacing: 16) {
                 ForEach(0..<chordCount, id: \.self) { index in
                     let degree = validDegree(selectedDegrees[index])
                     let cell = selectedMode.cells[degree - 1]
-                    ZStack(alignment: .topTrailing) {
-                        DegreeSquarePicker(
-                            index: index,
-                            degree: degree,
-                            function: "",
-                            degreeTitle: cell.degree,
-                            chordName: chordName(for: degree, at: index),
-                            color: cell.color.color,
-                            options: degreeOptions,
-                            onSelect: { selectedDegrees[index] = $0 }
-                        )
-
-                        if chordKind == .mixed {
-                            chordKindButton(at: index)
-                                .padding(8)
-                        }
-                    }
+                    DegreeSquarePicker(
+                        index: index,
+                        degree: degree,
+                        function: "",
+                        degreeTitle: cell.degree,
+                        chordName: chordName(for: degree, at: index),
+                        color: cell.color.color,
+                        options: degreeOptions,
+                        onSelect: { selectedDegrees[index] = $0 },
+                        onLongPress: chordKind == .mixed ? { toggleChordKind(at: index) } : nil
+                    )
                 }
             }
         }
         .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(AppColors.panel, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .clipped()
         .fullScreenCover(
             isPresented: $isNamingProgression,
             onDismiss: {
-                AppOrientationController.setSupportedOrientations(.landscape)
+                AppOrientationController.setSupportedOrientations(.allButUpsideDown)
             }
         ) {
             ProgressionNameDialog(
@@ -783,6 +855,39 @@ private struct ModalProgressionBuilder: View {
             )
             .background(TransparentPresentationBackground())
         }
+    }
+
+    private var builderTitle: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Модальная последовательность")
+                .font(.title3.weight(.bold))
+                .foregroundStyle(AppColors.primaryText)
+            Text("Красные ступени не предлагаются")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(AppColors.mutedText)
+        }
+    }
+
+    private var chordCountPicker: some View {
+        Picker("Аккорды", selection: $chordCount) {
+            Text("4").tag(4)
+            Text("8").tag(8)
+        }
+        .pickerStyle(.segmented)
+    }
+
+    private var chordKindPicker: some View {
+        Picker("Тип", selection: chordKindBinding) {
+            ForEach(FunctionalChordKind.allCases) { kind in
+                Text(kind.title).tag(kind)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    private var progressionColumns: [GridItem] {
+        let spacing: CGFloat = isPortrait ? 8 : 16
+        return Array(repeating: GridItem(.flexible(minimum: 0), spacing: spacing), count: 4)
     }
 
     private var noteOptions: [MenuPickerItem<Int>] {
@@ -866,18 +971,8 @@ private struct ModalProgressionBuilder: View {
         }
     }
 
-    private func chordKindButton(at index: Int) -> some View {
-        Button {
-            selectedChordKinds[index] = selectedChordKinds[index] == .seventh ? .triad : .seventh
-        } label: {
-            Text(selectedChordKinds[index] == .seventh ? "7" : "3")
-                .font(.caption.weight(.black))
-                .foregroundStyle(.white)
-                .frame(width: 30, height: 28)
-                .background(.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(selectedChordKinds[index] == .seventh ? "Септаккорд" : "Трезвучие")
+    private func toggleChordKind(at index: Int) {
+        selectedChordKinds[index] = selectedChordKinds[index] == .seventh ? .triad : .seventh
     }
 
     private func triadSuffix(for chord: String) -> String {
@@ -960,7 +1055,7 @@ private struct ModalProgressionBuilder: View {
     private func closeNameDialog() {
         progressionName = ""
         isNamingProgression = false
-        AppOrientationController.setSupportedOrientations(.landscape)
+        AppOrientationController.setSupportedOrientations(.allButUpsideDown)
     }
 
     private func saveNamedProgression() {
@@ -968,7 +1063,7 @@ private struct ModalProgressionBuilder: View {
         onSave(name.isEmpty ? "Моя последовательность" : name)
         progressionName = ""
         isNamingProgression = false
-        AppOrientationController.setSupportedOrientations(.landscape)
+        AppOrientationController.setSupportedOrientations(.allButUpsideDown)
     }
 
     private func interval(from index: Int, steps: Int) -> Int {
@@ -1010,38 +1105,38 @@ enum PopularSortMode: String, CaseIterable, Identifiable, Codable {
 struct PopularHarmonyView: View {
     let noteNames: [String]
     @ObservedObject var store: AppSettingsStore
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+
+    private var isPortrait: Bool { verticalSizeClass != .compact }
 
     var body: some View {
-        ScrollView(.vertical) {
-            VStack(alignment: .leading, spacing: 18) {
-                HStack(alignment: .center, spacing: 12) {
-                    HStack {
-                        Spacer(minLength: 0)
+        ScrollViewReader { scrollProxy in
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 18) {
+                    Color.clear
+                        .frame(height: 0)
+                        .id("popular-harmony-top")
 
-                        Picker("Раздел", selection: $store.popularCollectionMode) {
-                            ForEach(PopularCollectionMode.allCases) { mode in
-                                Text(mode.title).tag(mode)
-                            }
+                if isPortrait {
+                    VStack(spacing: 10) {
+                        collectionPicker
+                        HStack(spacing: 10) {
+                            sortPicker
+                            tonicPicker
                         }
-                        .pickerStyle(.segmented)
-                        .frame(width: 270)
-
-                        Spacer(minLength: 0)
                     }
-                    .frame(maxWidth: .infinity)
+                } else {
+                    HStack(alignment: .center, spacing: 12) {
+                        HStack {
+                            Spacer(minLength: 0)
+                            collectionPicker.frame(width: 270)
+                            Spacer(minLength: 0)
+                        }
+                        .frame(maxWidth: .infinity)
 
-                    UIKitMenuPicker(
-                        title: "Сортировка",
-                        selection: $store.popularSortMode,
-                        options: PopularSortMode.allCases.map {
-                            MenuPickerItem(value: $0, title: $0.title)
-                        },
-                        displaysTitle: false
-                    )
-                    .frame(width: 190, height: 40)
-
-                    UIKitMenuPicker(title: "Тоника", selection: globalRootBinding, options: tonicOptions)
-                        .frame(width: 168, height: 40)
+                        sortPicker.frame(width: 190)
+                        tonicPicker.frame(width: 168)
+                    }
                 }
 
                 if displayedProgressions.isEmpty {
@@ -1055,10 +1150,7 @@ struct PopularHarmonyView: View {
                     .frame(maxWidth: .infinity, minHeight: 220)
                 } else {
                     LazyVGrid(
-                        columns: [
-                            GridItem(.flexible(minimum: 0), spacing: 12),
-                            GridItem(.flexible(minimum: 0), spacing: 12)
-                        ],
+                        columns: progressionColumns,
                         alignment: .leading,
                         spacing: 18
                     ) {
@@ -1077,13 +1169,56 @@ struct PopularHarmonyView: View {
                     }
                 }
 
-                Spacer(minLength: 0)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, isPortrait ? 16 : 12)
+                .padding(.vertical, 18)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 18)
+            .onAppear {
+                scrollProxy.scrollTo("popular-harmony-top", anchor: .top)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppColors.page)
+        .background(Color.clear)
+    }
+
+    private var collectionPicker: some View {
+        Picker("Раздел", selection: $store.popularCollectionMode) {
+            ForEach(PopularCollectionMode.allCases) { mode in
+                if isPortrait {
+                    Image(systemName: mode == .popular ? "flame.fill" : "star.fill")
+                        .accessibilityLabel(mode.title)
+                        .tag(mode)
+                } else {
+                    Text(mode.title).tag(mode)
+                }
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    private var sortPicker: some View {
+        UIKitMenuPicker(
+            title: "Сортировка",
+            selection: $store.popularSortMode,
+            options: PopularSortMode.allCases.map {
+                MenuPickerItem(value: $0, title: $0.title)
+            },
+            displaysTitle: false
+        )
+        .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40)
+    }
+
+    private var tonicPicker: some View {
+        UIKitMenuPicker(title: "Тоника", selection: globalRootBinding, options: tonicOptions)
+            .frame(maxWidth: .infinity, minHeight: 40, maxHeight: 40)
+    }
+
+    private var progressionColumns: [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(minimum: 0), spacing: 12),
+            count: isPortrait ? 1 : 2
+        )
     }
 
     private var tonicOptions: [MenuPickerItem<Int>] {
@@ -1174,6 +1309,9 @@ struct SavedHarmonyView: View {
     @ObservedObject var store: AppSettingsStore
     @State private var isCreatingProgression = false
     @State private var progressionPendingDeletion: SavedHarmonyProgression?
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+
+    private var isPortrait: Bool { verticalSizeClass != .compact }
 
     var body: some View {
         ScrollView(.vertical) {
@@ -1209,15 +1347,17 @@ struct SavedHarmonyView: View {
                             .font(.system(size: 30, weight: .semibold))
                         Text("Сохранённых последовательностей пока нет")
                             .font(.headline.weight(.bold))
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity, alignment: .center)
                     }
                     .foregroundStyle(AppColors.mutedText)
-                    .frame(maxWidth: .infinity, minHeight: 240)
+                    .frame(maxWidth: .infinity, minHeight: 240, alignment: .center)
                 } else {
                     LazyVGrid(
-                        columns: [
-                            GridItem(.flexible(minimum: 0), spacing: 12),
-                            GridItem(.flexible(minimum: 0), spacing: 12)
-                        ],
+                        columns: Array(
+                            repeating: GridItem(.flexible(minimum: 0), spacing: 12),
+                            count: isPortrait ? 1 : 2
+                        ),
                         alignment: .leading,
                         spacing: 18
                     ) {
@@ -1238,11 +1378,11 @@ struct SavedHarmonyView: View {
                     }
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, isPortrait ? 16 : 12)
             .padding(.vertical, 18)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppColors.page)
+        .background(Color.clear)
         .fullScreenCover(isPresented: $isCreatingProgression) {
             SavedHarmonyEditor(noteNames: noteNames, store: store)
         }
@@ -1410,7 +1550,7 @@ private struct SavedHarmonyEditor: View {
                 .padding(18)
             }
         }
-        .background(AppColors.page)
+        .background(AppBackgroundView().allowsHitTesting(false))
     }
 
     private func saveFunctional(name: String) {

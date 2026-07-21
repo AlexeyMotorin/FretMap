@@ -1,8 +1,22 @@
 import SwiftUI
 import UIKit
 
+struct AppBackgroundView: View {
+    var body: some View {
+        ZStack {
+            Color(red: 0.025, green: 0.07, blue: 0.13)
+            Image("Background")
+                .resizable()
+                .scaledToFill()
+        }
+        .ignoresSafeArea()
+    }
+}
+
 struct ContentView: View {
     @StateObject private var store = AppSettingsStore()
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @State private var isModeSelectionVisible = true
     @State private var isCustomTuningSheetPresented = false
     @State private var editingCustomTuningID: String?
     @State private var customTuningDraftName = ""
@@ -27,44 +41,60 @@ struct ContentView: View {
     private var selectedTuning: TuningPreset {
         selectedTuning(for: store.appMode == .chords || store.isCustomMode ? .chords : .modes)
     }
+    private var isPortraitLayout: Bool { verticalSizeClass != .compact }
 
     var body: some View {
         GeometryReader { proxy in
-            if isCustomModeAvailable && store.isCustomMode {
-                customModeView
-                    .frame(width: proxy.size.width, height: proxy.size.height)
-            } else {
-                ZStack(alignment: .bottom) {
-                    content
-                        .id(store.appMode)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .clipped()
-                        .transition(.identity)
+            ZStack(alignment: .topLeading) {
+                AppBackgroundView()
+                    .allowsHitTesting(false)
 
-                    modeSwitcherOverlay
-                        .zIndex(20)
+                    if isModeSelectionVisible {
+                        modeSelectionView(containerSize: proxy.size)
+                            .transition(.identity)
+                    } else if isCustomModeAvailable && store.isCustomMode {
+                        customModeView
+                            .frame(width: proxy.size.width, height: proxy.size.height)
+                    } else {
+                        ZStack(alignment: .topLeading) {
+                            content
+                                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+                                .clipped()
+                                .transition(.identity)
+
+                            modeBackButton
+                                .padding(12)
+                                .zIndex(10)
+                        }
+                        .id("\(store.appMode.rawValue)-\(isPortraitLayout ? "portrait" : "landscape")")
+                        .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+                        .clipped()
+                    }
 
                     if isCustomTuningSheetPresented {
                         customTuningWindow(containerSize: proxy.size)
                             .zIndex(40)
                             .transition(.identity)
                     }
-                }
-                .frame(width: proxy.size.width, height: proxy.size.height)
-                .background(AppColors.page.ignoresSafeArea())
-                .transaction { transaction in
-                    transaction.animation = nil
-                    transaction.disablesAnimations = true
-                }
-                .animation(nil, value: store.appMode)
-                .onAppear {
-                    syncSavedSelections()
-                }
-                .onChange(of: isCustomTuningSheetPresented) { isPresented in
-                    AppOrientationController.setSupportedOrientations(isPresented ? .portrait : .landscape)
-                }
             }
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
         }
+        .ignoresSafeArea(.container, edges: .bottom)
+        .transaction { transaction in
+            transaction.animation = nil
+            transaction.disablesAnimations = true
+        }
+        .animation(nil, value: store.appMode)
+        .onAppear {
+            syncSavedSelections()
+            AppOrientationController.setSupportedOrientations(.allButUpsideDown)
+        }
+        .onChange(of: isCustomTuningSheetPresented) { isPresented in
+            AppOrientationController.setSupportedOrientations(
+                isPresented ? .portrait : supportedOrientations(for: store.appMode)
+            )
+        }
+        .preferredColorScheme(.dark)
     }
     
 
@@ -80,62 +110,76 @@ struct ContentView: View {
         }
     }
 
-    @ViewBuilder
-    private var modeSwitcherOverlay: some View {
-        if store.isModeSwitcherVisible {
-            topModePicker
-                .padding(.bottom, 8)
-                .padding(.horizontal, 12)
-        } else {
-            showModeSwitcherButton
-                .padding(.bottom, 8)
-                .padding(.trailing, 14)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-        }
-    }
+    private func modeSelectionView(containerSize: CGSize) -> some View {
+        Group {
+            if isPortraitLayout {
+                VStack(spacing: 14) {
+                    Spacer(minLength: 30)
+                    modeSelectionButtons
+                        .frame(maxWidth: 340)
 
-    private var topModePicker: some View {
-        HStack(spacing: 8) {
-            Picker("Режим", selection: modeSelectionBinding) {
-                ForEach(AppMode.allCases) { mode in
-                    Text(mode.title).tag(mode)
+                    Image("Logo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: 300)
+                        .padding(.top, 14)
+                        .accessibilityHidden(true)
+                    Spacer(minLength: 30)
                 }
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 420)
+            } else {
+                HStack(spacing: 32) {
+                    modeSelectionButtons
+                        .frame(width: 300)
 
-            Button {
-                noAnimation { store.isModeSwitcherVisible = false }
-            } label: {
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(AppColors.primaryText)
-                    .frame(width: 38, height: 38)
-                    .background(AppColors.control, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    Image("Logo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: 300, maxHeight: 230)
+                        .accessibilityHidden(true)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .buttonStyle(.plain)
         }
-        .padding(6)
-        .background(AppColors.panel.opacity(0.96), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .shadow(color: .black.opacity(0.24), radius: 12, x: 0, y: 4)
-        .transaction { transaction in
-            transaction.animation = nil
-            transaction.disablesAnimations = true
+        .padding(.horizontal, 24)
+        .frame(width: containerSize.width, height: containerSize.height)
+    }
+
+    private var modeSelectionButtons: some View {
+        VStack(spacing: 10) {
+            modeSelectionButton(.chords, systemName: "music.note")
+            modeSelectionButton(.modes, systemName: "guitars")
+            modeSelectionButton(.harmony, systemName: "music.note.list")
         }
     }
 
-    private var showModeSwitcherButton: some View {
+    private func modeSelectionButton(_ mode: AppMode, systemName: String) -> some View {
         Button {
-            noAnimation { store.isModeSwitcherVisible = true }
+            openMode(mode)
         } label: {
-            Image(systemName: "chevron.up")
-                .font(.system(size: 16, weight: .bold))
+            Label(mode.title, systemImage: systemName)
+                .font(.system(.headline, design: .rounded).weight(.black))
                 .foregroundStyle(AppColors.primaryText)
-                .frame(width: 52, height: 34)
-                .background(AppColors.panel.opacity(0.96), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .shadow(color: .black.opacity(0.22), radius: 10, x: 0, y: 4)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(AppColors.panel.opacity(0.94), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(AppColors.control, lineWidth: 1)
+                }
         }
         .buttonStyle(.plain)
+    }
+
+    private var modeBackButton: some View {
+        Button(action: returnToModeSelection) {
+            Image(systemName: "chevron.left")
+                .font(.system(size: 16, weight: .black))
+                .foregroundStyle(AppColors.primaryText)
+                .frame(width: 40, height: 36)
+                .background(AppColors.control.opacity(0.96), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Назад к выбору режима")
     }
 
     private var modesModeView: some View {
@@ -162,6 +206,7 @@ struct ContentView: View {
                     if !store.isSettingsVisible {
                         settingsButton
                             .padding(12)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -172,69 +217,202 @@ struct ContentView: View {
 
     private var chordsModeView: some View {
         GeometryReader { proxy in
-            HStack(alignment: .top, spacing: 0) {
-                chordSettingsPanel
-                    .frame(width: min(320, max(280, proxy.size.width * 0.27)))
-                    .frame(height: proxy.size.height)
+            let isPortrait = isPortraitLayout
 
-                ZStack(alignment: .topLeading) {
-                    FretboardView(
-                        tuning: selectedTuning,
-                        fretCount: store.chordFretCount,
-                        visibleFretRange: chordVisibleFretRange,
-                        markers: chordMarkers,
-                        barres: chordBarres,
-                        selectedPositions: [],
-                        customMode: false,
-                        onTapPosition: nil,
-                        onSwipe: nil
-                    )
-                    .highPriorityGesture(chordShapeSwipeGesture)
+            Group {
+                if isPortrait {
+                    let fretboardHeight = portraitChordFretboardHeight(for: proxy.size.height)
+                    let settingsHeight = max(220, proxy.size.height - fretboardHeight - 12)
 
-                    chordTitleOverlay
-                        .padding(12)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                        .allowsHitTesting(false)
+                    VStack(spacing: 12) {
+                        chordFretboard
+                            .frame(
+                                maxWidth: .infinity,
+                                minHeight: fretboardHeight,
+                                maxHeight: fretboardHeight
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
-                    chordShapeCounterOverlay
-                        .padding(.trailing, 12)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-                        .allowsHitTesting(false)
+                        portraitChordSettingsPanel
+                            .frame(
+                                maxWidth: .infinity,
+                                minHeight: 0,
+                                maxHeight: settingsHeight
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+                } else {
+                    HStack(alignment: .top, spacing: 0) {
+                        chordSettingsPanel
+                            .frame(width: min(320, max(280, proxy.size.width * 0.27)))
+                            .frame(height: proxy.size.height)
+
+                        chordFretboard
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .background(AppColors.page)
+        .background(Color.clear)
         .clipped()
     }
 
     private var harmonyModeView: some View {
-        VStack(spacing: 0) {
-            Picker("Гармония", selection: noAnimationBinding($store.harmonyMode)) {
-                ForEach(HarmonyMode.allCases) { mode in
-                    Text(mode.title).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(12)
-            .background(AppColors.panel)
+        GeometryReader { proxy in
+            let isPortrait = isPortraitLayout
 
-            switch store.harmonyMode {
-            case .functional:
-                FunctionalHarmonyView(noteNames: noteNames, store: store)
-            case .modal:
-                ModalHarmonyView(noteNames: noteNames, store: store)
-            case .popular:
-                PopularHarmonyView(noteNames: noteNames, store: store)
-            case .saved:
-                SavedHarmonyView(noteNames: noteNames, store: store)
+            VStack(spacing: 0) {
+                Picker("Гармония", selection: noAnimationBinding($store.harmonyMode)) {
+                    ForEach(HarmonyMode.allCases) { mode in
+                        if isPortrait {
+                            Image(systemName: harmonyModeIcon(for: mode))
+                                .accessibilityLabel(mode.title)
+                                .tag(mode)
+                        } else {
+                            Text(mode.title).tag(mode)
+                        }
+                    }
+                }
+                .pickerStyle(.segmented)
+                .font(isPortrait ? .caption : .body)
+                .padding(isPortrait ? 8 : 12)
+                .padding(.leading, 52)
+
+                Group {
+                    switch store.harmonyMode {
+                    case .functional:
+                        FunctionalHarmonyView(noteNames: noteNames, store: store)
+                    case .modal:
+                        ModalHarmonyView(noteNames: noteNames, store: store)
+                    case .popular:
+                        PopularHarmonyView(noteNames: noteNames, store: store)
+                    case .saved:
+                        SavedHarmonyView(noteNames: noteNames, store: store)
+                    }
+                }
+                .frame(width: proxy.size.width, alignment: .topLeading)
+                .frame(maxHeight: .infinity, alignment: .topLeading)
+                .clipped()
             }
+        }
+        .ignoresSafeArea(.container, edges: .bottom)
+    }
+
+    private var chordFretboard: some View {
+        ZStack(alignment: .topLeading) {
+            FretboardView(
+                tuning: selectedTuning,
+                fretCount: store.chordFretCount,
+                visibleFretRange: chordVisibleFretRange,
+                markers: chordMarkers,
+                barres: chordBarres,
+                selectedPositions: [],
+                customMode: false,
+                onTapPosition: nil,
+                onSwipe: nil
+            )
+            .highPriorityGesture(chordShapeSwipeGesture)
+
+            chordTitleOverlay
+                .padding(12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                .allowsHitTesting(false)
+
+            chordShapeCounterOverlay
+                .padding(.trailing, 12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                .allowsHitTesting(false)
         }
     }
 
-    private var settingsPanel: some View {
+    private var portraitChordSettingsPanel: some View {
         ScrollView(.vertical) {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Аккорды")
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(AppColors.primaryText)
+                    Text("Тоника, строй и тип аккорда")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(AppColors.mutedText)
+                }
+
+                notePicker(title: "Тоника", selection: noAnimationBinding($store.chordSettings.root))
+
+                accidentalPicker(for: .chords)
+
+                tuningPicker(for: .chords)
+
+                chordQualityPicker
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Струны")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(AppColors.mutedText)
+                    chordStringCountPicker
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Состав")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(AppColors.mutedText)
+                    chordSizePicker
+                }
+
+                compactChordExtensionsPicker
+
+                VStack(spacing: 6) {
+                    compactSettingsToggle(
+                        "Ступени",
+                        isOn: degreeNumbersBinding(for: .chords)
+                    )
+                    compactSettingsToggle(
+                        "Выделить ступени цветом",
+                        isOn: degreeColorsBinding(for: .chords)
+                    )
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .scrollIndicators(.hidden)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(AppColors.panel)
+    }
+
+    private func portraitChordFretboardHeight(for availableHeight: CGFloat) -> CGFloat {
+        min(320, max(220, availableHeight * 0.34))
+    }
+
+    private func compactSettingsToggle(_ title: String, isOn: Binding<Bool>) -> some View {
+        HStack(spacing: 12) {
+            Text(title)
+                .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                .foregroundStyle(AppColors.primaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+
+            Spacer(minLength: 8)
+
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .tint(AppColors.rootText)
+        }
+        .frame(maxWidth: .infinity, minHeight: 36)
+    }
+
+    private var settingsPanel: some View {
+        ScrollViewReader { scrollProxy in
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 14) {
+                    Color.clear
+                        .frame(height: 0)
+                        .id("modes-settings-top")
+
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Лады")
@@ -253,6 +431,7 @@ struct ContentView: View {
                     }
                     .buttonStyle(.plain)
                 }
+                .padding(.leading, 48)
 
                 notePicker(title: "Тональность", selection: noAnimationBinding($store.rootNote))
 
@@ -275,19 +454,28 @@ struct ContentView: View {
                     .font(.system(.subheadline, design: .rounded).weight(.semibold))
                     .foregroundStyle(AppColors.mutedText)
                     .lineLimit(3)
+                }
+                .padding(18)
+                .padding(.bottom, 18)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(18)
-            .padding(.bottom, 90)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .scrollIndicators(.hidden)
+            .onAppear {
+                scrollProxy.scrollTo("modes-settings-top", anchor: .top)
+            }
         }
-        .scrollIndicators(.hidden)
         .frame(maxHeight: .infinity, alignment: .topLeading)
         .background(AppColors.panel)
     }
 
     private var chordSettingsPanel: some View {
-        ScrollView(.vertical) {
-            VStack(alignment: .leading, spacing: 14) {
+        ScrollViewReader { scrollProxy in
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 14) {
+                    Color.clear
+                        .frame(height: 0)
+                        .id("chord-settings-top")
+
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Аккорды")
@@ -298,6 +486,7 @@ struct ContentView: View {
                             .foregroundStyle(AppColors.mutedText)
                     }
                 }
+                .padding(.leading, 48)
 
                 notePicker(title: "Тоника аккорда", selection: noAnimationBinding($store.chordSettings.root))
                 accidentalPicker(for: .chords)
@@ -321,12 +510,16 @@ struct ContentView: View {
                     }
                     .buttonStyle(.borderedProminent)
                 }
+                }
+                .padding(18)
+                .padding(.bottom, 18)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(18)
-            .padding(.bottom, 90)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .scrollIndicators(.hidden)
+            .onAppear {
+                scrollProxy.scrollTo("chord-settings-top", anchor: .top)
+            }
         }
-        .scrollIndicators(.hidden)
         .frame(maxHeight: .infinity, alignment: .topLeading)
         .background(AppColors.panel)
     }
@@ -441,8 +634,7 @@ struct ContentView: View {
             }
             .frame(width: 0, height: 0)
 
-            AppColors.page
-                .ignoresSafeArea()
+            AppBackgroundView()
                 .contentShape(Rectangle())
                 .onTapGesture {
                     dismissKeyboard()
@@ -565,7 +757,8 @@ struct ContentView: View {
                 .padding(.top, 10)
             }
             .frame(maxWidth: 430)
-            .background(AppColors.page)
+            .background(AppColors.panel.opacity(0.88))
+            .padding(.horizontal, 16)
         }
         .frame(width: containerSize.width, height: containerSize.height)
         .clipped()
@@ -690,6 +883,42 @@ struct ContentView: View {
                         .background(
                             isSelected ? AppColors.rootText : AppColors.control.opacity(0.8),
                             in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private var compactChordExtensionsPicker: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle("Надстройки", isOn: noAnimationBinding($store.areChordExtensionsVisible))
+                .toggleStyle(.switch)
+                .font(.system(.caption, design: .rounded).weight(.semibold))
+                .foregroundStyle(AppColors.primaryText)
+                .tint(AppColors.rootText)
+                .transaction { transaction in
+                    transaction.animation = nil
+                    transaction.disablesAnimations = true
+                }
+
+            if store.areChordExtensionsVisible {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 50), spacing: 6)], spacing: 6) {
+                    ForEach(availableChordExtensions) { item in
+                        let isSelected = store.chordSettings.extensions.contains(item)
+                        Button {
+                            toggleChordExtension(item)
+                        } label: {
+                            Text(item.title)
+                                .font(.system(.caption2, design: .rounded).weight(.black))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 30)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(isSelected ? Color.white : AppColors.primaryText)
+                        .background(
+                            isSelected ? AppColors.rootText : AppColors.control.opacity(0.8),
+                            in: RoundedRectangle(cornerRadius: 7, style: .continuous)
                         )
                     }
                 }
@@ -1231,18 +1460,50 @@ struct ContentView: View {
         )
     }
 
-    private var modeSelectionBinding: Binding<AppMode> {
-        Binding(
-            get: { store.appMode },
-            set: { newValue in
-                noAnimation {
-                    store.appMode = newValue
-                    if newValue == .chords {
-                        ensureChordStringCount()
-                    }
-                }
+    private func openMode(_ mode: AppMode) {
+        noAnimation {
+            store.appMode = mode
+            isModeSelectionVisible = false
+            if mode == .chords {
+                ensureChordStringCount()
             }
-        )
+        }
+        updateSupportedOrientations(for: mode)
+    }
+
+    private func returnToModeSelection() {
+        noAnimation {
+            store.isCustomMode = false
+            isCustomTuningSheetPresented = false
+            isModeSelectionVisible = true
+        }
+        AppOrientationController.setSupportedOrientations(.allButUpsideDown)
+    }
+
+    private func compactHarmonyTitle(for mode: HarmonyMode) -> String {
+        switch mode {
+        case .functional: "Функц."
+        case .modal: "Модальная"
+        case .popular: "Популярные"
+        case .saved: "Мои"
+        }
+    }
+
+    private func harmonyModeIcon(for mode: HarmonyMode) -> String {
+        switch mode {
+        case .functional: "arrow.triangle.branch"
+        case .modal: "circle.grid.2x2.fill"
+        case .popular: "flame.fill"
+        case .saved: "folder.fill"
+        }
+    }
+
+    private func supportedOrientations(for mode: AppMode) -> UIInterfaceOrientationMask {
+        mode == .modes ? .landscape : .allButUpsideDown
+    }
+
+    private func updateSupportedOrientations(for mode: AppMode) {
+        AppOrientationController.setSupportedOrientations(supportedOrientations(for: mode))
     }
 
     private func compatibleTunings(for mode: AppMode) -> [TuningPreset] {

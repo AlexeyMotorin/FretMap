@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="26000" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="launch-view-controller">
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="24506" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="launch-view-controller">
     <device id="retina6_12" orientation="portrait" appearance="dark"/>
     <dependencies>
         <deployment identifier="iOS"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="26000"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="24504"/>
         <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
+        <!--View Controller-->
         <scene sceneID="launch-scene">
             <objects>
                 <viewController id="launch-view-controller" sceneMemberID="viewController">
@@ -14,17 +16,17 @@
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFill" image="Image" translatesAutoresizingMaskIntoConstraints="NO" id="launch-image-view">
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFill" image="LaunchImage.png" translatesAutoresizingMaskIntoConstraints="NO" id="launch-image-view">
                                 <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                             </imageView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="launch-safe-area"/>
-                        <color key="backgroundColor" red="0.070" green="0.090" blue="0.120" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <color key="backgroundColor" red="0.070000000000000007" green="0.089999999999999997" blue="0.12" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
-                            <constraint firstItem="launch-image-view" firstAttribute="leading" secondItem="launch-root-view" secondAttribute="leading" id="launch-leading"/>
-                            <constraint firstAttribute="trailing" secondItem="launch-image-view" secondAttribute="trailing" id="launch-trailing"/>
-                            <constraint firstItem="launch-image-view" firstAttribute="top" secondItem="launch-root-view" secondAttribute="top" id="launch-top"/>
                             <constraint firstAttribute="bottom" secondItem="launch-image-view" secondAttribute="bottom" id="launch-bottom"/>
+                            <constraint firstItem="launch-image-view" firstAttribute="leading" secondItem="launch-root-view" secondAttribute="leading" id="launch-leading"/>
+                            <constraint firstItem="launch-image-view" firstAttribute="top" secondItem="launch-root-view" secondAttribute="top" id="launch-top"/>
+                            <constraint firstAttribute="trailing" secondItem="launch-image-view" secondAttribute="trailing" id="launch-trailing"/>
                         </constraints>
                     </view>
                 </viewController>
@@ -34,6 +36,6 @@
         </scene>
     </scenes>
     <resources>
-        <image name="Image" width="941" height="1672"/>
+        <image name="LaunchImage.png" width="941" height="1672"/>
     </resources>
 </document>

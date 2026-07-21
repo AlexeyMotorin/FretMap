@@ -798,8 +798,8 @@ enum ChordIdentifier {
 }
 
 enum AppColors {
-    static let page = Color(red: 0.08, green: 0.09, blue: 0.12)
-    static let panel = Color(red: 0.12, green: 0.13, blue: 0.18)
+    static let page = Color(red: 0.08, green: 0.09, blue: 0.12).opacity(0.92)
+    static let panel = Color(red: 0.12, green: 0.13, blue: 0.18).opacity(0.88)
     static let control = Color(red: 0.24, green: 0.28, blue: 0.38)
     static let fretboard = Color(red: 0.15, green: 0.19, blue: 0.23)
     static let nut = Color(red: 0.47, green: 0.54, blue: 0.64)
