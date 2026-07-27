@@ -1,32 +1,32 @@
-# FretMap Architecture
+# Архитектура FretMap
 
-FretMap uses a pragmatic layered SwiftUI architecture. Dependencies point inward: feature views may use domain models and core services, while domain code does not depend on feature screens.
+FretMap использует прагматичную слоистую архитектуру на SwiftUI. Зависимости направлены внутрь: представления отдельных функций могут использовать доменные модели и основные сервисы, при этом доменный код не зависит от экранов приложения.
 
-## Source layout
+## Структура исходного кода
 
-- `App`: application entry point and lifecycle integration.
-- `Core`: reusable infrastructure such as audio, persistence, diagnostics, and localization.
-- `Data`: bundled chord and music databases.
-- `DesignSystem`: shared visual tokens, UIKit bridges, and view utilities.
-- `Domain`: navigation, music-theory, tuning, chord, and saved-progression models.
-- `Features`: screens and feature-specific presentation models grouped by user workflow.
+- `App` — точка входа в приложение и интеграция с его жизненным циклом.
+- `Core` — переиспользуемая инфраструктура: аудио, хранение данных, диагностика и локализация.
+- `Data` — встроенные базы данных аккордов и музыкальной информации.
+- `DesignSystem` — общие визуальные токены, мосты к UIKit и вспомогательные инструменты для представлений.
+- `Domain` — модели навигации, музыкальной теории, строев, аккордов и сохранённых последовательностей.
+- `Features` — экраны и относящиеся к ним модели представления, сгруппированные по пользовательским сценариям.
 
-## State and persistence
+## Состояние и хранение данных
 
-`AppSettingsStore` is the single observable source of user preferences. It persists a version-tolerant Codable snapshot through `SettingsPersisting`. New snapshot fields should be optional and receive a fallback during restoration so existing installations remain compatible.
+`AppSettingsStore` является единым наблюдаемым источником пользовательских настроек. Он сохраняет устойчивый к изменению версий снимок состояния в формате `Codable` через протокол `SettingsPersisting`. Новые поля снимка состояния должны быть опциональными и получать значение по умолчанию при восстановлении, чтобы сохранялась совместимость с уже установленными версиями приложения.
 
-## Services
+## Сервисы
 
-Infrastructure is exposed behind narrow protocols where substitution is useful. `SettingsPersisting` supports isolated tests without `UserDefaults`; `ProgressionPlaying` defines the playback boundary. Production failures are written through unified `OSLog` categories.
+Инфраструктурные компоненты скрыты за небольшими специализированными протоколами там, где полезна возможность подмены реализации. `SettingsPersisting` позволяет изолированно тестировать сохранение настроек без использования `UserDefaults`, а `ProgressionPlaying` определяет границу подсистемы воспроизведения. Ошибки в рабочей сборке записываются через единые категории `OSLog`.
 
-## Localization
+## Локализация
 
-Russian source keys are stored in each `Localizable.strings` file. SwiftUI literals use bundle localization automatically, while UIKit and dynamic model titles use `L10n.string(_:)`. Run `Scripts/validate_localizations.sh` after adding or changing keys.
+Русские исходные ключи хранятся в каждом файле `Localizable.strings`. Строковые литералы SwiftUI автоматически используют локализацию из основного пакета, а UIKit и динамические названия моделей получают строки через `L10n.string(_:)`. После добавления или изменения ключей необходимо запускать `Scripts/validate_localizations.sh`.
 
-## Extension guidelines
+## Правила расширения
 
-1. Put music rules and serializable entities in `Domain`.
-2. Put static packaged data and repositories in `Data`.
-3. Keep feature-only view state beside its feature.
-4. Add shared UI only after it is reused by more than one screen.
-5. Preserve raw Codable values and optional migration defaults across releases.
+1. Музыкальные правила и сериализуемые сущности следует размещать в `Domain`.
+2. Статические встроенные данные и репозитории следует размещать в `Data`.
+3. Состояние, используемое только одной функцией, должно находиться рядом с этой функцией.
+4. Общие UI-компоненты следует добавлять только после того, как они начинают использоваться более чем на одном экране.
+5. Между версиями необходимо сохранять исходные значения `Codable` и опциональные значения по умолчанию для миграции.
