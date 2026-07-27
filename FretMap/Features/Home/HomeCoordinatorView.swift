@@ -3,10 +3,10 @@ import UIKit
 
 struct HomeCoordinatorView: View {
     @ObservedObject var store: AppSettingsStore
+    @Binding var customTuningTargetMode: AppMode?
+    @Binding var isCreatingSavedProgression: Bool
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var isModeSelectionVisible = true
-    @State private var isCustomTuningSheetPresented = false
-    @State private var customTuningTargetMode: AppMode = .modes
 
     private let scales = ScalePattern.all
     private let tuningCatalog = TuningCatalog()
@@ -67,7 +67,7 @@ struct HomeCoordinatorView: View {
                     .clipped()
                 }
 
-                if isCustomTuningSheetPresented {
+                if let customTuningTargetMode {
                     CustomTuningEditorView(
                         presets: customTunings(for: customTuningTargetMode),
                         stringCount: stringCount(for: customTuningTargetMode),
@@ -79,7 +79,7 @@ struct HomeCoordinatorView: View {
                         onDelete: deleteCustomTuning,
                         onDismiss: {
                             noAnimation {
-                                isCustomTuningSheetPresented = false
+                                self.customTuningTargetMode = nil
                             }
                         }
                     )
@@ -100,9 +100,9 @@ struct HomeCoordinatorView: View {
             syncSavedSelections()
             AppOrientationController.setSupportedOrientations(.allButUpsideDown)
         }
-        .onChange(of: isCustomTuningSheetPresented) { isPresented in
+        .onChange(of: customTuningTargetMode) { targetMode in
             AppOrientationController.setSupportedOrientations(
-                isPresented ? .portrait : supportedOrientations(for: store.appMode)
+                targetMode == nil ? supportedOrientations(for: store.appMode) : .portrait
             )
         }
         .preferredColorScheme(.dark)
@@ -203,7 +203,10 @@ struct HomeCoordinatorView: View {
         HarmonyRootView(
             store: store,
             noteNames: noteNames,
-            isPortrait: isPortraitLayout
+            isPortrait: isPortraitLayout,
+            onCreateSavedProgression: {
+                isCreatingSavedProgression = true
+            }
         )
     }
 
@@ -1002,7 +1005,7 @@ struct HomeCoordinatorView: View {
     private func returnToModeSelection() {
         noAnimation {
             store.isCustomMode = false
-            isCustomTuningSheetPresented = false
+            customTuningTargetMode = nil
             isModeSelectionVisible = true
         }
         AppOrientationController.setSupportedOrientations(.allButUpsideDown)
@@ -1068,7 +1071,6 @@ struct HomeCoordinatorView: View {
                 noAnimation {
                     if newValue == manageCustomTuningID {
                         customTuningTargetMode = mode
-                        isCustomTuningSheetPresented = true
                     } else if let customID = tuningCatalog.customTuningID(fromMenuID: newValue) {
                         setSelectedCustomTuning(customID, for: mode)
                         syncChordShape()
@@ -1223,6 +1225,7 @@ struct HomeCoordinatorView: View {
             store.customTuningPresets.append(preset)
         }
 
+        guard let customTuningTargetMode else { return }
         setSelectedCustomTuning(preset.id, for: customTuningTargetMode)
         syncChordShape()
     }
@@ -1243,6 +1246,10 @@ struct HomeCoordinatorView: View {
 
 struct HomeCoordinatorView_Previews: PreviewProvider {
     static var previews: some View {
-        HomeCoordinatorView(store: AppSettingsStore())
+        HomeCoordinatorView(
+            store: AppSettingsStore(),
+            customTuningTargetMode: .constant(nil),
+            isCreatingSavedProgression: .constant(false)
+        )
     }
 }

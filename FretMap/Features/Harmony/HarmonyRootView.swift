@@ -4,6 +4,7 @@ struct HarmonyRootView: View {
     @ObservedObject var store: AppSettingsStore
     let noteNames: [String]
     let isPortrait: Bool
+    let onCreateSavedProgression: () -> Void
 
     var body: some View {
         GeometryReader { proxy in
@@ -48,7 +49,11 @@ struct HarmonyRootView: View {
         case .popular:
             PopularHarmonyView(noteNames: noteNames, store: store)
         case .saved:
-            SavedHarmonyView(noteNames: noteNames, store: store)
+            SavedHarmonyView(
+                noteNames: noteNames,
+                store: store,
+                onCreateProgression: onCreateSavedProgression
+            )
         }
     }
 

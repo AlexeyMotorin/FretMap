@@ -1073,7 +1073,7 @@ struct PopularHarmonyView: View {
 struct SavedHarmonyView: View {
     let noteNames: [String]
     @ObservedObject var store: AppSettingsStore
-    @State private var isCreatingProgression = false
+    let onCreateProgression: () -> Void
     @State private var progressionPendingDeletion: SavedHarmonyProgression?
     @Environment(\.verticalSizeClass) private var verticalSizeClass
 
@@ -1105,9 +1105,6 @@ struct SavedHarmonyView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.clear)
-        .fullScreenCover(isPresented: $isCreatingProgression) {
-            SavedHarmonyEditor(noteNames: noteNames, store: store)
-        }
         .alert(
             "Удалить последовательность?",
             isPresented: deletionAlertBinding,
@@ -1138,9 +1135,7 @@ struct SavedHarmonyView: View {
 
             Spacer()
 
-            Button {
-                isCreatingProgression = true
-            } label: {
+            Button(action: onCreateProgression) {
                 Image(systemName: "plus")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(AppColors.primaryText)
@@ -1253,7 +1248,7 @@ struct SavedHarmonyView: View {
     }
 }
 
-private struct SavedHarmonyEditor: View {
+struct SavedHarmonyEditor: View {
     enum EditorMode: String, CaseIterable, Identifiable {
         case functional
         case modal
