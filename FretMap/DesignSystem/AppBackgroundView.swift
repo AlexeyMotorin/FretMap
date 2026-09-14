@@ -3,10 +3,27 @@ import SwiftUI
 struct AppBackgroundView: View {
     var body: some View {
         ZStack {
-            Color(red: 0.025, green: 0.07, blue: 0.13)
-            Image("Background")
-                .resizable()
-                .scaledToFill()
+            AppColors.page
+
+            LinearGradient(
+                colors: [
+                    AppColors.rootText.opacity(0.17),
+                    Color.clear,
+                    AppColors.barre.opacity(0.055)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            LinearGradient(
+                colors: [
+                    Color.clear,
+                    AppColors.openStringStroke.opacity(0.035),
+                    Color.black.opacity(0.32)
+                ],
+                startPoint: .topTrailing,
+                endPoint: .bottomLeading
+            )
         }
         .ignoresSafeArea()
     }

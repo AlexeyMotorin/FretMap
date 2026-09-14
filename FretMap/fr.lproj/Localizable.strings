@@ -13,6 +13,8 @@
 "Лидийский" = "Lydien";
 "Миксолидийский" = "Mixolydien";
 "Локрийский" = "Locrien";
+"Ионийский" = "Ionien";
+"Эолийский" = "Éolien";
 "Трезвучие" = "Triade";
 "Септаккорд" = "Accord de septième";
 "Смешанный" = "Mixte";
@@ -47,3 +49,26 @@
 "Увеличенный" = "Augmenté";
 "Уменьшенный" = "Diminué";
 "Ещё…" = "Plus…";
+"Справка" = "Aide";
+"Закрыть" = "Fermer";
+"Функции в мажоре" = "Fonctions en majeur";
+"Функции аккордов" = "Fonctions harmoniques";
+"Справка: функции аккордов" = "La fonction tonique crée la stabilité, la sous-dominante prépare le mouvement et la dominante tend vers la tonique. En majeur : I, iii et vi sont T ; ii et IV sont S ; V et vii° sont D.\n\nEn mineur fonctionnel, V et vii° utilisent le septième degré élevé. v et bVII appartiennent au mineur naturel et ont une fonction dominante plus faible ou différente.";
+"Обозначения ступеней" = "Notation des degrés";
+"Модальные обозначения" = "Notation modale";
+"Справка: модальные обозначения" = "Les chiffres romains sont relatifs au majeur parallèle : b abaisse un degré et # l'élève. Une majuscule indique un accord majeur, une minuscule un accord mineur et ° un accord diminué.\n\nLes couleurs aident à comparer la stabilité dans le mode, mais ne sont pas des fonctions universelles pour tous les styles.";
+"Гармонические прогрессии" = "Progressions harmoniques";
+"Заимствованные аккорды" = "Accords empruntés";
+"Заимствование" = "Harmonie empruntée";
+"Справка: заимствованные аккорды" = "Certaines progressions utilisent volontairement des accords extérieurs au mode : emprunt modal, dominantes secondaires ou septième degré élevé en mineur. Ce sont des moyens courants de renforcer le mouvement.\n\nLes altérations des degrés sont relatives au majeur parallèle. La note reflète une popularité pratique et peut être modifiée.";
+"Надстройки аккорда" = "Extensions d'accord";
+"Справка: надстройки аккорда" = "Les 9e, 11e et 13e s'ajoutent normalement aux accords de septième et s'écrivent entre parenthèses, comme C7(b9) ou Cmaj7(#11). La barre oblique indique une basse différente : C/E.\n\nLes triades avec notes ajoutées utilisent Cadd9, Cadd11 et C6. C13 implique la présence d'une septième.";
+"Тоническая функция" = "Fonction tonique";
+"Субдоминантовая функция" = "Fonction sous-dominante";
+"Доминантная функция" = "Fonction dominante";
+"Мелодический минор (восходящий / джазовый)" = "Mineur mélodique (ascendant / jazz)";
+"Мелод. минор ↑" = "Mineur mélodique ↑";
+
+"harmony.borrowing.general.info" = "Cette suite contient des accords hors de la gamme principale. Ils apportent une couleur ou renforcent la résolution suivante. Emprunt modal et dominante secondaire sont deux procédés distincts regroupés sous ce symbole.";
+
+"harmony.borrowing.secondary.info" = "V/vi est une dominante secondaire qui conduit vers vi. En Do majeur : E7 → Am. Ce n’est ni un changement de tonalité ni, au sens strict, un emprunt modal ; le symbole signale un accord hors de la gamme.";

@@ -127,11 +127,21 @@ final class AppSettingsStore: ObservableObject {
     }
 
     func normalize() {
+        let wasRestoring = isRestoring
+        isRestoring = true
+        defer {
+            isRestoring = wasRestoring
+            if !wasRestoring {
+                save()
+            }
+        }
+
         rootNote = clampedPitch(rootNote)
         chordSettings.root = clampedPitch(chordSettings.root)
         functionalRoot = clampedPitch(functionalRoot)
         modalRoot = clampedPitch(modalRoot)
-        popularGlobalRoot = popularGlobalRoot == -1 ? -1 : clampedPitch(popularGlobalRoot)
+        popularGlobalRoot = normalizedOptionalPitch(popularGlobalRoot)
+        popularProgressionRoots = popularProgressionRoots.mapValues(normalizedOptionalPitch)
         stringCount = min(max(stringCount, 4), 8)
         chordStringCount = min(max(chordStringCount, 6), 8)
         customTuningPitchClasses = normalizedCustomTunings(customTuningPitchClasses)
@@ -146,11 +156,11 @@ final class AppSettingsStore: ObservableObject {
         functionalSelectedChordKinds = normalizedChordKinds(functionalSelectedChordKinds)
         modalSelectedChordKinds = normalizedChordKinds(modalSelectedChordKinds)
         popularRatings = popularRatings.mapValues { min(max($0, 1), 5) }
-        favoriteProgressionIDs = Array(Set(favoriteProgressionIDs))
+        favoriteProgressionIDs = removingDuplicateIDs(from: favoriteProgressionIDs)
         harmonyTempoBPM = min(max(harmonyTempoBPM, 40), 200)
         savedHarmonyProgressions = savedHarmonyProgressions.map { progression in
             var normalized = progression
-            normalized.root = progression.root == -1 ? -1 : clampedPitch(progression.root)
+            normalized.root = normalizedOptionalPitch(progression.root)
             normalized.degrees = Array(progression.degrees.prefix(8))
             normalized.chordKinds = Array(progression.chordKinds.prefix(normalized.degrees.count))
             while normalized.chordKinds.count < normalized.degrees.count {
@@ -183,7 +193,6 @@ final class AppSettingsStore: ObservableObject {
         if !ChordSize.available(for: chordSettings.quality).contains(chordSettings.size) {
             chordSettings.size = ChordSize.available(for: chordSettings.quality).first ?? .triad
         }
-        save()
     }
 
     private func normalizedDegrees(_ degrees: [Int], fallback: Int, allowed: [Int]) -> [Int] {
@@ -196,6 +205,15 @@ final class AppSettingsStore: ObservableObject {
 
     private func clampedPitch(_ pitch: Int) -> Int {
         min(max(pitch, 0), 11)
+    }
+
+    private func normalizedOptionalPitch(_ pitch: Int) -> Int {
+        pitch < 0 ? -1 : clampedPitch(pitch)
+    }
+
+    private func removingDuplicateIDs(from ids: [String]) -> [String] {
+        var seen = Set<String>()
+        return ids.filter { seen.insert($0).inserted }
     }
 
     private func save() {
@@ -295,7 +313,9 @@ final class AppSettingsStore: ObservableObject {
     }
 
     private func normalizedCustomTuningPresets(_ presets: [CustomTuningPreset]) -> [CustomTuningPreset] {
-        presets.compactMap { preset in
+        var seenIDs = Set<String>()
+        return presets.compactMap { preset in
+            guard seenIDs.insert(preset.id).inserted else { return nil }
             let stringCount = min(max(preset.stringCount, 4), 8)
             let fallback = TuningPreset.all.first { $0.stringCount == stringCount }?.strings.map(\.pitchClass) ?? Array(repeating: 0, count: stringCount)
             var pitches = Array(preset.pitchClasses.prefix(stringCount))

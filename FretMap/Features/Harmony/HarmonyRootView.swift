@@ -35,8 +35,15 @@ struct HarmonyRootView: View {
         }
         .pickerStyle(.segmented)
         .font(isPortrait ? .caption : .body)
-        .padding(isPortrait ? 8 : 12)
-        .padding(.leading, 52)
+        .padding(.vertical, isPortrait ? 8 : 10)
+        .padding(.trailing, 12)
+        .padding(.leading, 56)
+        .background(AppColors.panel.opacity(0.72))
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(AppColors.border)
+                .frame(height: 1)
+        }
     }
 
     @ViewBuilder

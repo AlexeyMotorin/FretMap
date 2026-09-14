@@ -8,21 +8,22 @@ struct HomeModeSelectionView: View {
     var body: some View {
         Group {
             if isPortrait {
-                VStack(spacing: 14) {
-                    Spacer(minLength: 30)
-                    modeButtons
-                        .frame(maxWidth: 340)
+                VStack(spacing: 22) {
+                    Spacer(minLength: 12)
                     logo
-                        .frame(maxWidth: 300)
-                        .padding(.top, 14)
-                    Spacer(minLength: 30)
+                        .frame(maxWidth: 240, maxHeight: containerSize.height * 0.25)
+                    modeButtons
+                        .frame(maxWidth: 380)
+                    Spacer(minLength: 24)
+                        .frame(minHeight: containerSize.height * 0.12)
                 }
+                .offset(y: 18)
             } else {
-                HStack(spacing: 32) {
-                    modeButtons
-                        .frame(width: 300)
+                HStack(spacing: 44) {
                     logo
-                        .frame(maxWidth: 300, maxHeight: 230)
+                        .frame(maxWidth: 330, maxHeight: 250)
+                    modeButtons
+                        .frame(width: 340)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -32,10 +33,10 @@ struct HomeModeSelectionView: View {
     }
 
     private var modeButtons: some View {
-        VStack(spacing: 10) {
-            modeButton(.chords, systemName: "music.note")
-            modeButton(.modes, systemName: "guitars")
-            modeButton(.harmony, systemName: "music.note.list")
+        VStack(spacing: 12) {
+            modeButton(.chords, systemName: "music.note", accent: AppColors.rootText)
+            modeButton(.modes, systemName: "guitars", accent: AppColors.openStringStroke)
+            modeButton(.harmony, systemName: "music.note.list", accent: AppColors.barre)
         }
     }
 
@@ -46,25 +47,49 @@ struct HomeModeSelectionView: View {
             .accessibilityHidden(true)
     }
 
-    private func modeButton(_ mode: AppMode, systemName: String) -> some View {
+    private func modeButton(_ mode: AppMode, systemName: String, accent: Color) -> some View {
         Button {
             onSelectMode(mode)
         } label: {
-            Label(mode.title, systemImage: systemName)
-                .font(.system(.headline, design: .rounded).weight(.black))
-                .foregroundStyle(AppColors.primaryText)
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .background(
-                    AppColors.panel.opacity(0.94),
-                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+            HStack(spacing: 14) {
+                Image(systemName: systemName)
+                    .font(.system(size: 18, weight: .bold))
+                    .symbolRenderingMode(.monochrome)
+                    .foregroundStyle(accent)
+                    .frame(width: 42, height: 42)
+                    .background(accent.opacity(0.14), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                Text(mode.title)
+                    .font(.system(.title3, design: .rounded).weight(.bold))
+                    .foregroundStyle(AppColors.primaryText)
+
+                Spacer(minLength: 12)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(AppColors.mutedText)
+            }
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, minHeight: 66)
+            .background {
+                LinearGradient(
+                    colors: [accent.opacity(0.10), Color.clear],
+                    startPoint: .leading,
+                    endPoint: .trailing
                 )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(AppColors.control, lineWidth: 1)
-                }
+            }
+            .appSurface(fill: AppColors.elevatedPanel, castsShadow: true)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(HomeModeButtonStyle())
+    }
+}
+
+private struct HomeModeButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .opacity(configuration.isPressed ? 0.86 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
@@ -77,10 +102,7 @@ struct ModeBackButton: View {
                 .font(.system(size: 16, weight: .black))
                 .foregroundStyle(AppColors.primaryText)
                 .frame(width: 40, height: 36)
-                .background(
-                    AppColors.control.opacity(0.96),
-                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-                )
+                .appSurface(fill: AppColors.elevatedPanel, castsShadow: true)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Назад к выбору режима")

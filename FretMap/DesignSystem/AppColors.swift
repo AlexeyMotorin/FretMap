@@ -1,19 +1,24 @@
 import SwiftUI
 
 enum AppColors {
-    static let page = Color(red: 0.08, green: 0.09, blue: 0.12).opacity(0.82)
-    static let panel = Color(red: 0.12, green: 0.13, blue: 0.18).opacity(0.64)
-    static let control = Color(red: 0.24, green: 0.28, blue: 0.38)
-    static let fretboard = Color(red: 0.15, green: 0.19, blue: 0.23)
-    static let nut = Color(red: 0.47, green: 0.54, blue: 0.64)
-    static let string = Color(red: 0.68, green: 0.76, blue: 0.86)
-    static let stringGlow = Color(red: 0.72, green: 0.84, blue: 1.0)
-    static let inlay = Color(red: 0.65, green: 0.72, blue: 0.76)
+    static let page = Color(red: 0.035, green: 0.043, blue: 0.055)
+    static let panel = Color(red: 0.09, green: 0.105, blue: 0.13).opacity(0.94)
+    static let elevatedPanel = Color(red: 0.12, green: 0.14, blue: 0.17).opacity(0.96)
+    static let control = Color(red: 0.17, green: 0.20, blue: 0.25)
+    static let border = Color.white.opacity(0.12)
+    static let strongBorder = Color.white.opacity(0.22)
+    static let shadow = Color.black.opacity(0.34)
+
+    static let fretboard = Color(red: 0.105, green: 0.13, blue: 0.145)
+    static let nut = Color(red: 0.64, green: 0.68, blue: 0.70)
+    static let string = Color(red: 0.73, green: 0.76, blue: 0.78)
+    static let stringGlow = Color(red: 0.40, green: 0.72, blue: 0.92)
+    static let inlay = Color(red: 0.62, green: 0.70, blue: 0.70)
     static let noteMarker = Color.white
-    static let barre = Color(red: 0.13, green: 0.74, blue: 0.46)
-    static let rootText = Color(red: 0.18, green: 0.48, blue: 0.86)
+    static let barre = Color(red: 0.16, green: 0.76, blue: 0.55)
+    static let rootText = Color(red: 0.20, green: 0.56, blue: 0.96)
     static let noteText = Color(red: 0.07, green: 0.08, blue: 0.09)
-    static let openStringStroke = Color(red: 0.92, green: 0.67, blue: 0.22)
-    static let primaryText = Color.white.opacity(0.92)
-    static let mutedText = Color(red: 0.72, green: 0.77, blue: 0.84)
+    static let openStringStroke = Color(red: 0.96, green: 0.67, blue: 0.20)
+    static let primaryText = Color.white.opacity(0.96)
+    static let mutedText = Color(red: 0.66, green: 0.70, blue: 0.75)
 }

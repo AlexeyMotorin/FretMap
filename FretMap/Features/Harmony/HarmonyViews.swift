@@ -16,6 +16,17 @@ struct FunctionalHarmonyView: View {
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 18) {
                     VStack(alignment: .leading, spacing: 16) {
+                        HStack(spacing: 8) {
+                            Text("Функции в мажоре")
+                                .font(.headline.weight(.bold))
+                                .foregroundStyle(AppColors.primaryText)
+                            Spacer()
+                            TheoryHelpButton(
+                                titleKey: "Функции аккордов",
+                                bodyKey: "Справка: функции аккордов"
+                            )
+                        }
+
                         ForEach(HarmonyData.functional) { group in
                             Group {
                                 if isPortrait {
@@ -254,13 +265,19 @@ private struct FunctionalProgressionBuilder: View {
     private func chordName(for degree: Int, kind: FunctionalChordKind) -> String {
         let index = max(0, min(degree - 1, 6))
         let pitch = (selectedRoot + keyMode.intervals[index]) % 12
+        let rootName = MusicNoteSpeller.noteName(
+            pitchClass: pitch,
+            tonicPitchClass: selectedRoot,
+            degree: index + 1,
+            preferredNames: noteNames
+        )
         switch kind {
         case .triad:
-            return "\(noteNames[pitch])\(keyMode.qualities[index])"
+            return "\(rootName)\(keyMode.qualities[index])"
         case .seventh:
-            return "\(noteNames[pitch])\(keyMode.seventhQualities[index])"
+            return "\(rootName)\(keyMode.seventhQualities[index])"
         case .mixed:
-            return "\(noteNames[pitch])\(keyMode.qualities[index])"
+            return "\(rootName)\(keyMode.qualities[index])"
         }
     }
 
@@ -285,7 +302,7 @@ private struct FunctionalProgressionBuilder: View {
         case 1, 3, 6: "T"
         case 2, 4: "S"
         case 5: "D"
-        case 7: "S/D"
+        case 7: "D"
         default: ""
         }
     }
@@ -484,6 +501,17 @@ struct ModalHarmonyView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    HStack(spacing: 8) {
+                        Text("Обозначения ступеней")
+                            .font(.headline.weight(.bold))
+                            .foregroundStyle(AppColors.primaryText)
+                        Spacer()
+                        TheoryHelpButton(
+                            titleKey: "Модальные обозначения",
+                            bodyKey: "Справка: модальные обозначения"
+                        )
+                    }
+
                     ForEach(HarmonyData.modalRows) { row in
                         VStack(alignment: .leading, spacing: 10) {
                             Text(row.title)
@@ -539,7 +567,7 @@ struct ModalHarmonyView: View {
     }
 
     private func modalCellBackground(row: ModalHarmonyRow, cell: (degree: String, chord: String, color: HarmonyColor)) -> Color {
-        if row.title.hasPrefix("Ионийский") || row.title.hasPrefix("Эолийский") {
+        if row.usesNeutralBackground {
             return AppColors.control
         }
         return cell.color.color.opacity(cell.color == .neutral ? 0.18 : 0.55)
@@ -716,13 +744,19 @@ private struct ModalProgressionBuilder: View {
     private func chordName(for degree: Int, kind: FunctionalChordKind) -> String {
         let index = max(0, min(degree - 1, 6))
         let pitch = (selectedRoot + selectedMode.intervals[index]) % 12
+        let rootName = MusicNoteSpeller.noteName(
+            pitchClass: pitch,
+            tonicPitchClass: selectedRoot,
+            degree: index + 1,
+            preferredNames: noteNames
+        )
         switch kind {
         case .triad:
-            return "\(noteNames[pitch])\(triadSuffix(for: selectedMode.cells[index].chord))"
+            return "\(rootName)\(triadSuffix(for: selectedMode.cells[index].chord))"
         case .seventh:
-            return "\(noteNames[pitch])\(seventhSuffix(for: degree))"
+            return "\(rootName)\(seventhSuffix(for: degree))"
         case .mixed:
-            return "\(noteNames[pitch])\(triadSuffix(for: selectedMode.cells[index].chord))"
+            return "\(rootName)\(triadSuffix(for: selectedMode.cells[index].chord))"
         }
     }
 
@@ -853,6 +887,7 @@ struct PopularHarmonyView: View {
         Group {
             if displayedProgressions.isEmpty {
                 VStack(alignment: .leading, spacing: 18) {
+                    popularTheoryHeader
                     popularControls
                     tempoSlider
                     favoriteEmptyState
@@ -869,6 +904,7 @@ struct PopularHarmonyView: View {
                                 .frame(height: 0)
                                 .id("popular-harmony-top")
 
+                            popularTheoryHeader
                             popularControls
                             tempoSlider
 
@@ -929,6 +965,19 @@ struct PopularHarmonyView: View {
                 sortPicker.frame(width: 190)
                 tonicPicker.frame(width: 168)
             }
+        }
+    }
+
+    private var popularTheoryHeader: some View {
+        HStack(spacing: 8) {
+            Text("Гармонические прогрессии")
+                .font(.headline.weight(.bold))
+                .foregroundStyle(AppColors.primaryText)
+            Spacer()
+            TheoryHelpButton(
+                titleKey: "Заимствованные аккорды",
+                bodyKey: "Справка: заимствованные аккорды"
+            )
         }
     }
 
@@ -1383,6 +1432,7 @@ private struct PopularProgressionCard: View {
     @Binding var rating: Int
     let tempoBPM: Double
     let action: ProgressionCardAction
+    @State private var showsBorrowingInfo = false
     @StateObject private var audioPlayer = ProgressionAudioPlayer()
 
     var body: some View {
@@ -1409,8 +1459,28 @@ private struct PopularProgressionCard: View {
                     .font(.system(.subheadline, design: .rounded).weight(.heavy))
                     .foregroundStyle(AppColors.mutedText)
                     .lineLimit(3)
+
+                if progression.usesBorrowedHarmony {
+                    Button {
+                        showsBorrowingInfo = true
+                    } label: {
+                        Label("Заимствование", systemImage: "info.circle")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(HarmonyColor.yellow.color)
+                            .padding(.horizontal, 10)
+                            .frame(minHeight: 44)
+                            .background(HarmonyColor.yellow.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .alert("Заимствованные аккорды", isPresented: $showsBorrowingInfo) {
+                        Button("OK", role: .cancel) { }
+                    } message: {
+                        Text(borrowingDetails)
+                    }
+                }
             }
-            .frame(height: 58, alignment: .topLeading)
+            .frame(height: progression.usesBorrowedHarmony ? 110 : 58, alignment: .topLeading)
 
             HStack(spacing: chordButtonSpacing) {
                 ForEach(progression.bars.indices, id: \.self) { barIndex in
@@ -1436,6 +1506,47 @@ private struct PopularProgressionCard: View {
                 }
             }
         }
+    }
+
+    private func isBorrowedChord(barIndex: Int, chordIndex: Int) -> Bool {
+        guard progression.usesBorrowedHarmony,
+              isActiveChord(barIndex: barIndex, chordIndex: chordIndex) else { return false }
+        let root = effectiveRoot ?? 0
+        let index = progression.flatIndex(barIndex: barIndex, chordIndex: chordIndex)
+        guard let chord = chordDescriptor(
+            for: progression.bars[barIndex][chordIndex], root: root,
+            isSeventh: isSeventhChord(barIndex: barIndex, chordIndex: chordIndex, flatIndex: index)
+        ) else { return false }
+        let scalePitches = Set(scale.intervals.map { ($0 + root) % 12 })
+        return chord.intervals.contains { !scalePitches.contains((chord.rootPitchClass + $0) % 12) }
+    }
+
+    private func hasBorrowedChord(in barIndex: Int) -> Bool {
+        progression.bars[barIndex].indices.contains {
+            isBorrowedChord(barIndex: barIndex, chordIndex: $0)
+        }
+    }
+
+    private var borrowingDetails: String {
+        let names = progression.bars.indices.flatMap { barIndex in
+            progression.bars[barIndex].indices.compactMap { chordIndex -> String? in
+                guard isBorrowedChord(barIndex: barIndex, chordIndex: chordIndex) else { return nil }
+                let degree = progression.bars[barIndex][chordIndex]
+                let index = progression.flatIndex(barIndex: barIndex, chordIndex: chordIndex)
+                let name = chordName(for: degree, isSeventh: isSeventhChord(
+                    barIndex: barIndex, chordIndex: chordIndex, flatIndex: index))
+                return "\(degree) — \(name)"
+            }
+        }
+        let key = progression.degrees.contains("V/vi")
+            ? "harmony.borrowing.secondary.info" : "harmony.borrowing.general.info"
+        return names.joined(separator: "\n") + "\n\n" + L10n.string(key)
+    }
+
+    private func borrowingOutline(barIndex: Int) -> some View {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .strokeBorder(hasBorrowedChord(in: barIndex) ? HarmonyColor.yellow.color : .clear, lineWidth: 2)
+            .allowsHitTesting(false)
     }
 
     private var scale: ScalePattern { progression.scale }
@@ -1481,6 +1592,8 @@ private struct PopularProgressionCard: View {
                 isSeventh ? AppColors.rootText.opacity(0.72) : AppColors.control,
                 in: RoundedRectangle(cornerRadius: 8, style: .continuous)
             )
+            .overlay(borrowingOutline(barIndex: barIndex))
+            .accessibilityValue(isBorrowedChord(barIndex: barIndex, chordIndex: 0) ? L10n.string("Заимствование") : "")
             .contentShape(Rectangle())
             .onTapGesture {
                 toggleSeventh(at: flatIndex)
@@ -1524,6 +1637,7 @@ private struct PopularProgressionCard: View {
                         : AppColors.rootText.opacity(0.72),
                     in: RoundedRectangle(cornerRadius: 8, style: .continuous)
                 )
+                .overlay(borrowingOutline(barIndex: barIndex))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Выбрать типы аккордов в такте")
@@ -1775,8 +1889,16 @@ private struct PopularProgressionCard: View {
            romanToken(from: parts[1]).first?.isLetter == true,
            let targetPitch = pitch(for: parts[1], root: root) {
             let chordRoot = (targetPitch + 7) % 12
+            let targetIndex = degreeIndex(for: parts[1]) ?? 0
+            let chordDegree = ((targetIndex + 4) % 7) + 1
+            let chordRootName = MusicNoteSpeller.noteName(
+                pitchClass: chordRoot,
+                tonicPitchClass: root,
+                degree: chordDegree,
+                preferredNames: noteNames
+            )
             return PopularChordDescriptor(
-                name: "\(noteNames[chordRoot])7",
+                name: "\(chordRootName)7",
                 rootPitchClass: chordRoot,
                 intervals: [0, 4, 7, 10]
             )
@@ -1790,9 +1912,10 @@ private struct PopularProgressionCard: View {
         }
 
         let suffix = chordSuffix(for: intervals)
-        var name = "\(noteNames[chordRoot])\(suffix)"
+        let chordRootName = spelledNoteName(for: chordPart, pitchClass: chordRoot, tonicPitchClass: root)
+        var name = "\(chordRootName)\(suffix)"
         if parts.count == 2, let bassPitch = pitch(for: parts[1], root: root) {
-            name += "/\(noteNames[bassPitch])"
+            name += "/\(spelledNoteName(for: parts[1], pitchClass: bassPitch, tonicPitchClass: root))"
         }
         return PopularChordDescriptor(name: name, rootPitchClass: chordRoot, intervals: intervals)
     }
@@ -1808,6 +1931,14 @@ private struct PopularProgressionCard: View {
     }
 
     private func seventhInterval(for degree: String) -> Int {
+        if let functionalMode = progression.functionalMode,
+           let index = degreeIndex(for: degree) {
+            switch functionalMode.seventhQualities[index] {
+            case "maj7": return 11
+            case "dim7": return 9
+            default: return 10
+            }
+        }
         guard let index = degreeIndex(for: degree), scale.intervals.count == 7 else {
             return degree.contains("°") || romanToken(from: degree).first?.isLowercase == true ? 10 : 11
         }
@@ -1833,32 +1964,24 @@ private struct PopularProgressionCard: View {
     }
 
     private func degreeIndex(for degree: String) -> Int? {
-        let token = romanToken(from: degree)
-        if let number = Int(token), (1...7).contains(number) {
-            return number - 1
-        }
-        return ["I", "II", "III", "IV", "V", "VI", "VII"].firstIndex(of: token.uppercased())
+        HarmonyTheory.degreeIndex(for: degree)
     }
 
     private func pitch(for degree: String, root: Int) -> Int? {
-        let accidentalOffset = degree.prefix(while: { $0 == "b" || $0 == "#" }).reduce(0) { result, character in
-            result + (character == "b" ? -1 : 1)
-        }
-        let token = romanToken(from: degree)
-
-        if let degreeNumber = Int(token), (1...scale.intervals.count).contains(degreeNumber) {
-            return (root + scale.intervals[degreeNumber - 1] + accidentalOffset + 120) % 12
-        }
-
-        let romanDegrees = ["I", "II", "III", "IV", "V", "VI", "VII"]
-        guard let index = romanDegrees.firstIndex(of: token.uppercased()), scale.intervals.indices.contains(index) else { return nil }
-        return (root + scale.intervals[index] + accidentalOffset + 120) % 12
+        HarmonyTheory.pitchClass(for: degree, tonicPitchClass: root)
     }
 
     private func romanToken(from degree: String) -> String {
-        degree
-            .trimmingCharacters(in: CharacterSet(charactersIn: "b#"))
-            .replacingOccurrences(of: "°", with: "")
+        HarmonyTheory.romanToken(from: degree)
+    }
+
+    private func spelledNoteName(for degree: String, pitchClass: Int, tonicPitchClass: Int) -> String {
+        MusicNoteSpeller.noteName(
+            pitchClass: pitchClass,
+            tonicPitchClass: tonicPitchClass,
+            degree: (degreeIndex(for: degree) ?? 0) + 1,
+            preferredNames: noteNames
+        )
     }
 }
 

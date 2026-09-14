@@ -13,6 +13,8 @@
 "Лидийский" = "Lydisch";
 "Миксолидийский" = "Mixolydisch";
 "Локрийский" = "Lokrisch";
+"Ионийский" = "Ionisch";
+"Эолийский" = "Äolisch";
 "Трезвучие" = "Dreiklang";
 "Септаккорд" = "Septakkord";
 "Смешанный" = "Gemischt";
@@ -47,3 +49,26 @@
 "Увеличенный" = "Übermäßig";
 "Уменьшенный" = "Vermindert";
 "Ещё…" = "Mehr…";
+"Справка" = "Hilfe";
+"Закрыть" = "Schließen";
+"Функции в мажоре" = "Funktionen in Dur";
+"Функции аккордов" = "Akkordfunktionen";
+"Справка: функции аккордов" = "Die Tonikafunktion erzeugt Stabilität, die Subdominantfunktion bereitet Bewegung vor und die Dominantfunktion strebt zur Tonika. In Dur: I, iii und vi sind T; ii und IV sind S; V und vii° sind D.\n\nIm funktionalen Moll verwenden V und vii° die erhöhte siebte Stufe. v und bVII gehören zum natürlichen Moll und besitzen eine schwächere oder andere Dominantwirkung.";
+"Обозначения ступеней" = "Stufenbezeichnungen";
+"Модальные обозначения" = "Modale Bezeichnungen";
+"Справка: модальные обозначения" = "Römische Stufen beziehen sich auf die parallele Durtonleiter: b erniedrigt und # erhöht eine Stufe. Großschrift bedeutet Dur, Kleinschrift Moll und ° vermindert.\n\nDie Farben helfen beim Vergleich der Stabilität im Modus, sind aber keine universellen Funktionen für alle Musikstile.";
+"Гармонические прогрессии" = "Akkordfolgen";
+"Заимствованные аккорды" = "Entlehnte Akkorde";
+"Заимствование" = "Entlehnte Harmonik";
+"Справка: заимствованные аккорды" = "Einige Folgen verwenden bewusst Akkorde außerhalb des gewählten Modus: Modal Interchange, Zwischendominanten oder die erhöhte siebte Stufe in Moll. Das sind übliche Mittel für stärkere harmonische Bewegung.\n\nVorzeichen bei römischen Stufen beziehen sich auf paralleles Dur. Bewertungen zeigen praktische Beliebtheit und können geändert werden.";
+"Надстройки аккорда" = "Akkorderweiterungen";
+"Справка: надстройки аккорда" = "9, 11 und 13 werden gewöhnlich Septakkorden hinzugefügt und in Klammern notiert, etwa C7(b9) oder Cmaj7(#11). Ein Schrägstrich bezeichnet einen alternativen Basston: C/E.\n\nDreiklänge mit Zusatztönen heißen Cadd9, Cadd11 oder C6. C13 setzt eine Septime voraus.";
+"Тоническая функция" = "Tonikafunktion";
+"Субдоминантовая функция" = "Subdominantfunktion";
+"Доминантная функция" = "Dominantfunktion";
+"Мелодический минор (восходящий / джазовый)" = "Melodisch Moll (aufwärts / Jazz)";
+"Мелод. минор ↑" = "Melodisch Moll ↑";
+
+"harmony.borrowing.general.info" = "Diese Folge enthält Akkorde außerhalb der Grundskala. Sie bringen neue Klangfarben oder verstärken den Zug zum nächsten Akkord. Modale Entlehnung und Zwischendominanten sind unterschiedliche Techniken mit demselben Symbol.";
+
+"harmony.borrowing.secondary.info" = "V/vi ist eine Zwischendominante zur vi. In C-Dur: E7 → Am. Das ist kein Tonartwechsel und streng genommen keine modale Entlehnung. Das Symbol kennzeichnet einen skalenfremden Akkord.";

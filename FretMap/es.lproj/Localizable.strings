@@ -13,6 +13,8 @@
 "Лидийский" = "Lidio";
 "Миксолидийский" = "Mixolidio";
 "Локрийский" = "Locrio";
+"Ионийский" = "Jónico";
+"Эолийский" = "Eólico";
 "Трезвучие" = "Tríada";
 "Септаккорд" = "Acorde de séptima";
 "Смешанный" = "Mixto";
@@ -47,3 +49,26 @@
 "Увеличенный" = "Aumentado";
 "Уменьшенный" = "Disminuido";
 "Ещё…" = "Más…";
+"Справка" = "Ayuda";
+"Закрыть" = "Cerrar";
+"Функции в мажоре" = "Funciones en mayor";
+"Функции аккордов" = "Funciones armónicas";
+"Справка: функции аккордов" = "La función tónica crea estabilidad, la subdominante prepara el movimiento y la dominante tiende hacia la tónica. En mayor: I, iii y vi son T; ii y IV son S; V y vii° son D.\n\nEn el menor funcional, V y vii° usan el séptimo grado elevado. v y bVII pertenecen al menor natural y tienen una función dominante más débil o diferente.";
+"Обозначения ступеней" = "Notación de grados";
+"Модальные обозначения" = "Notación modal";
+"Справка: модальные обозначения" = "Los números romanos se escriben respecto al mayor paralelo: b baja un grado y # lo eleva. Las mayúsculas indican un acorde mayor, las minúsculas uno menor y ° uno disminuido.\n\nLos colores ayudan a comparar la estabilidad dentro del modo, pero no son funciones universales para todos los estilos.";
+"Гармонические прогрессии" = "Progresiones armónicas";
+"Заимствованные аккорды" = "Acordes prestados";
+"Заимствование" = "Armonía prestada";
+"Справка: заимствованные аккорды" = "Algunas progresiones usan intencionadamente acordes ajenos al modo mediante intercambio modal, dominantes secundarias o el séptimo grado elevado en menor. Son recursos habituales para reforzar el movimiento.\n\nLas alteraciones romanas se miden respecto al mayor paralelo. La valoración refleja popularidad práctica y puede modificarse.";
+"Надстройки аккорда" = "Extensiones del acorde";
+"Справка: надстройки аккорда" = "Las 9, 11 y 13 suelen añadirse a acordes de séptima y se escriben entre paréntesis, como C7(b9) o Cmaj7(#11). La barra indica un bajo alternativo: C/E.\n\nLas tríadas con notas añadidas usan Cadd9, Cadd11 y C6. C13 implica la presencia de una séptima.";
+"Тоническая функция" = "Función tónica";
+"Субдоминантовая функция" = "Función subdominante";
+"Доминантная функция" = "Función dominante";
+"Мелодический минор (восходящий / джазовый)" = "Menor melódica (ascendente / jazz)";
+"Мелод. минор ↑" = "Menor melódica ↑";
+
+"harmony.borrowing.general.info" = "Esta progresión incluye acordes ajenos a la escala principal. Aportan color o refuerzan la llegada al siguiente acorde. El intercambio modal y las dominantes secundarias son técnicas distintas que aquí comparten un símbolo.";
+
+"harmony.borrowing.secondary.info" = "V/vi es una dominante secundaria que refuerza la llegada a vi. En Do mayor: E7 → Am. No es un cambio de tonalidad ni, estrictamente, intercambio modal; el símbolo señala un acorde ajeno a la escala.";

@@ -45,7 +45,7 @@ struct SavedHarmonyProgression: Identifiable, Codable, Equatable {
             let index = min(max(degree - 1, 0), degreeTitles.count - 1)
             return [degreeTitles[index]]
         }
-        return PopularProgression(
+        var progression = PopularProgression(
             id: "\(scale.id)-saved-\(id)",
             title: name,
             category: source == .functional ? L10n.string("Функциональная") : L10n.string("Модальная"),
@@ -53,6 +53,8 @@ struct SavedHarmonyProgression: Identifiable, Codable, Equatable {
             popularity: rating,
             color: .neutral
         )
+        progression.functionalMode = source == .functional ? functionalMode : nil
+        return progression
     }
 
     var seventhChordIndexes: [Int] {

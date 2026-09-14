@@ -13,6 +13,8 @@
 "Лидийский" = "Lydian";
 "Миксолидийский" = "Mixolydian";
 "Локрийский" = "Locrian";
+"Ионийский" = "Ionian";
+"Эолийский" = "Aeolian";
 "Трезвучие" = "Triad";
 "Септаккорд" = "Seventh chord";
 "Смешанный" = "Mixed";
@@ -47,3 +49,26 @@
 "Увеличенный" = "Augmented";
 "Уменьшенный" = "Diminished";
 "Ещё…" = "More…";
+"Справка" = "Help";
+"Закрыть" = "Close";
+"Функции в мажоре" = "Functions in major";
+"Функции аккордов" = "Chord functions";
+"Справка: функции аккордов" = "Tonic function creates stability, predominant function prepares motion, and dominant function tends toward the tonic. In major: I, iii, and vi are T; ii and IV are S; V and vii° are D.\n\nIn functional minor, V and vii° use the raised seventh degree. The v and bVII chords belong to natural minor and have a weaker or different dominant function.";
+"Обозначения ступеней" = "Degree notation";
+"Модальные обозначения" = "Modal notation";
+"Справка: модальные обозначения" = "Roman numerals are written relative to the parallel major scale: b lowers a degree and # raises it. Uppercase means a major triad, lowercase a minor triad, and ° a diminished triad.\n\nColors help compare chord stability within a mode, but they are not universal functions across every musical style.";
+"Гармонические прогрессии" = "Chord progressions";
+"Заимствованные аккорды" = "Borrowed chords";
+"Заимствование" = "Borrowed harmony";
+"Справка: заимствованные аккорды" = "Some progressions intentionally use chords outside the selected mode through modal mixture, secondary dominants, or the raised seventh in minor. These are common ways to strengthen harmonic motion.\n\nRoman-numeral accidentals are measured against the parallel major scale. Ratings reflect practical popularity and can be changed by the user.";
+"Надстройки аккорда" = "Chord extensions";
+"Справка: надстройки аккорда" = "The 9th, 11th, and 13th are normally added to seventh chords and written in parentheses, as in C7(b9) or Cmaj7(#11). A slash indicates an alternate bass note: C/E.\n\nAdded-note triads use symbols such as Cadd9, Cadd11, and C6. The symbol C13 implies that a seventh is present.";
+"Тоническая функция" = "Tonic function";
+"Субдоминантовая функция" = "Predominant function";
+"Доминантная функция" = "Dominant function";
+"Мелодический минор (восходящий / джазовый)" = "Melodic minor (ascending / jazz)";
+"Мелод. минор ↑" = "Melodic minor ↑";
+
+"harmony.borrowing.general.info" = "This progression includes chords outside its main scale. They add color or strengthen the pull toward the next chord. Modal borrowing and secondary dominants are different techniques; this collection uses the same badge for both.";
+
+"harmony.borrowing.secondary.info" = "V/vi is a secondary dominant: it strengthens the move to the vi chord. In C major, this is E7 → Am. It is not a key change or, strictly speaking, modal borrowing; this badge marks a chord outside the main scale.";

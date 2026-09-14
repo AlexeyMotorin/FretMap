@@ -123,35 +123,48 @@ struct HomeCoordinatorView: View {
 
     private var modesModeView: some View {
         GeometryReader { proxy in
-            HStack(alignment: .top, spacing: 0) {
-                if store.isSettingsVisible {
+            if isPortraitLayout {
+                VStack(spacing: 12) {
+                    // Leave room for navigation above the open-string labels.
+                    modesFretboard
+                        .frame(height: max(220, min(320, proxy.size.height * 0.42)))
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     settingsPanel
-                        .frame(width: min(320, max(280, proxy.size.width * 0.27)))
-                        .frame(height: proxy.size.height)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
-
-                ZStack(alignment: .topLeading) {
-                    FretboardView(
-                        tuning: selectedTuning,
-                        fretCount: store.fretCount,
-                        markers: scaleMarkers,
-                        barres: [],
-                        selectedPositions: [],
-                        customMode: false,
-                        onTapPosition: nil,
-                        onSwipe: store.isSettingsVisible ? { setSettingsVisible(false) } : nil
-                    )
-
-                    if !store.isSettingsVisible {
-                        settingsButton
-                            .padding(12)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                .padding(.horizontal, 12)
+                .padding(.top, 56)
+                .padding(.bottom, max(12, proxy.safeAreaInsets.bottom))
+            } else {
+                HStack(alignment: .top, spacing: 0) {
+                    if store.isSettingsVisible {
+                        settingsPanel
+                            .frame(width: min(320, max(280, proxy.size.width * 0.27)))
+                    }
+                    ZStack(alignment: .bottomLeading) {
+                        modesFretboard
+                        if !store.isSettingsVisible {
+                            settingsButton.padding(12)
+                        }
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .clipped()
+    }
+
+    private var modesFretboard: some View {
+        FretboardView(
+            tuning: selectedTuning,
+            fretCount: store.fretCount,
+            allowsZoom: true,
+            markers: scaleMarkers,
+            barres: [],
+            selectedPositions: [],
+            customMode: false,
+            onTapPosition: nil,
+            onSwipe: !isPortraitLayout && store.isSettingsVisible ? { setSettingsVisible(false) } : nil
+        )
     }
 
     private var chordsModeView: some View {
@@ -288,7 +301,7 @@ struct HomeCoordinatorView: View {
         }
         .scrollIndicators(.hidden)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(AppColors.panel)
+        .appSurface(fill: AppColors.panel)
     }
 
     private func portraitChordFretboardHeight(for availableHeight: CGFloat) -> CGFloat {
@@ -331,15 +344,17 @@ struct HomeCoordinatorView: View {
                             .foregroundStyle(AppColors.mutedText)
                     }
                     Spacer()
+                    if !isPortraitLayout {
                     Button { setSettingsVisible(false) } label: {
                         Image(systemName: "gearshape.fill")
                             .foregroundStyle(AppColors.primaryText)
                             .frame(width: 36, height: 36)
-                            .background(AppColors.control, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            .appSurface(fill: AppColors.control)
                     }
                     .buttonStyle(.plain)
+                    }
                 }
-                .padding(.leading, 48)
+                .padding(.leading, isPortraitLayout ? 0 : 48)
 
                 notePicker(title: "Тональность", selection: noAnimationBinding($store.rootNote))
 
@@ -384,6 +399,11 @@ struct HomeCoordinatorView: View {
         }
         .frame(maxHeight: .infinity, alignment: .topLeading)
         .background(AppColors.panel)
+        .overlay(alignment: .trailing) {
+            Rectangle()
+                .fill(AppColors.border)
+                .frame(width: 1)
+        }
     }
 
     private var chordSettingsPanel: some View {
@@ -440,6 +460,11 @@ struct HomeCoordinatorView: View {
         }
         .frame(maxHeight: .infinity, alignment: .topLeading)
         .background(AppColors.panel)
+        .overlay(alignment: .trailing) {
+            Rectangle()
+                .fill(AppColors.border)
+                .frame(width: 1)
+        }
     }
 
     private var settingsButton: some View {
@@ -448,7 +473,7 @@ struct HomeCoordinatorView: View {
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(AppColors.primaryText)
                 .frame(width: 44, height: 44)
-                .background(AppColors.panel.opacity(0.96), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .appSurface(fill: AppColors.elevatedPanel, castsShadow: true)
         }
         .buttonStyle(.plain)
     }
@@ -518,15 +543,21 @@ struct HomeCoordinatorView: View {
 
     private var chordExtensionsPicker: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Toggle("Надстройки", isOn: noAnimationBinding($store.areChordExtensionsVisible))
-                .toggleStyle(.switch)
-                .font(.system(.subheadline, design: .rounded).weight(.semibold))
-                .foregroundStyle(AppColors.primaryText)
-                .tint(AppColors.rootText)
-                .transaction { transaction in
-                    transaction.animation = nil
-                    transaction.disablesAnimations = true
-                }
+            HStack(spacing: 4) {
+                Toggle("Надстройки", isOn: noAnimationBinding($store.areChordExtensionsVisible))
+                    .toggleStyle(.switch)
+                    .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                    .foregroundStyle(AppColors.primaryText)
+                    .tint(AppColors.rootText)
+                    .transaction { transaction in
+                        transaction.animation = nil
+                        transaction.disablesAnimations = true
+                    }
+                TheoryHelpButton(
+                    titleKey: "Надстройки аккорда",
+                    bodyKey: "Справка: надстройки аккорда"
+                )
+            }
 
             if store.areChordExtensionsVisible {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), spacing: 8)], spacing: 8) {
@@ -554,15 +585,21 @@ struct HomeCoordinatorView: View {
 
     private var compactChordExtensionsPicker: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Toggle("Надстройки", isOn: noAnimationBinding($store.areChordExtensionsVisible))
-                .toggleStyle(.switch)
-                .font(.system(.caption, design: .rounded).weight(.semibold))
-                .foregroundStyle(AppColors.primaryText)
-                .tint(AppColors.rootText)
-                .transaction { transaction in
-                    transaction.animation = nil
-                    transaction.disablesAnimations = true
-                }
+            HStack(spacing: 4) {
+                Toggle("Надстройки", isOn: noAnimationBinding($store.areChordExtensionsVisible))
+                    .toggleStyle(.switch)
+                    .font(.system(.caption, design: .rounded).weight(.semibold))
+                    .foregroundStyle(AppColors.primaryText)
+                    .tint(AppColors.rootText)
+                    .transaction { transaction in
+                        transaction.animation = nil
+                        transaction.disablesAnimations = true
+                    }
+                TheoryHelpButton(
+                    titleKey: "Надстройки аккорда",
+                    bodyKey: "Справка: надстройки аккорда"
+                )
+            }
 
             if store.areChordExtensionsVisible {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 50), spacing: 6)], spacing: 6) {
@@ -661,7 +698,7 @@ struct HomeCoordinatorView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(AppColors.panel.opacity(0.94), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .appSurface(fill: AppColors.elevatedPanel, castsShadow: true)
         }
     }
 
@@ -699,19 +736,32 @@ struct HomeCoordinatorView: View {
             .foregroundStyle(AppColors.primaryText)
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(AppColors.panel.opacity(0.94), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .appSurface(fill: AppColors.elevatedPanel, castsShadow: true)
         }
     }
 
     private var scaleSummary: String {
-        selectedScale.intervals.map { noteNames[($0 + store.rootNote) % 12] }.joined(separator: "  ")
+        selectedScale.intervals.map { interval in
+            MusicNoteSpeller.scaleNoteName(
+                pitchClass: interval + store.rootNote,
+                tonicPitchClass: store.rootNote,
+                scale: selectedScale,
+                preferredNames: noteNames
+            )
+        }.joined(separator: "  ")
     }
 
     private var scaleMarkers: [FretMarker] {
         makeMarkers { stringIndex, fret, pitch in
             guard selectedScale.intervals.contains((pitch - store.rootNote + 12) % 12),
                   let degree = selectedScale.degreeLabel(for: pitch, root: store.rootNote) else { return nil }
-            let label = showsDegreeNumbers ? "\(noteNames[pitch])/\(degree)" : noteNames[pitch]
+            let noteName = MusicNoteSpeller.scaleNoteName(
+                pitchClass: pitch,
+                tonicPitchClass: store.rootNote,
+                scale: selectedScale,
+                preferredNames: noteNames
+            )
+            let label = showsDegreeNumbers ? "\(noteName)/\(degree)" : noteName
             return FretMarker(
                 position: FretPosition(stringIndex: stringIndex, fret: fret),
                 label: label,
@@ -768,7 +818,13 @@ struct HomeCoordinatorView: View {
             let interval = (pitch - settings.root + 12) % 12
             guard intervals.contains(interval) else { return nil }
             let degree = settings.toneLabel(for: interval) ?? ""
-            let label = showsDegreeNumbers ? "\(noteNames[pitch])/\(degree)" : noteNames[pitch]
+            let noteName = MusicNoteSpeller.noteName(
+                pitchClass: pitch,
+                tonicPitchClass: settings.root,
+                degreeLabel: degree,
+                preferredNames: noteNames
+            )
+            let label = showsDegreeNumbers ? "\(noteName)/\(degree)" : noteName
             return FretMarker(
                 position: FretPosition(stringIndex: stringIndex, fret: fret),
                 label: label,
@@ -809,7 +865,13 @@ struct HomeCoordinatorView: View {
             let pitch = (displayedStrings[stringIndex].pitchClass + note.fret) % 12
             let interval = (pitch - settings.root + 12) % 12
             let degree = settings.toneLabel(for: interval) ?? (interval == 9 ? "bb7" : "")
-            let label = showsDegreeNumbers && !degree.isEmpty ? "\(noteNames[pitch])/\(degree)" : noteNames[pitch]
+            let noteName = MusicNoteSpeller.noteName(
+                pitchClass: pitch,
+                tonicPitchClass: settings.root,
+                degreeLabel: degree,
+                preferredNames: noteNames
+            )
+            let label = showsDegreeNumbers && !degree.isEmpty ? "\(noteName)/\(degree)" : noteName
             return FretMarker(
                 position: FretPosition(stringIndex: stringIndex, fret: note.fret),
                 label: label,
@@ -872,7 +934,7 @@ struct HomeCoordinatorView: View {
     }
 
     private var availableChordExtensions: [ChordExtension] {
-        ChordExtension.allCases.filter { $0.isAvailable(for: store.chordSettings.quality) }
+        ChordExtension.allCases.filter { $0.isAvailable(for: store.chordSettings) }
     }
 
     private var selectedChordShape: ChordShape? {
@@ -903,7 +965,7 @@ struct HomeCoordinatorView: View {
         if !availableChordSizes.contains(store.chordSettings.size) {
             store.chordSettings.size = availableChordSizes.first ?? .triad
         }
-        let validExtensions = store.chordSettings.extensions.filter { $0.isAvailable(for: store.chordSettings.quality) }
+        let validExtensions = store.chordSettings.extensions.filter { $0.isAvailable(for: store.chordSettings) }
         if validExtensions != store.chordSettings.extensions {
             store.chordSettings.extensions = validExtensions
         }
@@ -1012,7 +1074,7 @@ struct HomeCoordinatorView: View {
     }
 
     private func supportedOrientations(for mode: AppMode) -> UIInterfaceOrientationMask {
-        mode == .modes ? .landscape : .allButUpsideDown
+        .allButUpsideDown
     }
 
     private func updateSupportedOrientations(for mode: AppMode) {

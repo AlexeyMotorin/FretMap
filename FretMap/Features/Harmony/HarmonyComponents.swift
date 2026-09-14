@@ -1,5 +1,48 @@
 import SwiftUI
 
+struct TheoryHelpButton: View {
+    let titleKey: String
+    let bodyKey: String
+    @State private var isPresented = false
+
+    var body: some View {
+        Button {
+            isPresented = true
+        } label: {
+            Image(systemName: "questionmark.circle.fill")
+                .font(.system(size: 19, weight: .semibold))
+                .foregroundStyle(AppColors.mutedText)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(L10n.string("Справка"))
+        .sheet(isPresented: $isPresented) {
+            NavigationStack {
+                ScrollView {
+                    Text(L10n.string(bodyKey))
+                        .font(.body)
+                        .foregroundStyle(AppColors.primaryText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(20)
+                }
+                .background(AppColors.page)
+                .navigationTitle(L10n.string(titleKey))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(L10n.string("Закрыть")) {
+                            isPresented = false
+                        }
+                    }
+                }
+            }
+            .preferredColorScheme(.dark)
+            .presentationDetents([.medium, .large])
+        }
+    }
+}
+
 struct HarmonyTempoSlider: View {
     @Binding var bpm: Double
 
@@ -27,7 +70,7 @@ struct HarmonyTempoSlider: View {
         }
         .padding(.horizontal, 12)
         .frame(minHeight: 42)
-        .background(AppColors.control.opacity(0.56), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .appSurface(fill: AppColors.control.opacity(0.72))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(L10n.string("Темп")) \(Int(bpm)) BPM")
     }
@@ -86,6 +129,11 @@ struct DegreeSquarePicker: View {
             .frame(maxWidth: .infinity)
             .aspectRatio(1, contentMode: .fit)
             .background(color.opacity(0.84), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(Color.white.opacity(0.16), lineWidth: 1)
+            }
+            .shadow(color: color.opacity(0.18), radius: 8, y: 4)
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)

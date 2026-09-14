@@ -23,6 +23,113 @@ enum AccidentalStyle: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+enum MusicNoteSpeller {
+    private static let letters = ["C", "D", "E", "F", "G", "A", "B"]
+    private static let naturalPitchClasses = [0, 2, 4, 5, 7, 9, 11]
+
+    static func noteName(
+        pitchClass: Int,
+        tonicPitchClass: Int,
+        degree: Int,
+        preferredNames: [String]
+    ) -> String {
+        let pitch = (pitchClass % 12 + 12) % 12
+        let tonic = (tonicPitchClass % 12 + 12) % 12
+        guard preferredNames.indices.contains(tonic),
+              let tonicLetter = preferredNames[tonic].first,
+              let tonicLetterIndex = letters.firstIndex(of: String(tonicLetter)),
+              degree > 0 else {
+            return preferredNames.indices.contains(pitch) ? preferredNames[pitch] : ""
+        }
+
+        let letterIndex = (tonicLetterIndex + degree - 1) % letters.count
+        let naturalPitch = naturalPitchClasses[letterIndex]
+        var accidentalDistance = (pitch - naturalPitch + 12) % 12
+        if accidentalDistance > 6 {
+            accidentalDistance -= 12
+        }
+
+        guard (-2...2).contains(accidentalDistance) else {
+            return preferredNames.indices.contains(pitch) ? preferredNames[pitch] : ""
+        }
+
+        let accidental: String
+        if accidentalDistance > 0 {
+            accidental = String(repeating: "#", count: accidentalDistance)
+        } else if accidentalDistance < 0 {
+            accidental = String(repeating: "b", count: -accidentalDistance)
+        } else {
+            accidental = ""
+        }
+        return letters[letterIndex] + accidental
+    }
+
+    static func noteName(
+        pitchClass: Int,
+        tonicPitchClass: Int,
+        degreeLabel: String,
+        preferredNames: [String]
+    ) -> String {
+        let degree = Int(degreeLabel.filter(\.isNumber)) ?? 1
+        return noteName(
+            pitchClass: pitchClass,
+            tonicPitchClass: tonicPitchClass,
+            degree: ((degree - 1) % 7) + 1,
+            preferredNames: preferredNames
+        )
+    }
+
+    static func scaleNoteName(
+        pitchClass: Int,
+        tonicPitchClass: Int,
+        scale: ScalePattern,
+        preferredNames: [String]
+    ) -> String {
+        let pitch = (pitchClass % 12 + 12) % 12
+        guard preferredNames.indices.contains(pitch) else { return "" }
+
+        // Chromatic scales are conventionally displayed as pitch classes in the
+        // selected accidental style, rather than forcing every note onto a degree letter.
+        guard scale.id != ScalePattern.chromatic.id,
+              let degreeLabel = scale.degreeLabel(for: pitch, root: tonicPitchClass) else {
+            return preferredNames[pitch]
+        }
+
+        return noteName(
+            pitchClass: pitch,
+            tonicPitchClass: tonicPitchClass,
+            degreeLabel: degreeLabel,
+            preferredNames: preferredNames
+        )
+    }
+}
+
+enum HarmonyTheory {
+    private static let majorDegreeIntervals = [0, 2, 4, 5, 7, 9, 11]
+
+    static func pitchClass(for degree: String, tonicPitchClass: Int) -> Int? {
+        guard let index = degreeIndex(for: degree) else { return nil }
+        let accidentalOffset = degree.prefix(while: { $0 == "b" || $0 == "#" }).reduce(0) { result, character in
+            result + (character == "b" ? -1 : 1)
+        }
+        return (tonicPitchClass + majorDegreeIntervals[index] + accidentalOffset + 120) % 12
+    }
+
+    static func degreeIndex(for degree: String) -> Int? {
+        let token = romanToken(from: degree)
+        if let number = Int(token), (1...7).contains(number) {
+            return number - 1
+        }
+        return ["I", "II", "III", "IV", "V", "VI", "VII"].firstIndex(of: token.uppercased())
+    }
+
+    static func romanToken(from degree: String) -> String {
+        degree
+            .trimmingCharacters(in: CharacterSet(charactersIn: "b#"))
+            .replacingOccurrences(of: "°", with: "")
+    }
+}
+
 struct GuitarString: Identifiable, Equatable {
     let id = UUID()
     let label: String
@@ -193,7 +300,7 @@ struct ScalePattern: Identifiable, Equatable {
     static let chromatic = ScalePattern(id: "chromatic", name: "Хроматика", shortName: "Хроматика", intervals: Array(0...11), degreeNames: ["1", "b2", "2", "b3", "3", "4", "b5", "5", "b6", "6", "b7", "7"])
 
     static let harmonicMinor = ScalePattern(id: "harmonic-minor", name: "Гармонический минор", shortName: "Гарм. минор", intervals: [0, 2, 3, 5, 7, 8, 11], degreeNames: ["1", "2", "b3", "4", "5", "b6", "7"])
-    static let melodicMinor = ScalePattern(id: "melodic-minor", name: "Мелодический минор", shortName: "Мелод. минор", intervals: [0, 2, 3, 5, 7, 9, 11], degreeNames: ["1", "2", "b3", "4", "5", "6", "7"])
+    static let melodicMinor = ScalePattern(id: "melodic-minor", name: L10n.string("Мелодический минор (восходящий / джазовый)"), shortName: L10n.string("Мелод. минор ↑"), intervals: [0, 2, 3, 5, 7, 9, 11], degreeNames: ["1", "2", "b3", "4", "5", "6", "7"])
     static let harmonicMajor = ScalePattern(id: "harmonic-major", name: "Гармонический мажор", shortName: "Гарм. мажор", intervals: [0, 2, 4, 5, 7, 8, 11], degreeNames: ["1", "2", "3", "4", "5", "b6", "7"])
     static let doubleHarmonicMajor = ScalePattern(id: "double-harmonic-major", name: "Дважды гармонический мажор", shortName: "Двойной гарм. мажор", intervals: [0, 1, 4, 5, 7, 8, 11], degreeNames: ["1", "b2", "3", "4", "5", "b6", "7"])
     static let hungarianMinor = ScalePattern(id: "hungarian-minor", name: "Венгерский минор", shortName: "Венгерский минор", intervals: [0, 2, 3, 6, 7, 8, 11], degreeNames: ["1", "2", "b3", "#4", "5", "b6", "7"])
@@ -389,8 +496,28 @@ enum ChordExtension: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    func isAvailable(for quality: ChordQuality) -> Bool {
-        self != .noFifth || quality == .major || quality == .minor
+    func isAvailable(for settings: ChordSettings) -> Bool {
+        let hasSeventh = settings.size != .triad
+        switch self {
+        case .sixth, .flat6:
+            return !hasSeventh && (settings.quality == .major || settings.quality == .minor)
+        case .thirteenth:
+            return hasSeventh && settings.size != .diminishedSeventh
+        case .flat13:
+            return hasSeventh && settings.quality != .augmented
+        case .flat9:
+            return hasSeventh
+        case .sharp9:
+            return hasSeventh && (settings.quality == .major || settings.quality == .augmented)
+        case .add9, .add11:
+            return true
+        case .sharp11:
+            return hasSeventh && settings.quality != .diminished
+        case .sharp13:
+            return false
+        case .noFifth:
+            return settings.quality == .major || settings.quality == .minor
+        }
     }
 }
 
@@ -472,19 +599,29 @@ struct ChordSettings: Codable {
 
         var suffix = baseSuffix
         for item in extensionItems {
-            if item == .noFifth {
-                suffix += item.suffix
-            } else if baseSuffix.isEmpty || baseSuffix == "m" || baseSuffix == "aug" || baseSuffix == "dim" {
-                suffix += item.suffix
-            } else {
-                suffix += "/\(item.suffix)"
-            }
+            suffix += extensionSuffix(for: item, hasSeventh: size != .triad)
         }
         return suffix
     }
 
+    private func extensionSuffix(for item: ChordExtension, hasSeventh: Bool) -> String {
+        switch item {
+        case .sixth: "6"
+        case .flat6: "(addb6)"
+        case .add9: hasSeventh ? "(9)" : "add9"
+        case .add11: hasSeventh ? "(11)" : "add11"
+        case .thirteenth: "(13)"
+        case .flat9: "(b9)"
+        case .sharp9: "(#9)"
+        case .sharp11: "(#11)"
+        case .flat13: "(b13)"
+        case .sharp13: "(#13)"
+        case .noFifth: "(no5)"
+        }
+    }
+
     var extensionItems: [ChordExtension] {
-        let allowed = extensions.filter { $0.isAvailable(for: quality) }
+        let allowed = extensions.filter { $0.isAvailable(for: self) }
         return ChordExtension.allCases.filter { allowed.contains($0) }
     }
 
@@ -535,7 +672,7 @@ struct ChordSettings: Codable {
     }
 
     var tones: [ChordTone] {
-        uniqueTones(extensionTones + baseTones)
+        uniqueTones(baseTones + extensionTones)
     }
 
     var intervals: Set<Int> { Set(tones.map(\.interval)) }
@@ -649,7 +786,18 @@ struct FunctionalHarmonyGroup: Identifiable {
 struct ModalHarmonyRow: Identifiable {
     let id = UUID()
     let title: String
+    let usesNeutralBackground: Bool
     let cells: [(degree: String, chord: String, color: HarmonyColor)]
+
+    init(
+        title: String,
+        usesNeutralBackground: Bool = false,
+        cells: [(degree: String, chord: String, color: HarmonyColor)]
+    ) {
+        self.title = title
+        self.usesNeutralBackground = usesNeutralBackground
+        self.cells = cells
+    }
 }
 
 struct PopularProgression: Identifiable {
@@ -659,6 +807,8 @@ struct PopularProgression: Identifiable {
     let bars: [[String]]
     let popularity: Int
     let color: HarmonyColor
+    var functionalMode: FunctionalKeyMode? = nil
+    var usesBorrowedHarmony: Bool = false
 
     var degrees: [String] { bars.flatMap { $0 } }
     var progressionText: String {
@@ -679,19 +829,19 @@ struct PopularProgression: Identifiable {
 
 enum HarmonyData {
     static let functional: [FunctionalHarmonyGroup] = [
-        FunctionalHarmonyGroup(title: "Тоническая функция", symbol: "T", degrees: [("I", .green), ("III", .red), ("VI", .yellow)]),
-        FunctionalHarmonyGroup(title: "Субдоминантовая функция", symbol: "S", degrees: [("II", .yellow), ("IV", .green), ("VII", .red)]),
-        FunctionalHarmonyGroup(title: "Доминантная функция", symbol: "D", degrees: [("V", .green), ("VII", .yellow)])
+        FunctionalHarmonyGroup(title: L10n.string("Тоническая функция"), symbol: "T", degrees: [("I", .green), ("iii", .red), ("vi", .yellow)]),
+        FunctionalHarmonyGroup(title: L10n.string("Субдоминантовая функция"), symbol: "S", degrees: [("ii", .yellow), ("IV", .green)]),
+        FunctionalHarmonyGroup(title: L10n.string("Доминантная функция"), symbol: "D", degrees: [("V", .green), ("vii°", .yellow)])
     ]
 
     static let modalRows: [ModalHarmonyRow] = [
-        ModalHarmonyRow(title: "Ионийский maj", cells: [("I", "maj", .neutral), ("ii", "m", .neutral), ("iii", "m", .neutral), ("IV", "maj", .neutral), ("V", "maj", .neutral), ("vi", "m", .neutral), ("vii°", "dim", .neutral)]),
-        ModalHarmonyRow(title: "Эолийский min", cells: [("i", "m", .green), ("ii°", "dim", .red), ("III", "maj", .yellow), ("iv", "m", .green), ("v", "m", .red), ("VI", "maj", .yellow), ("VII", "maj", .red)]),
-        ModalHarmonyRow(title: "Дорийский min #6", cells: [("i", "m", .green), ("ii", "m", .green), ("III", "maj", .yellow), ("IV", "maj", .green), ("v", "m", .red), ("vi°", "dim", .red), ("VII", "maj", .red)]),
-        ModalHarmonyRow(title: "Фригийский min b2", cells: [("i", "m", .green), ("II", "maj", .green), ("III", "maj", .yellow), ("iv", "m", .red), ("V°", "dim", .red), ("VI", "maj", .yellow), ("vii", "m", .green)]),
-        ModalHarmonyRow(title: "Лидийский maj #4", cells: [("I", "maj", .green), ("II", "maj", .green), ("iii", "m", .yellow), ("iv°", "dim", .red), ("V", "maj", .red), ("vi", "m", .yellow), ("vii", "m", .green)]),
-        ModalHarmonyRow(title: "Миксолидийский maj b7", cells: [("I", "maj", .green), ("ii", "m", .yellow), ("iii°", "dim", .red), ("IV", "maj", .red), ("v", "m", .green), ("vi", "m", .yellow), ("VII", "maj", .green)]),
-        ModalHarmonyRow(title: "Локрийский dim (min b2 b5)", cells: [("i°", "dim", .red), ("II", "maj", .yellow), ("iii", "m", .green), ("iv", "m", .green), ("V", "maj", .red), ("VI", "maj", .yellow), ("vi", "m", .green)])
+        ModalHarmonyRow(title: "\(L10n.string("Ионийский")) maj", usesNeutralBackground: true, cells: [("I", "maj", .neutral), ("ii", "m", .neutral), ("iii", "m", .neutral), ("IV", "maj", .neutral), ("V", "maj", .neutral), ("vi", "m", .neutral), ("vii°", "dim", .neutral)]),
+        ModalHarmonyRow(title: "\(L10n.string("Эолийский")) min", usesNeutralBackground: true, cells: [("i", "m", .green), ("ii°", "dim", .red), ("bIII", "maj", .yellow), ("iv", "m", .green), ("v", "m", .red), ("bVI", "maj", .yellow), ("bVII", "maj", .red)]),
+        ModalHarmonyRow(title: "\(L10n.string("Дорийский")) min #6", cells: [("i", "m", .green), ("ii", "m", .green), ("bIII", "maj", .yellow), ("IV", "maj", .green), ("v", "m", .red), ("vi°", "dim", .red), ("bVII", "maj", .red)]),
+        ModalHarmonyRow(title: "\(L10n.string("Фригийский")) min b2", cells: [("i", "m", .green), ("bII", "maj", .green), ("bIII", "maj", .yellow), ("iv", "m", .red), ("v°", "dim", .red), ("bVI", "maj", .yellow), ("bvii", "m", .green)]),
+        ModalHarmonyRow(title: "\(L10n.string("Лидийский")) maj #4", cells: [("I", "maj", .green), ("II", "maj", .green), ("iii", "m", .yellow), ("#iv°", "dim", .red), ("V", "maj", .red), ("vi", "m", .yellow), ("vii", "m", .green)]),
+        ModalHarmonyRow(title: "\(L10n.string("Миксолидийский")) maj b7", cells: [("I", "maj", .green), ("ii", "m", .yellow), ("iii°", "dim", .red), ("IV", "maj", .red), ("v", "m", .green), ("vi", "m", .yellow), ("bVII", "maj", .green)]),
+        ModalHarmonyRow(title: "\(L10n.string("Локрийский")) dim (min b2 b5)", cells: [("i°", "dim", .red), ("bII", "maj", .yellow), ("biii", "m", .green), ("iv", "m", .green), ("bV", "maj", .red), ("bVI", "maj", .yellow), ("bvii", "m", .green)])
     ]
 
     static func popularProgressions(for scale: ScalePattern) -> [PopularProgression] {

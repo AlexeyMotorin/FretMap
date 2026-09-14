@@ -27,20 +27,25 @@ private struct VoicedChord {
 final class ProgressionAudioPlayer: ObservableObject {
     @Published private(set) var isPlaying = false
 
-    private let engine = AVAudioEngine()
-    private let player = AVAudioPlayerNode()
+    private final class AudioGraph {
+        let engine = AVAudioEngine()
+        let player = AVAudioPlayerNode()
+
+        init(sampleRate: Double, channelCount: AVAudioChannelCount) {
+            let format = AVAudioFormat(
+                standardFormatWithSampleRate: sampleRate,
+                channels: channelCount
+            )
+            engine.attach(player)
+            engine.connect(player, to: engine.mainMixerNode, format: format)
+        }
+    }
+
+    // Cards can be displayed and dismissed without touching the audio system.
+    private var audioGraph: AudioGraph?
     private let sampleRate: Double = 48_000
     private let channelCount: AVAudioChannelCount = 2
     private var playbackID = UUID()
-
-    init() {
-        let format = AVAudioFormat(
-            standardFormatWithSampleRate: sampleRate,
-            channels: channelCount
-        )
-        engine.attach(player)
-        engine.connect(player, to: engine.mainMixerNode, format: format)
-    }
 
     func play(chords: [PlaybackChord], bpm: Double = 120) {
         guard !chords.isEmpty else { return }
@@ -53,6 +58,15 @@ final class ProgressionAudioPlayer: ObservableObject {
         let id = UUID()
         playbackID = id
         configureAudioSession()
+        let graph: AudioGraph
+        if let existingGraph = audioGraph {
+            graph = existingGraph
+        } else {
+            graph = AudioGraph(sampleRate: sampleRate, channelCount: channelCount)
+            audioGraph = graph
+        }
+        let engine = graph.engine
+        let player = graph.player
 
         let voicedChords = makeVoicedChords(from: chords)
         guard !voicedChords.isEmpty else { return }
@@ -93,7 +107,8 @@ final class ProgressionAudioPlayer: ObservableObject {
 
     func stop() {
         playbackID = UUID()
-        player.stop()
+        audioGraph?.player.stop()
+        audioGraph?.engine.stop()
         isPlaying = false
     }
 

@@ -16,28 +16,28 @@ enum FunctionalKeyMode: String, CaseIterable, Identifiable, Codable {
     var intervals: [Int] {
         switch self {
         case .major: [0, 2, 4, 5, 7, 9, 11]
-        case .minor: [0, 2, 3, 5, 7, 8, 10]
+        case .minor: [0, 2, 3, 5, 7, 8, 11]
         }
     }
 
     var qualities: [String] {
         switch self {
         case .major: ["", "m", "m", "", "", "m", "dim"]
-        case .minor: ["m", "dim", "", "m", "m", "", ""]
+        case .minor: ["m", "dim", "", "m", "", "", "dim"]
         }
     }
 
     var seventhQualities: [String] {
         switch self {
         case .major: ["maj7", "m7", "m7", "maj7", "7", "m7", "m7b5"]
-        case .minor: ["m7", "m7b5", "maj7", "m7", "m7", "maj7", "7"]
+        case .minor: ["m7", "m7b5", "maj7", "m7", "7", "maj7", "dim7"]
         }
     }
 
     var degreeTitles: [String] {
         switch self {
         case .major: ["I", "ii", "iii", "IV", "V", "vi", "vii°"]
-        case .minor: ["i", "ii°", "III", "iv", "v", "VI", "VII"]
+        case .minor: ["i", "ii°", "III", "iv", "V", "VI", "vii°"]
         }
     }
 }
@@ -89,11 +89,11 @@ enum ModalBuilderMode: String, CaseIterable, Identifiable, Codable {
 
     var cells: [(degree: String, chord: String, color: HarmonyColor)] {
         switch self {
-        case .dorian: [("i", "m", .green), ("ii", "m", .green), ("III", "maj", .yellow), ("IV", "maj", .green), ("v", "m", .red), ("vi°", "dim", .red), ("VII", "maj", .red)]
-        case .phrygian: [("i", "m", .green), ("II", "maj", .green), ("III", "maj", .yellow), ("iv", "m", .red), ("V°", "dim", .red), ("VI", "maj", .yellow), ("vii", "m", .green)]
-        case .lydian: [("I", "maj", .green), ("II", "maj", .green), ("iii", "m", .yellow), ("iv°", "dim", .red), ("V", "maj", .red), ("vi", "m", .yellow), ("vii", "m", .green)]
-        case .mixolydian: [("I", "maj", .green), ("ii", "m", .yellow), ("iii°", "dim", .red), ("IV", "maj", .red), ("v", "m", .green), ("vi", "m", .yellow), ("VII", "maj", .green)]
-        case .locrian: [("i°", "dim", .red), ("II", "maj", .yellow), ("iii", "m", .green), ("iv", "m", .green), ("V", "maj", .red), ("VI", "maj", .yellow), ("vi", "m", .green)]
+        case .dorian: [("i", "m", .green), ("ii", "m", .green), ("bIII", "maj", .yellow), ("IV", "maj", .green), ("v", "m", .red), ("vi°", "dim", .red), ("bVII", "maj", .red)]
+        case .phrygian: [("i", "m", .green), ("bII", "maj", .green), ("bIII", "maj", .yellow), ("iv", "m", .red), ("v°", "dim", .red), ("bVI", "maj", .yellow), ("bvii", "m", .green)]
+        case .lydian: [("I", "maj", .green), ("II", "maj", .green), ("iii", "m", .yellow), ("#iv°", "dim", .red), ("V", "maj", .red), ("vi", "m", .yellow), ("vii", "m", .green)]
+        case .mixolydian: [("I", "maj", .green), ("ii", "m", .yellow), ("iii°", "dim", .red), ("IV", "maj", .red), ("v", "m", .green), ("vi", "m", .yellow), ("bVII", "maj", .green)]
+        case .locrian: [("i°", "dim", .red), ("bII", "maj", .yellow), ("biii", "m", .green), ("iv", "m", .green), ("bV", "maj", .red), ("bVI", "maj", .yellow), ("bvii", "m", .green)]
         }
     }
 }

@@ -13,6 +13,8 @@
 "Лидийский" = "Lídio";
 "Миксолидийский" = "Mixolídio";
 "Локрийский" = "Lócrio";
+"Ионийский" = "Jônio";
+"Эолийский" = "Eólio";
 "Трезвучие" = "Tríade";
 "Септаккорд" = "Acorde de sétima";
 "Смешанный" = "Misto";
@@ -47,3 +49,26 @@
 "Увеличенный" = "Aumentado";
 "Уменьшенный" = "Diminuto";
 "Ещё…" = "Mais…";
+"Справка" = "Ajuda";
+"Закрыть" = "Fechar";
+"Функции в мажоре" = "Funções no maior";
+"Функции аккордов" = "Funções harmônicas";
+"Справка: функции аккордов" = "A função tônica cria estabilidade, a subdominante prepara o movimento e a dominante tende à tônica. No maior: I, iii e vi são T; ii e IV são S; V e vii° são D.\n\nNo menor funcional, V e vii° usam o sétimo grau elevado. v e bVII pertencem ao menor natural e têm função dominante mais fraca ou diferente.";
+"Обозначения ступеней" = "Notação dos graus";
+"Модальные обозначения" = "Notação modal";
+"Справка: модальные обозначения" = "Os algarismos romanos são relativos ao maior paralelo: b abaixa um grau e # o eleva. Maiúsculas indicam acorde maior, minúsculas acorde menor e ° acorde diminuto.\n\nAs cores ajudam a comparar a estabilidade no modo, mas não são funções universais em todos os estilos.";
+"Гармонические прогрессии" = "Progressões harmônicas";
+"Заимствованные аккорды" = "Acordes emprestados";
+"Заимствование" = "Harmonia emprestada";
+"Справка: заимствованные аккорды" = "Algumas progressões usam intencionalmente acordes fora do modo por empréstimo modal, dominantes secundárias ou o sétimo grau elevado no menor. São recursos comuns para reforçar o movimento.\n\nAs alterações romanas são medidas em relação ao maior paralelo. A avaliação reflete popularidade prática e pode ser alterada.";
+"Надстройки аккорда" = "Extensões do acorde";
+"Справка: надстройки аккорда" = "9, 11 e 13 normalmente são adicionadas a acordes de sétima e escritas entre parênteses, como C7(b9) ou Cmaj7(#11). A barra indica um baixo alternativo: C/E.\n\nTríades com notas adicionadas usam Cadd9, Cadd11 e C6. C13 pressupõe a presença da sétima.";
+"Тоническая функция" = "Função tônica";
+"Субдоминантовая функция" = "Função subdominante";
+"Доминантная функция" = "Função dominante";
+"Мелодический минор (восходящий / джазовый)" = "Menor melódica (ascendente / jazz)";
+"Мелод. минор ↑" = "Menor melódica ↑";
+
+"harmony.borrowing.general.info" = "Esta sequência inclui acordes fora da escala principal. Eles acrescentam cor ou reforçam a chegada ao próximo acorde. Empréstimo modal e dominantes secundárias são técnicas diferentes com o mesmo símbolo aqui.";
+
+"harmony.borrowing.secondary.info" = "V/vi é uma dominante secundária que reforça a chegada ao vi. Em Dó maior: E7 → Am. Não é mudança de tonalidade nem, estritamente, empréstimo modal; o símbolo indica um acorde fora da escala.";
