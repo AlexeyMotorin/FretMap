@@ -3,12 +3,45 @@ import Combine
 import Foundation
 import SwiftUI
 
+nonisolated enum PracticeSubdivision: String, Codable, CaseIterable, Sendable {
+    case quarters, eighths, triplets, sixteenths, sextuplets, thirtySeconds
+    var notesPerBeat: Int {
+        switch self {
+        case .quarters: 1
+        case .eighths: 2
+        case .triplets: 3
+        case .sixteenths: 4
+        case .sextuplets: 6
+        case .thirtySeconds: 8
+        }
+    }
+    var beamCount: Int {
+        switch self {
+        case .quarters: 0
+        case .eighths, .triplets: 1
+        case .sixteenths, .sextuplets: 2
+        case .thirtySeconds: 3
+        }
+    }
+    var tupletNumber: Int? {
+        switch self {
+        case .triplets: 3
+        case .sextuplets: 6
+        default: nil
+        }
+    }
+    var localizationKey: String { "mastery.subdivision." + rawValue }
+}
+
 nonisolated struct MasteryResult: Identifiable, Codable, Sendable {
     var id = UUID()
     var date = Date()
     var bpm: Int
     var clean: Bool
     var note: String
+    var subdivision: PracticeSubdivision? = nil
+    var cleanRepetitions: Int? = nil
+    var difficulty: ExerciseDifficulty? = nil
 }
 
 nonisolated struct MasterySession: Identifiable, Codable, Sendable {
@@ -22,7 +55,7 @@ nonisolated struct MasteryPDF: Identifiable, Codable, Sendable {
     var name: String
 }
 
-nonisolated enum ExerciseDifficulty: String, Codable, CaseIterable {
+nonisolated enum ExerciseDifficulty: String, Codable, CaseIterable, Sendable {
     case hard, medium, easy
     var localizationKey: String { "mastery.difficulty." + rawValue }
 }
@@ -31,6 +64,7 @@ nonisolated struct MasteryExercise: Identifiable, Codable, Sendable {
     var id = UUID()
     var name: String
     var targetBPM: Int
+    var subdivision: PracticeSubdivision? = nil
     var category: String = ""
     var comment: String = ""
     var photos: [String] = []
@@ -77,7 +111,7 @@ final class MasteryStore: ObservableObject {
     func save(_ exercise: MasteryExercise) -> Bool {
         guard !exercise.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               (20...400).contains(exercise.targetBPM),
-              exercise.results.allSatisfy({ (20...400).contains($0.bpm) }),
+              exercise.results.allSatisfy({ (20...400).contains($0.bpm) && ($0.cleanRepetitions == nil || ($0.clean && (1...100).contains($0.cleanRepetitions ?? 0))) }),
               exercise.sessions.allSatisfy({ $0.seconds.isFinite && $0.seconds >= 0 }) else {
             error = L10n.string("mastery.validation")
             return false

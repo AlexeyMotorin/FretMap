@@ -45,6 +45,7 @@ struct MasteryDailyStatistics: View {
                                         Spacer()
                                         Text("\(result.bpm) BPM").monospacedDigit()
                                     }.font(.subheadline)
+                                    MasteryResultDetails(result: result)
                                 }
                             }.padding(.vertical, 4)
                         }

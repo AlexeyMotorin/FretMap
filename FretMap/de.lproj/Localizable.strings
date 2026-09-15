@@ -282,3 +282,19 @@
 "backup.reminder.settings" = "Notification settings";
 
 "mastery.daily.date" = "Date";
+
+"mastery.subdivision" = "Note subdivision";
+"mastery.subdivision.quarters" = "Quarter notes";
+"mastery.subdivision.eighths" = "Eighth notes";
+"mastery.subdivision.triplets" = "Triplets";
+"mastery.subdivision.sixteenths" = "Sixteenth notes";
+"mastery.subdivision.hint" = "Quarter notes: 1 note per beat; eighths: 2; triplets: 3; sixteenths: 4; sextuplets: 6; thirty-seconds: 8.";
+"mastery.repetitions" = "Consecutive clean repetitions";
+"mastery.repetitions.hint" = "One repetition is a complete performance of the exercise or chosen passage without mistakes.";
+"mastery.result.difficulty" = "How did this attempt feel?";
+
+"mastery.subdivision.sextuplets" = "Sextuplets";
+"mastery.subdivision.thirtySeconds" = "Thirty-second notes";
+"mastery.rhythm.measure" = "One 4/4 measure · four beats";
+
+"mastery.not.selected" = "Not selected";

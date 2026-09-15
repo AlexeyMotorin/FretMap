@@ -19,7 +19,7 @@ nonisolated struct FretMapBackup: Codable, Sendable {
                   (20...400).contains(exercise.targetBPM) && exercise.photos.count <= 8 &&
                   Set(exercise.results.map(\.id)).count == exercise.results.count &&
                   Set(exercise.sessions.map(\.id)).count == exercise.sessions.count &&
-                  exercise.results.allSatisfy { (20...400).contains($0.bpm) } &&
+                  exercise.results.allSatisfy { (20...400).contains($0.bpm) && ($0.cleanRepetitions == nil || ($0.clean && (1...100).contains($0.cleanRepetitions ?? 0))) } &&
                   exercise.sessions.allSatisfy { $0.seconds.isFinite && $0.seconds >= 0 } &&
                   exercise.photos.allSatisfy { photos[$0] != nil } &&
                   exercise.attachedPDFs.count <= 8 &&

@@ -282,3 +282,19 @@
 "backup.reminder.settings" = "Настройки уведомлений";
 
 "mastery.daily.date" = "Дата";
+
+"mastery.subdivision" = "Деление нот";
+"mastery.subdivision.quarters" = "Четверти";
+"mastery.subdivision.eighths" = "Восьмые";
+"mastery.subdivision.triplets" = "Триоли";
+"mastery.subdivision.sixteenths" = "Шестнадцатые";
+"mastery.subdivision.hint" = "Четверти — 1 нота на удар, восьмые — 2, триоли — 3, шестнадцатые — 4, секстоли — 6, тридцать вторые — 8.";
+"mastery.repetitions" = "Чистых повторов подряд";
+"mastery.repetitions.hint" = "Один повтор — полное исполнение упражнения или выбранного фрагмента без ошибок.";
+"mastery.result.difficulty" = "Как далась попытка?";
+
+"mastery.subdivision.sextuplets" = "Секстоли";
+"mastery.subdivision.thirtySeconds" = "Тридцать вторые";
+"mastery.rhythm.measure" = "Один такт 4/4 · четыре доли";
+
+"mastery.not.selected" = "Не выбрано";

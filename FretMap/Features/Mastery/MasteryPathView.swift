@@ -215,6 +215,7 @@ private struct MasteryEditor: View {
     @State private var name = ""
     @State private var target = "120"
     @State private var category = ""
+    @State private var subdivision: PracticeSubdivision? = nil
 
     var body: some View {
         NavigationStack {
@@ -226,6 +227,14 @@ private struct MasteryEditor: View {
                         TextField("BPM", text: $target).keyboardType(.numberPad).multilineTextAlignment(.trailing)
                     }
                     Text("mastery.range").font(.caption).foregroundStyle(.secondary)
+                    Picker("mastery.subdivision", selection: $subdivision) {
+                        Text("mastery.not.selected").tag(Optional<PracticeSubdivision>.none)
+                        ForEach(PracticeSubdivision.allCases, id: \.self) { item in
+                            Text(L10n.string(item.localizationKey)).tag(Optional(item))
+                        }
+                    }
+                    if let subdivision { MasteryRhythmPreview(subdivision: subdivision) }
+                    Text("mastery.subdivision.hint").font(.caption).foregroundStyle(.secondary)
                 }
                 Section("mastery.category") {
                     TextField("mastery.category.new", text: $category)
@@ -250,12 +259,13 @@ private struct MasteryEditor: View {
                             ?? MasteryExercise(name: name, targetBPM: bpm)
                         value.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
                         value.targetBPM = bpm
+                        value.subdivision = subdivision
                         value.category = category.trimmingCharacters(in: .whitespacesAndNewlines)
                         if store.save(value) { dismiss() }
                     }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !(20...400).contains(Int(target) ?? 0))
                 }
             }
-            .onAppear { if let exercise { name = exercise.name; target = "\(exercise.targetBPM)"; category = exercise.category } }
+            .onAppear { if let exercise { name = exercise.name; target = "\(exercise.targetBPM)"; category = exercise.category; subdivision = exercise.subdivision } }
             .alert("mastery.error", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
                 Button("OK") { store.error = nil }
             } message: { Text(store.error ?? "") }
@@ -275,6 +285,9 @@ private struct MasteryExerciseView: View {
     @State private var bpm = "80"
     @State private var clean = true
     @State private var resultNote = ""
+    @State private var resultDifficulty: ExerciseDifficulty?
+    @State private var choosingResultDifficulty = false
+    @State private var cleanRepetitions = 1
     @State private var savedResult: MasteryResult?
     @State private var savedResultNumber = 0
     @State private var minutes = 5
@@ -306,6 +319,9 @@ private struct MasteryExerciseView: View {
                             }.frame(minHeight: 44)
                         }
                         .confirmationDialog("mastery.difficulty", isPresented: $ratingExercise, titleVisibility: .visible) {
+                            Button("mastery.not.selected") {
+                                store.update(exerciseID) { $0.difficulty = nil }
+                            }
                             ForEach(ExerciseDifficulty.allCases, id: \.self) { difficulty in
                                 Button(L10n.string(difficulty.localizationKey)) {
                                     store.update(exerciseID) { $0.difficulty = difficulty }
@@ -434,6 +450,10 @@ private struct MasteryExerciseView: View {
                 Spacer()
                 metric("mastery.target", value: "\(exercise.targetBPM)")
             }
+            if let subdivision = exercise.subdivision {
+                Text(L10n.string(subdivision.localizationKey)).font(.caption).foregroundStyle(.secondary)
+                MasteryRhythmPreview(subdivision: subdivision)
+            }
             ProgressView(value: exercise.progress)
             Text(exercise.progress >= 1 ? "mastery.achieved" : "mastery.progress.hint").font(.caption).foregroundStyle(.secondary)
         }.masteryPanel()
@@ -510,14 +530,43 @@ private struct MasteryExerciseView: View {
                 TextField("BPM", text: $bpm).keyboardType(.numberPad).textFieldStyle(.roundedBorder)
                 Stepper("BPM", value: Binding(get: { Int(bpm) ?? 80 }, set: { bpm = "\($0)" }), in: 20...400).labelsHidden()
             }
+            if let subdivision = exercise?.subdivision {
+                Text(L10n.string(subdivision.localizationKey)).font(.subheadline).foregroundStyle(.secondary)
+            }
             Toggle("mastery.clean", isOn: $clean)
+            if clean {
+                Stepper(value: $cleanRepetitions, in: 1...100) {
+                    HStack {
+                        Text("mastery.repetitions")
+                        Spacer()
+                        Text("\(cleanRepetitions)").monospacedDigit()
+                    }
+                }
+                Text("mastery.repetitions.hint").font(.caption).foregroundStyle(.secondary)
+            }
+            Button { choosingResultDifficulty = true } label: {
+                HStack {
+                    Text("mastery.result.difficulty")
+                    Spacer()
+                    Text(resultDifficulty.map { L10n.string($0.localizationKey) } ?? L10n.string("mastery.difficulty.choose"))
+                }.frame(minHeight: 44)
+            }
+            .confirmationDialog("mastery.result.difficulty", isPresented: $choosingResultDifficulty, titleVisibility: .visible) {
+                Button("mastery.not.selected") { resultDifficulty = nil }
+                ForEach(ExerciseDifficulty.allCases, id: \.self) { difficulty in
+                    Button(L10n.string(difficulty.localizationKey)) { resultDifficulty = difficulty }
+                }
+                Button("mastery.cancel", role: .cancel) { }
+            }
             TextField("mastery.result.note", text: $resultNote, axis: .vertical).lineLimit(2...4)
             Button("mastery.record") {
                 guard let value = Int(bpm), (20...400).contains(value) else { return }
-                let result = MasteryResult(bpm: value, clean: clean, note: resultNote)
+                let result = MasteryResult(bpm: value, clean: clean, note: resultNote, subdivision: exercise?.subdivision, cleanRepetitions: clean ? cleanRepetitions : nil, difficulty: resultDifficulty)
                 store.update(exerciseID) { $0.results.append(result) }
                 if let exercise, exercise.results.contains(where: { $0.id == result.id }) {
                     resultNote = ""
+                    resultDifficulty = nil
+                    cleanRepetitions = 1
                     savedResult = result
                     savedResultNumber = exercise.results.count
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -525,7 +574,7 @@ private struct MasteryExerciseView: View {
                                          argument: "\(L10n.string("mastery.result.saved")): \(value) BPM")
                 }
             }.buttonStyle(.borderedProminent).disabled(!(20...400).contains(Int(bpm) ?? 0))
-            if let savedResult {
+            if let savedResult, exercise?.results.contains(where: { $0.id == savedResult.id }) == true {
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
                     VStack(alignment: .leading, spacing: 4) {
@@ -625,6 +674,7 @@ private struct MasteryExerciseView: View {
                                 Text(result.clean ? "mastery.clean" : "mastery.attempt").font(.caption)
                             }
                             Text(result.date.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+                            MasteryResultDetails(result: result)
                             if !result.note.isEmpty { Text(result.note).font(.subheadline) }
                         }.swipeActions {
                             Button("mastery.delete", role: .destructive) {
