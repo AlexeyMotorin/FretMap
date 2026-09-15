@@ -105,6 +105,7 @@ struct MasteryPathView: View {
                     }
                 }.padding(16)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(AppBackgroundView())
             .toolbar(.hidden, for: .navigationBar)
             .safeAreaInset(edge: .top, spacing: 0) {
@@ -190,7 +191,13 @@ private struct MasteryThumbnail: View {
     @State private var image: UIImage?
     var body: some View {
         Group {
-            if let image { Image(uiImage: image).resizable().scaledToFit() }
+            if let image {
+                GeometryReader { geometry in
+                    Image(uiImage: image).resizable().scaledToFill()
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .clipped()
+                }
+            }
             else { Image(systemName: "photo").foregroundStyle(.secondary) }
         }
         .task(id: url) {
@@ -315,7 +322,8 @@ private struct MasteryExerciseView: View {
                             HStack {
                                 Label("mastery.difficulty", systemImage: "slider.horizontal.3")
                                 Spacer()
-                                Text(exercise.difficulty.map { L10n.string($0.localizationKey) } ?? L10n.string("mastery.difficulty.choose"))
+                                Text(exercise.difficulty.map { L10n.string($0.localizationKey) } ?? L10n.string("mastery.not.selected"))
+                                    .foregroundStyle(.secondary)
                             }.frame(minHeight: 44)
                         }
                         .confirmationDialog("mastery.difficulty", isPresented: $ratingExercise, titleVisibility: .visible) {
@@ -474,20 +482,21 @@ private struct MasteryExerciseView: View {
             Text("mastery.photos").font(.headline)
             if exercise.photos.isEmpty { Text("mastery.photos.hint").font(.caption).foregroundStyle(.secondary) }
             ScrollView(.horizontal) {
-                HStack {
+                HStack(spacing: 6) {
                     ForEach(exercise.photos, id: \.self) { name in
                         Button { selectedPhoto = PhotoSelection(id: name) } label: {
-                            MasteryThumbnail(url: store.photoURL(name)).frame(width: 180, height: 120)
-                        }.accessibilityLabel("mastery.photos")
+                            MasteryThumbnail(url: store.photoURL(name)).frame(width: 120, height: 90)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }.buttonStyle(.plain).accessibilityLabel("mastery.photos")
                         .contextMenu {
                             Button("mastery.delete", role: .destructive) { store.removePhoto(name, from: exerciseID) }
                         }
                     }
                 }
             }
-            if exercise.photos.count < 8 {
+            if exercise.photos.count < 3 {
                 HStack {
-                    PhotosPicker(selection: $photoItems, maxSelectionCount: 8 - exercise.photos.count, matching: .images) {
+                    PhotosPicker(selection: $photoItems, maxSelectionCount: 3 - exercise.photos.count, matching: .images) {
                         Label("mastery.photo.add", systemImage: "photo.badge.plus")
                     }.disabled(importing)
                     Spacer()

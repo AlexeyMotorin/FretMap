@@ -96,8 +96,10 @@ struct HomeCoordinatorView: View {
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .ignoresSafeArea(.container, edges: .bottom)
         .transaction { transaction in
-            transaction.animation = nil
-            transaction.disablesAnimations = true
+            if store.appMode != .mastery || isModeSelectionVisible {
+                transaction.animation = nil
+                transaction.disablesAnimations = true
+            }
         }
         .animation(nil, value: store.appMode)
         .onAppear {

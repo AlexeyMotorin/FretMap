@@ -221,7 +221,7 @@ final class MasteryStore: ObservableObject {
     func photoURL(_ name: String) -> URL { directory.appendingPathComponent(name) }
 
     func addPhoto(_ image: UIImage, to id: UUID) {
-        guard var exercise = exercises.first(where: { $0.id == id }), exercise.photos.count < 8 else { return }
+        guard var exercise = exercises.first(where: { $0.id == id }), exercise.photos.count < 3 else { return }
         let ratio = min(1, 2400 / max(image.size.width, image.size.height))
         let size = CGSize(width: max(1, image.size.width * ratio), height: max(1, image.size.height * ratio))
         let format = UIGraphicsImageRendererFormat()
