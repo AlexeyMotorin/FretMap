@@ -264,3 +264,21 @@
 "mastery.timer.finished" = "Time is up";
 
 "mastery.timer.pause.hint" = "Pause returns to the exercise and keeps the remaining time.";
+
+"mastery.daily.title" = "Daily statistics";
+"mastery.daily.exercises" = "Exercises for the day";
+"mastery.daily.results" = "Results recorded";
+"mastery.daily.clean" = "Clean results";
+"mastery.daily.empty" = "No entries for this day.";
+"mastery.daily.time.hint" = "Includes saved timer sessions for the selected day.";
+
+"backup.reminder.title" = "Back up your data";
+"backup.reminder.body" = "FretMap signing expires in less than a day. Open Backup and save your data to Files or iCloud Drive.";
+"backup.reminder.unknown" = "This build’s signing expiration could not be determined. No reminder is scheduled.";
+"backup.reminder.error" = "Could not schedule the reminder. Try opening the app again.";
+"backup.reminder.denied" = "Notifications are disabled. Allow them in iOS Settings.";
+"backup.reminder.expired" = "Signing has expired or is about to expire. Back up your data now.";
+"backup.reminder.enabled" = "Reminder enabled: one day before signing expires, or in the next minute if less than a day remains.";
+"backup.reminder.settings" = "Notification settings";
+
+"mastery.daily.date" = "Date";

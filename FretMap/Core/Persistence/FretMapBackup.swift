@@ -64,6 +64,7 @@ struct BackupDocument: FileDocument {
 }
 
 struct BackupView: View {
+    @ObservedObject private var reminder = BackupReminder.shared
     @ObservedObject var settings: AppSettingsStore
     @Environment(\.dismiss) private var dismiss
     @State private var exporting = false
@@ -82,6 +83,17 @@ struct BackupView: View {
                     Text("backup.description")
                     Button { exportBackup() } label: { Label("backup.export", systemImage: "square.and.arrow.up") }
                     Button { importing = true } label: { Label("backup.import", systemImage: "square.and.arrow.down") }
+                }
+                Section("backup.reminder.title") {
+                    Text(L10n.string(reminder.status))
+                    if let expiration = reminder.expiration {
+                        Text(expiration, format: .dateTime.day().month().year().hour().minute())
+                    }
+                    Button("backup.reminder.settings") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    }
                 }
                 Section { Text("backup.hint").font(.footnote).foregroundStyle(.secondary) }
                 if busy { ProgressView("backup.working") }

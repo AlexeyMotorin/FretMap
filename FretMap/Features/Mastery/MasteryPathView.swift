@@ -6,6 +6,7 @@ import ImageIO
 struct MasteryPathView: View {
     let onBack: () -> Void
     @StateObject private var store = MasteryStore()
+    @State private var dailyStatistics = false
     @State private var adding = false
     @State private var showingArchive = false
     @State private var editingExercise: MasteryExercise?
@@ -44,10 +45,21 @@ struct MasteryPathView: View {
                         .buttonStyle(.borderedProminent)
                         .accessibilityLabel("mastery.add")
                     }
-                    Picker("mastery.workspace", selection: $showingArchive) {
-                        Text("mastery.active").tag(false)
-                        Text("mastery.archive").tag(true)
-                    }.pickerStyle(.segmented)
+                    HStack(spacing: 12) {
+                        Picker("mastery.workspace", selection: $showingArchive) {
+                            Text("mastery.active").tag(false)
+                            Text("mastery.archive").tag(true)
+                        }.pickerStyle(.segmented)
+                        Button { dailyStatistics = true } label: {
+                            Image(systemName: "calendar")
+                                .font(.title3)
+                                .frame(width: 44, height: 44)
+                                .background(AppColors.control, in: RoundedRectangle(cornerRadius: 10))
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(AppColors.rootText)
+                        .accessibilityLabel("mastery.daily.title")
+                    }
                     TextField("mastery.search", text: $search).textFieldStyle(.roundedBorder)
                     HStack {
                         Picker("mastery.category", selection: $category) {
@@ -107,6 +119,7 @@ struct MasteryPathView: View {
                 MasteryEditor(store: store, exercise: nil)
                     .interactiveDismissDisabled()
             }
+            .sheet(isPresented: $dailyStatistics) { MasteryDailyStatistics(store: store) }
             .sheet(item: $editingExercise) { MasteryEditor(store: store, exercise: $0) }
             .alert("mastery.delete.title", isPresented: $confirmingDelete) {
                 Button("mastery.delete", role: .destructive) {
@@ -300,14 +313,6 @@ private struct MasteryExerciseView: View {
                             }
                             Button("mastery.cancel", role: .cancel) { }
                         }
-                        Button {
-                            practice.stopAll()
-                            if store.setArchived(!exercise.isArchived, id: exerciseID) { dismiss() }
-                        } label: {
-                            Label(exercise.isArchived ? "mastery.reactivate" : "mastery.complete",
-                                  systemImage: exercise.isArchived ? "arrow.uturn.backward" : "checkmark.circle")
-                                .frame(maxWidth: .infinity, minHeight: 44)
-                        }.buttonStyle(.bordered)
                         photos(exercise)
                         resultEntry
                         chart(exercise)
@@ -316,6 +321,14 @@ private struct MasteryExerciseView: View {
                         metronomePanel
                         Text("mastery.practice.total").font(.caption).foregroundStyle(.secondary)
                         Text(Duration.seconds(exercise.practiceSeconds).formatted(.time(pattern: .hourMinuteSecond)))
+                        Button {
+                            practice.stopAll()
+                            if store.setArchived(!exercise.isArchived, id: exerciseID) { dismiss() }
+                        } label: {
+                            Label(exercise.isArchived ? "mastery.reactivate" : "mastery.complete",
+                                  systemImage: exercise.isArchived ? "arrow.uturn.backward" : "checkmark.circle")
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                        }.buttonStyle(.bordered)
                     }.padding(16)
                 }.scrollDismissesKeyboard(.interactively)
                 .masteryKeyboardDismiss()
