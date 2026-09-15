@@ -72,3 +72,195 @@
 "harmony.borrowing.general.info" = "This progression includes chords outside its main scale. They add color or strengthen the pull toward the next chord. Modal borrowing and secondary dominants are different techniques; this collection uses the same badge for both.";
 
 "harmony.borrowing.secondary.info" = "V/vi is a secondary dominant: it strengthens the move to the vi chord. In C major, this is E7 → Am. It is not a key change or, strictly speaking, modal borrowing; this badge marks a chord outside the main scale.";
+
+"mastery.title" = "Mastery Path";
+
+"mastery.subtitle" = "Turn practice into progress";
+
+"mastery.add" = "Add exercise";
+
+"mastery.search" = "Search exercises";
+
+"mastery.category" = "Category";
+
+"mastery.all" = "All categories";
+
+"mastery.newest" = "Newest first";
+
+"mastery.recent" = "Recent practice";
+
+"mastery.empty" = "Your journey starts here";
+
+"mastery.no.matches" = "No exercises found";
+
+"mastery.uncategorized" = "Uncategorized";
+
+"mastery.no.results" = "No results yet";
+
+"mastery.name" = "Exercise name";
+
+"mastery.target" = "Target BPM";
+
+"mastery.range" = "Tempo from 20 to 400 BPM";
+
+"mastery.category.new" = "For example: technique, rhythm, repertoire";
+
+"mastery.category.existing" = "Choose category";
+
+"mastery.edit" = "Edit";
+
+"mastery.cancel" = "Cancel";
+
+"mastery.save" = "Save";
+
+"mastery.error" = "Unable to complete action";
+
+"mastery.delete" = "Delete";
+
+"mastery.delete.confirm" = "Delete this exercise, all results and photos?";
+
+"mastery.practice.total" = "Total practice time";
+
+"mastery.current" = "Latest";
+
+"mastery.best" = "Best clean";
+
+"mastery.achieved" = "Goal reached — ready for a new one!";
+
+"mastery.progress.hint" = "Progress based on your best clean performance";
+
+"mastery.photos" = "Tabs and sheet music";
+
+"mastery.photos.hint" = "Up to 8 photos. Tap to zoom, touch and hold to delete.";
+
+"mastery.photo.add" = "Add photo";
+
+"mastery.camera" = "Take photo";
+
+"mastery.result" = "New result";
+
+"mastery.history" = "History";
+
+"mastery.clean" = "Clean performance";
+
+"mastery.attempt" = "With mistakes";
+
+"mastery.result.note" = "How did it go? What was difficult?";
+
+"mastery.record" = "Record result";
+
+"mastery.chart" = "Progress chart";
+
+"mastery.chart.empty" = "Record your first result to see it here.";
+
+"mastery.chart.legend" = "Green: clean · orange: with mistakes · dashed: target";
+
+"mastery.notes" = "What to focus on";
+
+"mastery.notes.hint" = "Hand position, rhythm, picking, difficult passages…";
+
+"mastery.timer" = "Practice timer";
+
+"mastery.minutes" = "min";
+
+"mastery.pause" = "Pause";
+
+"mastery.start" = "Start";
+
+"mastery.timer.reset" = "Reset";
+
+"mastery.timer.hint" = "Time is saved on completion, reset or exit. Pauses when the app is backgrounded.";
+
+"mastery.metronome" = "Metronome";
+
+"mastery.use.bpm" = "Use BPM from result field";
+
+"mastery.beats" = "Beats per bar";
+
+"mastery.beats.hint" = "Beats per bar: the first beat is accented.";
+
+"mastery.stop" = "Stop";
+
+"mastery.sessions" = "Practice sessions";
+
+"mastery.done" = "Done";
+
+"mastery.load.error" = "Could not read exercises. Saving is disabled to preserve the original data.";
+
+"mastery.save.error" = "Could not save. Check free storage and try again.";
+
+"mastery.photo.error" = "Could not load or save the photo. Try another image.";
+
+"mastery.audio.error" = "Could not start the metronome. Please try again.";
+
+"mastery.validation" = "Enter a name and a BPM between 20 and 400.";
+
+"backup.title" = "Backup";
+
+"backup.description" = "Save settings, harmonies, exercises, BPM history, practice time photos and PDFs in one file.";
+
+"backup.export" = "Save backup";
+
+"backup.import" = "Restore backup";
+
+"backup.hint" = "Choose iCloud Drive in Files to keep the backup after deleting FretMap. Backups are manual: save before the app signing expires.";
+
+"backup.working" = "Preparing…";
+
+"backup.export.success" = "Backup saved. If you selected iCloud Drive, wait for the file to finish uploading.";
+
+"backup.import.success" = "Data restored.";
+
+"backup.confirm" = "Replace current data with this backup? This cannot be undone. Save a backup of current data first if needed.";
+
+"backup.replace" = "Replace and restore";
+
+"backup.exercises" = "exercises";
+
+"backup.invalid" = "The file is damaged or uses an unsupported format. Current data was not changed.";
+
+"backup.large" = "Backup is too large. Files up to 100 MB and attachments totaling up to 70 MB are supported.";
+
+"mastery.pdf.add" = "Add PDF";
+
+"mastery.pdf.hint" = "One PDF up to 5 MB. Touch and hold to delete.";
+
+"mastery.pdf.error" = "Could not open PDF. Choose a password-free file up to 5 MB.";
+
+"mastery.workspace" = "Exercises";
+
+"mastery.active" = "Active";
+
+"mastery.archive" = "Archive";
+
+"mastery.archive.empty" = "No matching archived exercises";
+
+"mastery.complete" = "Complete exercise";
+
+"mastery.reactivate" = "Move to active";
+
+"mastery.completed" = "Completed";
+
+"mastery.difficulty" = "Rate exercise";
+
+"mastery.difficulty.choose" = "Choose";
+
+"mastery.difficulty.hard" = "Hard";
+
+"mastery.difficulty.medium" = "Medium";
+
+"mastery.difficulty.easy" = "Easy";
+
+"mastery.delete.title" = "Delete exercise?";
+
+"mastery.delete.message" = "History, photos and PDFs will be deleted. This cannot be undone.";
+
+"mastery.result.saved" = "Result recorded";
+
+"mastery.resume" = "Resume";
+
+"mastery.timer.open" = "Open timer";
+
+"mastery.timer.finished" = "Time is up";
+
+"mastery.timer.pause.hint" = "Pause returns to the exercise and keeps the remaining time.";

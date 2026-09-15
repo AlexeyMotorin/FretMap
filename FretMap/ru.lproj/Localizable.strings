@@ -72,3 +72,195 @@
 "harmony.borrowing.general.info" = "Здесь есть аккорды вне основного лада. Они добавляют новый оттенок или усиливают тяготение к следующему аккорду. Заимствование из другого лада и побочная доминанта — разные приёмы; в этой коллекции они отмечены общим значком.";
 
 "harmony.borrowing.secondary.info" = "V/vi — побочная доминанта: аккорд, который усиливает переход к vi ступени. В До мажоре это E7 → Am. Это не смена тональности и не заимствование из другого лада в строгом смысле; здесь значок отмечает аккорд вне основного лада.";
+
+"mastery.title" = "Путь мастера";
+
+"mastery.subtitle" = "Практика, которая приносит результат";
+
+"mastery.add" = "Добавить упражнение";
+
+"mastery.search" = "Найти упражнение";
+
+"mastery.category" = "Категория";
+
+"mastery.all" = "Все категории";
+
+"mastery.newest" = "Сначала новые";
+
+"mastery.recent" = "Недавняя практика";
+
+"mastery.empty" = "Здесь начинается твой путь";
+
+"mastery.no.matches" = "Упражнения не найдены";
+
+"mastery.uncategorized" = "Без категории";
+
+"mastery.no.results" = "Пока нет результатов";
+
+"mastery.name" = "Название упражнения";
+
+"mastery.target" = "Цель BPM";
+
+"mastery.range" = "Темп от 20 до 400 BPM";
+
+"mastery.category.new" = "Например: техника, ритм, репертуар";
+
+"mastery.category.existing" = "Выбрать категорию";
+
+"mastery.edit" = "Редактировать";
+
+"mastery.cancel" = "Отмена";
+
+"mastery.save" = "Сохранить";
+
+"mastery.error" = "Не удалось выполнить действие";
+
+"mastery.delete" = "Удалить";
+
+"mastery.delete.confirm" = "Удалить упражнение со всеми результатами и фотографиями?";
+
+"mastery.practice.total" = "Общее время практики";
+
+"mastery.current" = "Последний";
+
+"mastery.best" = "Лучший чистый";
+
+"mastery.achieved" = "Цель достигнута — можно поставить новую!";
+
+"mastery.progress.hint" = "Прогресс по лучшему чистому исполнению";
+
+"mastery.photos" = "Табулатуры и ноты";
+
+"mastery.photos.hint" = "До 8 фото. Нажми для увеличения, удерживай для удаления.";
+
+"mastery.photo.add" = "Добавить фото";
+
+"mastery.camera" = "Сделать фото";
+
+"mastery.result" = "Новый результат";
+
+"mastery.history" = "История";
+
+"mastery.clean" = "Чистое исполнение";
+
+"mastery.attempt" = "С ошибками";
+
+"mastery.result.note" = "Как получилось? Что мешало?";
+
+"mastery.record" = "Записать результат";
+
+"mastery.chart" = "График прогресса";
+
+"mastery.chart.empty" = "Запиши первый результат — он появится здесь.";
+
+"mastery.chart.legend" = "Зелёный — чисто · оранжевый — с ошибками · пунктир — цель";
+
+"mastery.notes" = "На что обратить внимание";
+
+"mastery.notes.hint" = "Постановка рук, ритм, штрих, сложные места…";
+
+"mastery.timer" = "Таймер практики";
+
+"mastery.minutes" = "мин";
+
+"mastery.pause" = "Пауза";
+
+"mastery.start" = "Старт";
+
+"mastery.timer.reset" = "Заново";
+
+"mastery.timer.hint" = "Время сохраняется по завершении, сбросу или выходу. При сворачивании — пауза.";
+
+"mastery.metronome" = "Метроном";
+
+"mastery.use.bpm" = "Взять BPM из поля результата";
+
+"mastery.beats" = "Долей в такте";
+
+"mastery.beats.hint" = "Долей в такте: первая доля звучит с акцентом.";
+
+"mastery.stop" = "Стоп";
+
+"mastery.sessions" = "Время занятий";
+
+"mastery.done" = "Готово";
+
+"mastery.load.error" = "Не удалось прочитать упражнения. Запись отключена, чтобы сохранить исходные данные.";
+
+"mastery.save.error" = "Не удалось сохранить. Проверь свободное место и повтори.";
+
+"mastery.photo.error" = "Не удалось загрузить или сохранить фото. Попробуй другое изображение.";
+
+"mastery.audio.error" = "Не удалось запустить метроном. Попробуй ещё раз.";
+
+"mastery.validation" = "Укажи название и BPM от 20 до 400.";
+
+"backup.title" = "Резервная копия";
+
+"backup.description" = "Сохраняет настройки, гармонии, упражнения, историю BPM, время занятий фото и PDF в один файл.";
+
+"backup.export" = "Сохранить копию";
+
+"backup.import" = "Восстановить из копии";
+
+"backup.hint" = "Выбери iCloud Drive в приложении «Файлы», чтобы копия осталась доступна после удаления FretMap. Копия создаётся вручную — сохрани её до окончания срока подписи приложения.";
+
+"backup.working" = "Подготовка…";
+
+"backup.export.success" = "Копия сохранена. Если выбран iCloud Drive, дождись завершения загрузки файла в облако.";
+
+"backup.import.success" = "Данные восстановлены.";
+
+"backup.confirm" = "Заменить текущие данные содержимым копии? Это действие нельзя отменить. Сначала сохрани текущую копию, если она нужна.";
+
+"backup.replace" = "Заменить и восстановить";
+
+"backup.exercises" = "упражнений";
+
+"backup.invalid" = "Файл повреждён или имеет неподдерживаемый формат. Текущие данные не изменены.";
+
+"backup.large" = "Копия слишком большая. Поддерживаются файлы до 100 МБ и до 70 МБ вложений.";
+
+"mastery.pdf.add" = "Добавить PDF";
+
+"mastery.pdf.hint" = "Один PDF до 5 МБ. Удерживай файл, чтобы удалить.";
+
+"mastery.pdf.error" = "Не удалось открыть PDF. Выбери файл без пароля, до 5 МБ.";
+
+"mastery.workspace" = "Упражнения";
+
+"mastery.active" = "Активные";
+
+"mastery.archive" = "Архив";
+
+"mastery.archive.empty" = "В архиве пока нет подходящих упражнений";
+
+"mastery.complete" = "Завершить упражнение";
+
+"mastery.reactivate" = "Вернуть в активные";
+
+"mastery.completed" = "Завершено";
+
+"mastery.difficulty" = "Оценить упражнение";
+
+"mastery.difficulty.choose" = "Выбрать";
+
+"mastery.difficulty.hard" = "Тяжело";
+
+"mastery.difficulty.medium" = "Средне";
+
+"mastery.difficulty.easy" = "Легко";
+
+"mastery.delete.title" = "Удалить упражнение?";
+
+"mastery.delete.message" = "История, фото и PDF будут удалены. Отменить это действие нельзя.";
+
+"mastery.result.saved" = "Результат записан";
+
+"mastery.resume" = "Продолжить";
+
+"mastery.timer.open" = "Открыть таймер";
+
+"mastery.timer.finished" = "Время вышло";
+
+"mastery.timer.pause.hint" = "Пауза вернёт к упражнению. Оставшееся время сохранится.";

@@ -126,6 +126,74 @@ final class AppSettingsStore: ObservableObject {
         normalize()
     }
 
+    func backupData() throws -> Data {
+        save()
+        guard let data = persistence.data(forKey: Self.storageKey) else { throw BackupError.storage }
+        return data
+    }
+
+    static func preparedBackup(_ data: Data) throws -> AppSettingsStore {
+        _ = try JSONDecoder().decode(AppSettingsSnapshot.self, from: data)
+        let memory = InMemorySettingsPersistence()
+        memory.set(data, forKey: storageKey)
+        return AppSettingsStore(persistence: memory)
+    }
+
+    func applyBackup(_ source: AppSettingsStore) {
+        isRestoring = true
+        rootNote = source.rootNote
+        selectedScaleID = source.selectedScaleID
+        stringCount = source.stringCount
+        selectedTuningID = source.selectedTuningID
+        isCustomTuningEnabled = source.isCustomTuningEnabled
+        customTuningPitchClasses = source.customTuningPitchClasses
+        customTuningPresets = source.customTuningPresets
+        selectedCustomTuningID = source.selectedCustomTuningID
+        fretCount = source.fretCount
+        chordStringCount = source.chordStringCount
+        chordSelectedTuningID = source.chordSelectedTuningID
+        chordIsCustomTuningEnabled = source.chordIsCustomTuningEnabled
+        chordSelectedCustomTuningID = source.chordSelectedCustomTuningID
+        chordFretCount = source.chordFretCount
+        chordAccidentalStyle = source.chordAccidentalStyle
+        chordShowsDegreeNumbers = source.chordShowsDegreeNumbers
+        chordHighlightsDegrees = source.chordHighlightsDegrees
+        areChordExtensionsVisible = source.areChordExtensionsVisible
+        accidentalStyle = source.accidentalStyle
+        chordSettings = source.chordSettings
+        customPositions = source.customPositions
+        harmonyMode = source.harmonyMode
+        popularScaleID = source.popularScaleID
+        isModeSwitcherVisible = source.isModeSwitcherVisible
+        showsDegreeNumbers = source.showsDegreeNumbers
+        highlightsScaleDegrees = source.highlightsScaleDegrees
+        showsScaleBoxes = source.showsScaleBoxes
+        functionalRoot = source.functionalRoot
+        functionalKeyMode = source.functionalKeyMode
+        functionalChordKind = source.functionalChordKind
+        functionalChordCount = source.functionalChordCount
+        functionalSelectedDegrees = source.functionalSelectedDegrees
+        functionalSelectedChordKinds = source.functionalSelectedChordKinds
+        modalRoot = source.modalRoot
+        modalMode = source.modalMode
+        modalChordKind = source.modalChordKind
+        modalChordCount = source.modalChordCount
+        modalSelectedDegrees = source.modalSelectedDegrees
+        modalSelectedChordKinds = source.modalSelectedChordKinds
+        popularGlobalRoot = source.popularGlobalRoot
+        popularProgressionRoots = source.popularProgressionRoots
+        popularSeventhChordIndexes = source.popularSeventhChordIndexes
+        popularSlashChordConfigurations = source.popularSlashChordConfigurations
+        popularRatings = source.popularRatings
+        favoriteProgressionIDs = source.favoriteProgressionIDs
+        popularCollectionMode = source.popularCollectionMode
+        popularSortMode = source.popularSortMode
+        savedHarmonyProgressions = source.savedHarmonyProgressions
+        harmonyTempoBPM = source.harmonyTempoBPM
+        isRestoring = false
+        normalize()
+    }
+
     func normalize() {
         let wasRestoring = isRestoring
         isRestoring = true

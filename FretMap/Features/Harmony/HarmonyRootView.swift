@@ -4,6 +4,7 @@ struct HarmonyRootView: View {
     @ObservedObject var store: AppSettingsStore
     let noteNames: [String]
     let isPortrait: Bool
+    let onBack: () -> Void
     let onCreateSavedProgression: () -> Void
 
     var body: some View {
@@ -21,29 +22,40 @@ struct HarmonyRootView: View {
     }
 
     private var modePicker: some View {
-        Picker("Гармония", selection: modeSelection) {
+        HStack(spacing: 8) {
+            Button(action: onBack) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 18, weight: .semibold))
+                    .frame(width: 44, height: 48)
+                    .foregroundStyle(AppColors.primaryText)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Назад к выбору режима")
+
             ForEach(HarmonyMode.allCases) { mode in
-                if isPortrait {
-                    Image(systemName: iconName(for: mode))
-                        .accessibilityLabel(mode.title)
-                        .tag(mode)
-                } else {
-                    Text(mode.title)
-                        .tag(mode)
+                let selected = store.harmonyMode == mode
+                Button { modeSelection.wrappedValue = mode } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: iconName(for: mode))
+                            .font(.system(size: 17, weight: .semibold))
+                        Text(mode.title)
+                            .font(.system(size: isPortrait ? 9 : 11, weight: .semibold))
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 48)
+                    .foregroundStyle(selected ? AppColors.rootText : AppColors.mutedText)
+                    .background(selected ? AppColors.rootText.opacity(0.12) : Color.clear,
+                                in: RoundedRectangle(cornerRadius: 10))
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(mode.title)
+                .accessibilityAddTraits(selected ? .isSelected : [])
             }
         }
-        .pickerStyle(.segmented)
-        .font(isPortrait ? .caption : .body)
-        .padding(.vertical, isPortrait ? 8 : 10)
-        .padding(.trailing, 12)
-        .padding(.leading, 56)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .background(AppColors.panel.opacity(0.72))
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(AppColors.border)
-                .frame(height: 1)
-        }
     }
 
     @ViewBuilder

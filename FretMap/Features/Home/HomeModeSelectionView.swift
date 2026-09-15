@@ -4,6 +4,7 @@ struct HomeModeSelectionView: View {
     let isPortrait: Bool
     let containerSize: CGSize
     let onSelectMode: (AppMode) -> Void
+    let onBackup: () -> Void
 
     var body: some View {
         Group {
@@ -37,6 +38,14 @@ struct HomeModeSelectionView: View {
             modeButton(.chords, systemName: "music.note", accent: AppColors.rootText)
             modeButton(.modes, systemName: "guitars", accent: AppColors.openStringStroke)
             modeButton(.harmony, systemName: "music.note.list", accent: AppColors.barre)
+            modeButton(.mastery, systemName: "chart.xyaxis.line", accent: AppColors.rootText)
+            Button(action: onBackup) {
+                Label("backup.title", systemImage: "externaldrive")
+                    .font(.caption.weight(.semibold))
+                    .frame(maxWidth: .infinity, minHeight: 36)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(AppColors.mutedText)
         }
     }
 

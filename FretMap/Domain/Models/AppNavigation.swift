@@ -4,6 +4,7 @@ enum AppMode: String, CaseIterable, Identifiable, Codable {
     case chords
     case modes
     case harmony
+    case mastery
 
     var id: String { rawValue }
 
@@ -12,6 +13,7 @@ enum AppMode: String, CaseIterable, Identifiable, Codable {
         case .chords: L10n.string("Аккорды")
         case .modes: L10n.string("Лады")
         case .harmony: L10n.string("Гармония")
+        case .mastery: L10n.string("mastery.title")
         }
     }
 }

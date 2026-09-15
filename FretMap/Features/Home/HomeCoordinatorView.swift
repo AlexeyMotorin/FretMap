@@ -7,6 +7,7 @@ struct HomeCoordinatorView: View {
     @Binding var isCreatingSavedProgression: Bool
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var isModeSelectionVisible = true
+    @State private var showsBackup = false
 
     private let scales = ScalePattern.all
     private let tuningCatalog = TuningCatalog()
@@ -35,7 +36,8 @@ struct HomeCoordinatorView: View {
                     HomeModeSelectionView(
                         isPortrait: isPortraitLayout,
                         containerSize: proxy.size,
-                        onSelectMode: openMode
+                        onSelectMode: openMode,
+                        onBackup: { showsBackup = true }
                     )
                     .transition(.identity)
                 } else if isCustomModeAvailable && store.isCustomMode {
@@ -58,11 +60,13 @@ struct HomeCoordinatorView: View {
                             .clipped()
                             .transition(.identity)
 
-                        ModeBackButton(action: returnToModeSelection)
-                            .padding(12)
-                            .zIndex(10)
+                        if store.appMode != .mastery && store.appMode != .harmony {
+                            ModeBackButton(action: returnToModeSelection)
+                                .padding(12)
+                                .zIndex(10)
+                        }
                     }
-                    .id("\(store.appMode.rawValue)-\(isPortraitLayout ? "portrait" : "landscape")")
+                    .id(store.appMode == .mastery ? "mastery" : "\(store.appMode.rawValue)-\(isPortraitLayout ? "portrait" : "landscape")")
                     .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
                     .clipped()
                 }
@@ -105,6 +109,7 @@ struct HomeCoordinatorView: View {
                 targetMode == nil ? supportedOrientations(for: store.appMode) : .portrait
             )
         }
+        .sheet(isPresented: $showsBackup) { BackupView(settings: store) }
         .preferredColorScheme(.dark)
     }
     
@@ -118,6 +123,8 @@ struct HomeCoordinatorView: View {
             modesModeView
         case .harmony:
             harmonyModeView
+        case .mastery:
+            MasteryPathView(onBack: returnToModeSelection)
         }
     }
 
@@ -217,6 +224,7 @@ struct HomeCoordinatorView: View {
             store: store,
             noteNames: noteNames,
             isPortrait: isPortraitLayout,
+            onBack: returnToModeSelection,
             onCreateSavedProgression: {
                 isCreatingSavedProgression = true
             }
