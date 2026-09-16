@@ -63,11 +63,12 @@ final class MasteryPractice: ObservableObject {
         remaining = timerDuration
     }
 
-    func startMetronome(bpm: Int, beats: Int) {
+    func startMetronome(bpm: Int, beats: Int, noteValue: Int = 4) {
         stopMetronome()
         let rate = 48_000.0
-        let beatFrames = Int(rate * 60 / Double(min(240, max(30, bpm))))
-        let beats = min(7, max(1, beats))
+        let value = [2, 4, 8, 16, 32, 64].contains(noteValue) ? noteValue : 4
+        let beatFrames = Int(rate * 60 / Double(min(240, max(30, bpm))) * 4 / Double(value))
+        let beats = min(96, max(1, beats))
         let format = AVAudioFormat(standardFormatWithSampleRate: rate, channels: 1)!
         guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(beatFrames * beats)),
               let samples = buffer.floatChannelData?[0] else { return }

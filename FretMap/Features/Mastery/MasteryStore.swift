@@ -67,6 +67,8 @@ nonisolated struct MasteryExercise: Identifiable, Codable, Sendable {
     var subdivision: PracticeSubdivision? = nil
     var category: String = ""
     var comment: String = ""
+    var videoLinks: [String]? = nil
+    var linkTitles: [String: String]? = nil
     var photos: [String] = []
     var pdfs: [MasteryPDF]? = nil
     var attachedPDFs: [MasteryPDF] { pdfs ?? [] }
@@ -77,6 +79,13 @@ nonisolated struct MasteryExercise: Identifiable, Codable, Sendable {
     var isArchived: Bool { completedAt != nil }
     var createdAt = Date()
 
+    var hasValidVideoLinks: Bool {
+        let links = videoLinks ?? []
+        return Set(links).count == links.count && links.allSatisfy {
+            guard let url = URL(string: $0), let host = url.host, !host.isEmpty else { return false }
+            return ["http", "https"].contains(url.scheme?.lowercased() ?? "")
+        }
+    }
     var latest: MasteryResult? { results.max { $0.date < $1.date } }
     var bestCleanBPM: Int? { results.filter(\.clean).map(\.bpm).max() }
     var progress: Double { min(1, Double(bestCleanBPM ?? 0) / Double(max(1, targetBPM))) }
@@ -111,6 +120,7 @@ final class MasteryStore: ObservableObject {
     func save(_ exercise: MasteryExercise) -> Bool {
         guard !exercise.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               (20...400).contains(exercise.targetBPM),
+              exercise.hasValidVideoLinks,
               exercise.results.allSatisfy({ (20...400).contains($0.bpm) && ($0.cleanRepetitions == nil || ($0.clean && (1...100).contains($0.cleanRepetitions ?? 0))) }),
               exercise.sessions.allSatisfy({ $0.seconds.isFinite && $0.seconds >= 0 }) else {
             error = L10n.string("mastery.validation")

@@ -298,3 +298,23 @@
 "mastery.rhythm.measure" = "One 4/4 measure · four beats";
 
 "mastery.not.selected" = "Not selected";
+
+"mastery.note.value" = "Note value";
+"mastery.note.value.hint" = "BPM uses quarter notes. Note value changes click spacing; the first beat is accented.";
+"mastery.links" = "Materials";
+"mastery.links.url" = "https://…";
+"mastery.links.add" = "Add link";
+"mastery.links.hint" = "Material links open outside the app.";
+"mastery.month.previous" = "Previous month";
+"mastery.month.next" = "Next month";
+"mastery.day.trained" = "Practice recorded";
+"mastery.training.days" = "Total practice days";
+"mastery.day.legend" = "A dot marks a day with a recorded result or saved timer session.";
+
+"mastery.statistics.show.all" = "Show all statistics";
+"mastery.statistics.all" = "All time";
+"mastery.statistics.exercises" = "Total exercises";
+
+"mastery.links.name" = "Link title";
+"mastery.links.duplicate" = "This link has already been added.";
+"mastery.time.signature" = "Time signature";

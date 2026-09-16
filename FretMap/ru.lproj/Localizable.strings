@@ -298,3 +298,23 @@
 "mastery.rhythm.measure" = "Один такт 4/4 · четыре доли";
 
 "mastery.not.selected" = "Не выбрано";
+
+"mastery.note.value" = "Длительность ноты";
+"mastery.note.value.hint" = "BPM считается четвертями. Длительность меняет частоту щелчков; первый удар такта акцентируется.";
+"mastery.links" = "Материалы";
+"mastery.links.url" = "https://…";
+"mastery.links.add" = "Добавить ссылку";
+"mastery.links.hint" = "Ссылки на материалы открываются вне приложения.";
+"mastery.month.previous" = "Предыдущий месяц";
+"mastery.month.next" = "Следующий месяц";
+"mastery.day.trained" = "Было занятие";
+"mastery.training.days" = "Всего дней занятий";
+"mastery.day.legend" = "Точка — день с записанным результатом или сохранённой сессией таймера.";
+
+"mastery.statistics.show.all" = "Показать всю статистику";
+"mastery.statistics.all" = "За всё время";
+"mastery.statistics.exercises" = "Всего упражнений";
+
+"mastery.links.name" = "Название ссылки";
+"mastery.links.duplicate" = "Эта ссылка уже добавлена.";
+"mastery.time.signature" = "Размер";

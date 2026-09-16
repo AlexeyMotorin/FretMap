@@ -301,6 +301,7 @@ private struct MasteryExerciseView: View {
     @State private var showingTimer = false
     @State private var metroBPM = 80
     @State private var beats = 4
+    @State private var noteValue = 4
     @State private var ratingExercise = false
     @State private var photoItems: [PhotosPickerItem] = []
     @State private var importing = false
@@ -338,6 +339,7 @@ private struct MasteryExerciseView: View {
                             Button("mastery.cancel", role: .cancel) { }
                         }
                         photos(exercise)
+                        MasteryVideoLinks(store: store, exerciseID: exerciseID).masteryPanel()
                         resultEntry
                         chart(exercise)
                         notes(exercise)
@@ -653,22 +655,28 @@ private struct MasteryExerciseView: View {
             MasteryWheelControl(title: "mastery.metronome", value: $metroBPM, range: 30...240, unit: "BPM")
             Button("mastery.use.bpm") { if let value = Int(bpm) { metroBPM = min(240, max(30, value)) } }
                 .font(.caption)
-            Picker("mastery.beats", selection: $beats) {
-                ForEach(1...7, id: \.self) { Text("\($0)").tag($0) }
-            }.pickerStyle(.segmented)
-            Text("mastery.beats.hint").font(.caption).foregroundStyle(.secondary)
+            Text("mastery.time.signature").font(.subheadline)
+            HStack(spacing: 12) {
+                MasteryWheelControl(title: "mastery.time.signature", value: $beats, range: 1...96, unit: "", compact: true)
+                    .accessibilityLabel("mastery.beats")
+                Text("/").font(.title2).foregroundStyle(.secondary)
+                MasteryWheelControl(title: "mastery.time.signature", value: $noteValue, range: 2...64, unit: "", values: [2, 4, 8, 16, 32, 64], compact: true)
+                    .accessibilityLabel("mastery.note.value")
+                Spacer()
+            }
             Button(practice.metronomePlaying ? "mastery.stop" : "mastery.start") {
                 if practice.metronomePlaying { practice.stopMetronome() }
-                else { practice.startMetronome(bpm: metroBPM, beats: beats) }
+                else { practice.startMetronome(bpm: metroBPM, beats: beats, noteValue: noteValue) }
             }.buttonStyle(.borderedProminent)
         }.masteryPanel()
         .onChange(of: metroBPM) { value in
             bpm = String(value)
             if practice.metronomePlaying {
-                practice.startMetronome(bpm: value, beats: beats)
+                practice.startMetronome(bpm: value, beats: beats, noteValue: noteValue)
             }
         }
-        .onChange(of: beats) { _ in if practice.metronomePlaying { practice.startMetronome(bpm: metroBPM, beats: beats) } }
+        .onChange(of: beats) { _ in if practice.metronomePlaying { practice.startMetronome(bpm: metroBPM, beats: beats, noteValue: noteValue) } }
+        .onChange(of: noteValue) { _ in if practice.metronomePlaying { practice.startMetronome(bpm: metroBPM, beats: beats, noteValue: noteValue) } }
     }
 
     private var historySheet: some View {
@@ -848,6 +856,8 @@ private struct MasteryWheelControl: View {
     @Binding var value: Int
     let range: ClosedRange<Int>
     let unit: String
+    var values: [Int]? = nil
+    var compact = false
     @State private var showing = false
     @State private var draft = 0
 
@@ -858,16 +868,19 @@ private struct MasteryWheelControl: View {
         } label: {
             HStack {
                 Text("\(value) \(unit)").font(.title3.monospacedDigit().bold())
-                Spacer()
-                Image(systemName: "chevron.up.chevron.down")
-            }.frame(minHeight: 44)
+                if !compact {
+                    Spacer()
+                    Image(systemName: "chevron.up.chevron.down")
+                }
+            }.frame(minWidth: compact ? 52 : nil, minHeight: 44)
+                .background(compact ? AppColors.control : Color.clear, in: RoundedRectangle(cornerRadius: 10))
         }
         .accessibilityLabel(title)
         .accessibilityValue("\(value) \(unit)")
         .sheet(isPresented: $showing) {
             NavigationStack {
                 Picker(title, selection: $draft) {
-                    ForEach(Array(range), id: \.self) { number in
+                    ForEach(values ?? Array(range), id: \.self) { number in
                         Text("\(number) \(unit)").tag(number)
                     }
                 }.pickerStyle(.wheel)

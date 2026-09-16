@@ -16,6 +16,7 @@ nonisolated struct FretMapBackup: Codable, Sendable {
               Set(exercises.map(\.id)).count == exercises.count,
               exercises.allSatisfy({ exercise in
                   !exercise.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+                  exercise.hasValidVideoLinks &&
                   (20...400).contains(exercise.targetBPM) && exercise.photos.count <= 8 &&
                   Set(exercise.results.map(\.id)).count == exercise.results.count &&
                   Set(exercise.sessions.map(\.id)).count == exercise.sessions.count &&
