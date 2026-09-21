@@ -255,6 +255,38 @@
 
 "mastery.delete.message" = "История, фото и PDF будут удалены. Отменить это действие нельзя.";
 
+"song.library" = "Песни";
+"song.exercises" = "Упражнения";
+"song.title" = "Песни";
+"song.add" = "Добавить песню";
+"song.create" = "Создать";
+"song.create.hint" = "После создания можно добавить части песни.";
+"song.artist" = "Автор";
+"song.name" = "Название песни";
+"song.empty" = "Пока нет песен";
+"song.empty.hint" = "Учи песню по её частям";
+"song.archive.empty" = "В архиве пока нет песен";
+"song.archive.hint" = "Сюда попадут полностью выученные песни.";
+"song.parts" = "Структура песни";
+"song.parts.empty" = "Добавь первую часть песни по кнопке +.";
+"song.part.add" = "Добавить часть песни";
+"song.progress" = "Выучено частей";
+"song.archive" = "Перенести в архив";
+"song.reactivate" = "Вернуть в активные";
+"song.delete" = "Удалить песню";
+"song.delete.title" = "Удалить песню?";
+"song.delete.message" = "Все части песни, их история, фото и PDF будут удалены. Отменить это действие нельзя.";
+"song.not.found" = "Песня не найдена";
+"song.validation" = "Укажи автора и название песни.";
+"song.search" = "Найти песню";
+"song.oldest" = "Сначала старые";
+"song.materials" = "Материалы";
+"song.statistics.archived" = "Песен в архиве";
+"song.no.matches" = "Песни не найдены";
+"mastery.unsaved.title" = "Сохранить изменения?";
+"mastery.unsaved.message" = "Несохранённые изменения будут потеряны.";
+"mastery.discard" = "Не сохранять";
+
 "mastery.result.saved" = "Результат записан";
 
 "mastery.resume" = "Продолжить";

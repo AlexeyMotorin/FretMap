@@ -7,7 +7,7 @@ struct MasteryVideoLinks: View {
     @State private var title = ""
     @State private var adding = false
     @Environment(\.openURL) private var openURL
-    private var exercise: MasteryExercise? { store.exercises.first { $0.id == exerciseID } }
+    private var exercise: MasteryExercise? { store.exercise(exerciseID) }
     private var links: [String] { exercise?.videoLinks ?? [] }
     private var validURL: URL? {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)

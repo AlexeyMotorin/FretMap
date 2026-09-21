@@ -4,16 +4,50 @@ import UniformTypeIdentifiers
 
 nonisolated struct FretMapBackup: Codable, Sendable {
     var format = "FretMapBackup"
-    var version = 2
+    var version = 4
     var createdAt = Date()
     let settings: Data
     let exercises: [MasteryExercise]
+    var songs: [MasterySong] = []
     let photos: [String: Data]
     var documents: [String: Data]? = nil
 
+    enum CodingKeys: String, CodingKey {
+        case format, version, createdAt, settings, exercises, songs, photos, documents
+    }
+
+    init(settings: Data, exercises: [MasteryExercise], songs: [MasterySong] = [], photos: [String: Data], documents: [String: Data]? = nil) {
+        self.settings = settings
+        self.exercises = exercises
+        self.songs = songs
+        self.photos = photos
+        self.documents = documents
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        format = try values.decode(String.self, forKey: .format)
+        version = try values.decode(Int.self, forKey: .version)
+        createdAt = try values.decode(Date.self, forKey: .createdAt)
+        settings = try values.decode(Data.self, forKey: .settings)
+        exercises = try values.decode([MasteryExercise].self, forKey: .exercises)
+        songs = try values.decodeIfPresent([MasterySong].self, forKey: .songs) ?? []
+        photos = try values.decode([String: Data].self, forKey: .photos)
+        documents = try values.decodeIfPresent([String: Data].self, forKey: .documents)
+    }
+
     func validate() throws {
-        guard format == "FretMapBackup", (1...2).contains(version),
+        guard format == "FretMapBackup", (1...4).contains(version),
               Set(exercises.map(\.id)).count == exercises.count,
+              Set(songs.map(\.id)).count == songs.count,
+              songs.allSatisfy({ !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !$0.artist.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }),
+              songs.allSatisfy({ song in
+                  song.hasValidMaterialLinks && song.attachedPDFs.count <= 8 && Set(song.attachedPDFs.map(\.id)).count == song.attachedPDFs.count &&
+                  song.attachedPDFs.allSatisfy { documents?[$0.id] != nil }
+              }),
+              exercises.allSatisfy({ exercise in
+                  exercise.songID == nil || songs.contains(where: { $0.id == exercise.songID })
+              }),
               exercises.allSatisfy({ exercise in
                   !exercise.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
                   exercise.hasValidVideoLinks &&

@@ -255,6 +255,38 @@
 
 "mastery.delete.message" = "History, photos and PDFs will be deleted. This cannot be undone.";
 
+"song.library" = "Songs";
+"song.exercises" = "Exercises";
+"song.title" = "Songs";
+"song.add" = "Add song";
+"song.create" = "Create";
+"song.create.hint" = "After creating it, add the parts of the song.";
+"song.artist" = "Artist";
+"song.name" = "Song title";
+"song.empty" = "No songs yet";
+"song.empty.hint" = "Create a song and add riffs and other parts to it.";
+"song.archive.empty" = "No songs in the archive yet";
+"song.archive.hint" = "Fully learned songs appear here.";
+"song.parts" = "Song parts";
+"song.parts.empty" = "Add the first song part with +.";
+"song.part.add" = "Add song part";
+"song.progress" = "Learned parts";
+"song.archive" = "Move to archive";
+"song.reactivate" = "Move to active";
+"song.delete" = "Delete song";
+"song.delete.title" = "Delete song?";
+"song.delete.message" = "All song parts, their history, photos and PDFs will be deleted. This cannot be undone.";
+"song.not.found" = "Song not found";
+"song.validation" = "Enter an artist and song title.";
+"song.search" = "Search songs";
+"song.oldest" = "Oldest first";
+"song.materials" = "Materials";
+"song.statistics.archived" = "Archived songs";
+"song.no.matches" = "No matching songs";
+"mastery.unsaved.title" = "Save changes?";
+"mastery.unsaved.message" = "Unsaved changes will be lost.";
+"mastery.discard" = "Don't save";
+
 "mastery.result.saved" = "Result recorded";
 
 "mastery.resume" = "Resume";

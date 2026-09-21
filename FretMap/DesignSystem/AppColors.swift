@@ -2,6 +2,7 @@ import SwiftUI
 
 enum AppColors {
     static let page = Color(red: 0.035, green: 0.043, blue: 0.055)
+    static let navigation = Color(red: 0.055, green: 0.11, blue: 0.16)
     static let panel = Color(red: 0.09, green: 0.105, blue: 0.13).opacity(0.94)
     static let elevatedPanel = Color(red: 0.12, green: 0.14, blue: 0.17).opacity(0.96)
     static let control = Color(red: 0.17, green: 0.20, blue: 0.25)

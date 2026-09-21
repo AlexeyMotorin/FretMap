@@ -33,7 +33,7 @@ nonisolated enum PracticeSubdivision: String, Codable, CaseIterable, Sendable {
     var localizationKey: String { "mastery.subdivision." + rawValue }
 }
 
-nonisolated struct MasteryResult: Identifiable, Codable, Sendable {
+nonisolated struct MasteryResult: Identifiable, Codable, Sendable, Equatable {
     var id = UUID()
     var date = Date()
     var bpm: Int
@@ -44,13 +44,13 @@ nonisolated struct MasteryResult: Identifiable, Codable, Sendable {
     var difficulty: ExerciseDifficulty? = nil
 }
 
-nonisolated struct MasterySession: Identifiable, Codable, Sendable {
+nonisolated struct MasterySession: Identifiable, Codable, Sendable, Equatable {
     var id = UUID()
     var date = Date()
     var seconds: TimeInterval
 }
 
-nonisolated struct MasteryPDF: Identifiable, Codable, Sendable {
+nonisolated struct MasteryPDF: Identifiable, Codable, Sendable, Equatable {
     var id: String
     var name: String
 }
@@ -60,7 +60,7 @@ nonisolated enum ExerciseDifficulty: String, Codable, CaseIterable, Sendable {
     var localizationKey: String { "mastery.difficulty." + rawValue }
 }
 
-nonisolated struct MasteryExercise: Identifiable, Codable, Sendable {
+nonisolated struct MasteryExercise: Identifiable, Codable, Sendable, Equatable {
     var id = UUID()
     var name: String
     var targetBPM: Int
@@ -76,6 +76,8 @@ nonisolated struct MasteryExercise: Identifiable, Codable, Sendable {
     var sessions: [MasterySession] = []
     var difficulty: ExerciseDifficulty? = nil
     var completedAt: Date? = nil
+    /// `nil` keeps the exercise in the independent Exercises workspace.
+    var songID: UUID? = nil
     var isArchived: Bool { completedAt != nil }
     var createdAt = Date()
 
@@ -92,21 +94,77 @@ nonisolated struct MasteryExercise: Identifiable, Codable, Sendable {
     var practiceSeconds: TimeInterval { sessions.reduce(0) { $0 + $1.seconds } }
 }
 
+nonisolated struct MasterySong: Identifiable, Codable, Sendable, Equatable {
+    var id = UUID()
+    var title: String
+    var artist: String
+    var archivedAt: Date? = nil
+    var createdAt = Date()
+    var materialLinks: [String]? = nil
+    var materialLinkTitles: [String: String]? = nil
+    var pdfs: [MasteryPDF]? = nil
+
+    var isArchived: Bool { archivedAt != nil }
+    var attachedPDFs: [MasteryPDF] { pdfs ?? [] }
+    var hasValidMaterialLinks: Bool {
+        let links = materialLinks ?? []
+        return Set(links).count == links.count && links.allSatisfy {
+            guard let url = URL(string: $0), let host = url.host, !host.isEmpty else { return false }
+            return ["http", "https"].contains(url.scheme?.lowercased() ?? "")
+        }
+    }
+
+    enum CodingKeys: String, CodingKey { case id, title, artist, archivedAt, createdAt, materialLinks, materialLinkTitles, pdfs }
+    init(id: UUID = UUID(), title: String, artist: String, archivedAt: Date? = nil, createdAt: Date = Date(), materialLinks: [String]? = nil, materialLinkTitles: [String: String]? = nil, pdfs: [MasteryPDF]? = nil) {
+        self.id = id; self.title = title; self.artist = artist; self.archivedAt = archivedAt; self.createdAt = createdAt
+        self.materialLinks = materialLinks; self.materialLinkTitles = materialLinkTitles; self.pdfs = pdfs
+    }
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        title = try values.decode(String.self, forKey: .title)
+        artist = try values.decode(String.self, forKey: .artist)
+        archivedAt = try values.decodeIfPresent(Date.self, forKey: .archivedAt)
+        createdAt = try values.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
+        materialLinks = try values.decodeIfPresent([String].self, forKey: .materialLinks)
+        materialLinkTitles = try values.decodeIfPresent([String: String].self, forKey: .materialLinkTitles)
+        pdfs = try values.decodeIfPresent([MasteryPDF].self, forKey: .pdfs)
+    }
+}
+
 @MainActor
 final class MasteryStore: ObservableObject {
+    private struct Snapshot: Codable {
+        var exercises: [MasteryExercise]
+        var songs: [MasterySong]
+    }
     @Published private(set) var exercises: [MasteryExercise] = []
+    @Published private(set) var songs: [MasterySong] = []
+    @Published private var exerciseDrafts: [UUID: MasteryExercise] = [:]
+    @Published private var songDrafts: [UUID: MasterySong] = [:]
     @Published var error: String?
     private let directory: URL
     private var canWrite = true
     private var dataURL: URL { directory.appendingPathComponent("exercises.json") }
+    private var songsURL: URL { directory.appendingPathComponent("songs.json") }
+    private var snapshotURL: URL { directory.appendingPathComponent("mastery.json") }
 
     init(directory: URL? = nil) {
         self.directory = directory ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("MasteryPath", isDirectory: true)
         do {
             try FileManager.default.createDirectory(at: self.directory, withIntermediateDirectories: true)
+            if FileManager.default.fileExists(atPath: snapshotURL.path) {
+                let snapshot = try JSONDecoder().decode(Snapshot.self, from: Data(contentsOf: snapshotURL))
+                exercises = snapshot.exercises
+                songs = snapshot.songs
+                return
+            }
             if FileManager.default.fileExists(atPath: dataURL.path) {
                 exercises = try JSONDecoder().decode([MasteryExercise].self, from: Data(contentsOf: dataURL))
+            }
+            if FileManager.default.fileExists(atPath: songsURL.path) {
+                songs = try JSONDecoder().decode([MasterySong].self, from: Data(contentsOf: songsURL))
             }
         } catch {
             canWrite = false
@@ -114,11 +172,120 @@ final class MasteryStore: ObservableObject {
         }
     }
 
-    var categories: [String] { Array(Set(exercises.map(\.category).filter { !$0.isEmpty })).sorted() }
+    var categories: [String] { Array(Set(exercises.filter { $0.songID == nil }.map(\.category).filter { !$0.isEmpty })).sorted() }
+
+    func exercise(_ id: UUID) -> MasteryExercise? { exerciseDrafts[id] ?? exercises.first { $0.id == id } }
+    func song(_ id: UUID) -> MasterySong? { songDrafts[id] ?? songs.first { $0.id == id } }
+    func beginEditingExercise(_ id: UUID) { if exerciseDrafts[id] == nil, let value = exercises.first(where: { $0.id == id }) { exerciseDrafts[id] = value } }
+    func beginEditingSong(_ id: UUID) { if songDrafts[id] == nil, let value = songs.first(where: { $0.id == id }) { songDrafts[id] = value } }
+    func hasUnsavedExerciseChanges(_ id: UUID) -> Bool {
+        guard let draft = exerciseDrafts[id], let saved = exercises.first(where: { $0.id == id }) else { return false }
+        return draft != saved
+    }
+    func hasUnsavedSongChanges(_ id: UUID) -> Bool {
+        guard let draft = songDrafts[id], let saved = songs.first(where: { $0.id == id }) else { return false }
+        return draft != saved
+    }
+
+    @discardableResult
+    func commitExercise(_ id: UUID) -> Bool {
+        guard let draft = exerciseDrafts[id] else { return true }
+        exerciseDrafts[id] = nil
+        guard save(draft) else { exerciseDrafts[id] = draft; return false }
+        return true
+    }
+
+    @discardableResult
+    func commitSong(_ id: UUID) -> Bool {
+        guard let draft = songDrafts[id] else { return true }
+        songDrafts[id] = nil
+        guard save(draft) else { songDrafts[id] = draft; return false }
+        return true
+    }
+
+    func discardExerciseChanges(_ id: UUID) {
+        guard let draft = exerciseDrafts.removeValue(forKey: id), let saved = exercises.first(where: { $0.id == id }) else { return }
+        let removed = Set(draft.photos + draft.attachedPDFs.map(\.id)).subtracting(saved.photos + saved.attachedPDFs.map(\.id))
+        for name in removed { try? FileManager.default.removeItem(at: photoURL(name)) }
+    }
+
+    func discardSongChanges(_ id: UUID) {
+        guard let draft = songDrafts.removeValue(forKey: id), let saved = songs.first(where: { $0.id == id }) else { return }
+        for pdf in Set(draft.attachedPDFs.map(\.id)).subtracting(saved.attachedPDFs.map(\.id)) { try? FileManager.default.removeItem(at: photoURL(pdf)) }
+    }
+
+    func parts(for songID: UUID) -> [MasteryExercise] {
+        exercises.filter { $0.songID == songID }.sorted { $0.createdAt < $1.createdAt }
+    }
+
+    func isLearned(_ song: MasterySong) -> Bool {
+        let parts = parts(for: song.id)
+        return !parts.isEmpty && parts.allSatisfy(\.isArchived)
+    }
+
+    @discardableResult
+    func save(_ song: MasterySong) -> Bool {
+        guard !song.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !song.artist.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              song.hasValidMaterialLinks else {
+            error = L10n.string("song.validation")
+            return false
+        }
+        if songDrafts[song.id] != nil { songDrafts[song.id] = song; return true }
+        var next = songs
+        if let index = next.firstIndex(where: { $0.id == song.id }) { next[index] = song }
+        else { next.insert(song, at: 0) }
+        return persistSongs(next)
+    }
+
+    @discardableResult
+    func setSongArchived(_ archived: Bool, id: UUID) -> Bool {
+        guard var song = song(id), !archived || isLearned(song) else { return false }
+        song.archivedAt = archived ? (song.archivedAt ?? Date()) : nil
+        return save(song)
+    }
+
+    func deleteSong(_ id: UUID) {
+        let partsToDelete = parts(for: id)
+        let songToDelete = songs.first(where: { $0.id == id })
+        guard persistSnapshot(exercises.filter { $0.songID != id }, songs: songs.filter { $0.id != id }) else { return }
+        discardSongChanges(id)
+        for part in partsToDelete { exerciseDrafts[part.id] = nil }
+        for part in partsToDelete {
+            for name in part.photos + part.attachedPDFs.map(\.id) { try? FileManager.default.removeItem(at: photoURL(name)) }
+        }
+        for pdf in songToDelete?.attachedPDFs ?? [] { try? FileManager.default.removeItem(at: photoURL(pdf.id)) }
+    }
+
+    func updateSong(_ id: UUID, _ change: (inout MasterySong) -> Void) {
+        guard var song = song(id) else { return }
+        change(&song)
+        save(song)
+    }
+
+    func addSongPDF(data: Data, name: String, to songID: UUID) throws {
+        guard data.count <= 5 * 1024 * 1024,
+              let document = PDFDocument(data: data), !document.isLocked, document.pageCount > 0,
+              var song = song(songID), song.attachedPDFs.isEmpty
+        else { throw PDFImportError.invalid }
+        let filename = UUID().uuidString + ".pdf"
+        try data.write(to: photoURL(filename), options: .atomic)
+        song.pdfs = song.attachedPDFs + [MasteryPDF(id: filename, name: name)]
+        if !save(song) { try? FileManager.default.removeItem(at: photoURL(filename)); throw BackupError.storage }
+    }
+
+    func removeSongPDF(_ id: String, from songID: UUID) {
+        guard var song = song(songID) else { return }
+        song.pdfs = song.attachedPDFs.filter { $0.id != id }
+        if save(song), !(songs.first { $0.id == songID }?.attachedPDFs.contains { $0.id == id } ?? false) {
+            try? FileManager.default.removeItem(at: photoURL(id))
+        }
+    }
 
     @discardableResult
     func save(_ exercise: MasteryExercise) -> Bool {
         guard !exercise.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              exercise.songID == nil || songs.contains(where: { $0.id == exercise.songID }),
               (20...400).contains(exercise.targetBPM),
               exercise.hasValidVideoLinks,
               exercise.results.allSatisfy({ (20...400).contains($0.bpm) && ($0.cleanRepetitions == nil || ($0.clean && (1...100).contains($0.cleanRepetitions ?? 0))) }),
@@ -126,6 +293,7 @@ final class MasteryStore: ObservableObject {
             error = L10n.string("mastery.validation")
             return false
         }
+        if exerciseDrafts[exercise.id] != nil { exerciseDrafts[exercise.id] = exercise; return true }
         var next = exercises
         if let index = next.firstIndex(where: { $0.id == exercise.id }) { next[index] = exercise }
         else { next.insert(exercise, at: 0) }
@@ -133,14 +301,14 @@ final class MasteryStore: ObservableObject {
     }
 
     func update(_ id: UUID, _ change: (inout MasteryExercise) -> Void) {
-        guard var exercise = exercises.first(where: { $0.id == id }) else { return }
+        guard var exercise = exercise(id) else { return }
         change(&exercise)
         save(exercise)
     }
 
     @discardableResult
     func setArchived(_ archived: Bool, id: UUID) -> Bool {
-        guard var exercise = exercises.first(where: { $0.id == id }) else { return false }
+        guard var exercise = exercise(id) else { return false }
         exercise.completedAt = archived ? (exercise.completedAt ?? Date()) : nil
         return save(exercise)
     }
@@ -148,6 +316,7 @@ final class MasteryStore: ObservableObject {
     func delete(_ id: UUID) {
         guard let exercise = exercises.first(where: { $0.id == id }) else { return }
         if persist(exercises.filter { $0.id != id }) {
+            exerciseDrafts[id] = nil
             for name in exercise.photos + exercise.attachedPDFs.map(\.id) { try? FileManager.default.removeItem(at: photoURL(name)) }
         }
     }
@@ -163,19 +332,19 @@ final class MasteryStore: ObservableObject {
             photos[name] = data
         }
         var documents: [String: Data] = [:]
-        for name in Set(exercises.flatMap { $0.attachedPDFs.map(\.id) }) {
+        for name in Set(exercises.flatMap { $0.attachedPDFs.map(\.id) } + songs.flatMap { $0.attachedPDFs.map(\.id) }) {
             let data = try Data(contentsOf: photoURL(name))
             total += data.count
             guard total <= 70 * 1024 * 1024 else { throw BackupError.tooLarge }
             documents[name] = data
         }
-        return FretMapBackup(settings: settings, exercises: exercises, photos: photos, documents: documents)
+        return FretMapBackup(settings: settings, exercises: exercises, songs: songs, photos: photos, documents: documents)
     }
 
     func restoreBackup(_ backup: FretMapBackup) throws {
         try backup.validate()
         var created: [URL] = []
-        let oldPhotos = Set(exercises.flatMap { $0.photos + $0.attachedPDFs.map(\.id) })
+        let oldPhotos = Set(exercises.flatMap { $0.photos + $0.attachedPDFs.map(\.id) } + songs.flatMap { $0.attachedPDFs.map(\.id) })
         let oldCanWrite = canWrite
         var committed = false
         defer {
@@ -194,7 +363,7 @@ final class MasteryStore: ObservableObject {
             names[original] = name
         }
         var pdfNames: [String: String] = [:]
-        for original in Set(backup.exercises.flatMap { $0.attachedPDFs.map(\.id) }) {
+        for original in Set(backup.exercises.flatMap { $0.attachedPDFs.map(\.id) } + backup.songs.flatMap { $0.attachedPDFs.map(\.id) }) {
             guard let data = backup.documents?[original] else { throw BackupError.invalid }
             let name = UUID().uuidString + ".pdf"
             let url = photoURL(name)
@@ -203,24 +372,53 @@ final class MasteryStore: ObservableObject {
             pdfNames[original] = name
         }
         var restored = backup.exercises
+        var restoredSongs = backup.songs
         for index in restored.indices {
             restored[index].photos = restored[index].photos.compactMap { names[$0] }
             restored[index].pdfs = restored[index].attachedPDFs.compactMap { pdf in
                 pdfNames[pdf.id].map { MasteryPDF(id: $0, name: pdf.name) }
             }
         }
+        for index in restoredSongs.indices {
+            restoredSongs[index].pdfs = restoredSongs[index].attachedPDFs.compactMap { pdf in
+                pdfNames[pdf.id].map { MasteryPDF(id: $0, name: pdf.name) }
+            }
+        }
         canWrite = true
-        guard persist(restored) else { throw BackupError.storage }
+        guard persistSnapshot(restored, songs: restoredSongs) else { throw BackupError.storage }
+        exerciseDrafts = [:]
+        songDrafts = [:]
         committed = true
         error = nil
         for name in oldPhotos { try? FileManager.default.removeItem(at: photoURL(name)) }
     }
 
     private func persist(_ next: [MasteryExercise]) -> Bool {
+        persistSnapshot(next, songs: songs)
+    }
+
+    private func persistSongs(_ next: [MasterySong]) -> Bool {
+        persistSnapshot(exercises, songs: next)
+    }
+
+    /// Commit both collections together so deletion and backup restore cannot leave orphaned parts.
+    private func persistSnapshot(_ nextExercises: [MasteryExercise], songs nextSongs: [MasterySong]) -> Bool {
         guard canWrite else { error = L10n.string("mastery.load.error"); return false }
+        var nextSongs = nextSongs
+        for index in nextSongs.indices where nextSongs[index].isArchived {
+            let parts = nextExercises.filter { $0.songID == nextSongs[index].id }
+            if parts.isEmpty || !parts.allSatisfy(\.isArchived) {
+                nextSongs[index].archivedAt = nil
+                songDrafts[nextSongs[index].id]?.archivedAt = nil
+            }
+        }
         do {
-            try JSONEncoder().encode(next).write(to: dataURL, options: .atomic)
-            exercises = next
+            try JSONEncoder().encode(Snapshot(exercises: nextExercises, songs: nextSongs)).write(to: snapshotURL, options: .atomic)
+            let oldFiles = Set(exercises.flatMap { $0.photos + $0.attachedPDFs.map(\.id) } + songs.flatMap { $0.attachedPDFs.map(\.id) })
+            let newFiles = Set(nextExercises.flatMap { $0.photos + $0.attachedPDFs.map(\.id) } + nextSongs.flatMap { $0.attachedPDFs.map(\.id) })
+            exercises = nextExercises
+            songs = nextSongs
+            for name in oldFiles.subtracting(newFiles) { try? FileManager.default.removeItem(at: photoURL(name)) }
             return true
         } catch {
             self.error = L10n.string("mastery.save.error")
@@ -231,7 +429,7 @@ final class MasteryStore: ObservableObject {
     func photoURL(_ name: String) -> URL { directory.appendingPathComponent(name) }
 
     func addPhoto(_ image: UIImage, to id: UUID) {
-        guard var exercise = exercises.first(where: { $0.id == id }), exercise.photos.count < 3 else { return }
+        guard var exercise = exercise(id), exercise.photos.count < 3 else { return }
         let ratio = min(1, 2400 / max(image.size.width, image.size.height))
         let size = CGSize(width: max(1, image.size.width * ratio), height: max(1, image.size.height * ratio))
         let format = UIGraphicsImageRendererFormat()
@@ -251,7 +449,7 @@ final class MasteryStore: ObservableObject {
     func addPDF(data: Data, name: String, to id: UUID) throws {
         guard data.count <= 5 * 1024 * 1024,
               let document = PDFDocument(data: data), !document.isLocked, document.pageCount > 0,
-              var exercise = exercises.first(where: { $0.id == id }), exercise.attachedPDFs.isEmpty
+              var exercise = exercise(id), exercise.attachedPDFs.isEmpty
         else { throw PDFImportError.invalid }
         let filename = UUID().uuidString + ".pdf"
         try data.write(to: photoURL(filename), options: .atomic)
@@ -263,14 +461,18 @@ final class MasteryStore: ObservableObject {
     }
 
     func removePDF(_ id: String, from exerciseID: UUID) {
-        guard var exercise = exercises.first(where: { $0.id == exerciseID }) else { return }
+        guard var exercise = exercise(exerciseID) else { return }
         exercise.pdfs = exercise.attachedPDFs.filter { $0.id != id }
-        if save(exercise) { try? FileManager.default.removeItem(at: photoURL(id)) }
+        if save(exercise), !(exercises.first { $0.id == exerciseID }?.attachedPDFs.contains { $0.id == id } ?? false) {
+            try? FileManager.default.removeItem(at: photoURL(id))
+        }
     }
 
     func removePhoto(_ name: String, from id: UUID) {
-        guard var exercise = exercises.first(where: { $0.id == id }) else { return }
+        guard var exercise = exercise(id) else { return }
         exercise.photos.removeAll { $0 == name }
-        if save(exercise) { try? FileManager.default.removeItem(at: photoURL(name)) }
+        if save(exercise), !(exercises.first { $0.id == id }?.photos.contains(name) ?? false) {
+            try? FileManager.default.removeItem(at: photoURL(name))
+        }
     }
 }

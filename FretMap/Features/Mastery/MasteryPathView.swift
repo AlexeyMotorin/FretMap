@@ -8,6 +8,7 @@ struct MasteryPathView: View {
     @StateObject private var store = MasteryStore()
     @State private var dailyStatistics = false
     @State private var adding = false
+    @State private var addingSong = false
     @State private var showingArchive = false
     @State private var editingExercise: MasteryExercise?
     @State private var deletingExercise: MasteryExercise?
@@ -15,11 +16,14 @@ struct MasteryPathView: View {
     @State private var category = ""
     @State private var search = ""
     @State private var newestFirst = true
+    @State private var showsSongs = true
+    @State private var showingWorkspaceChooser = false
+    @State private var showingExerciseArchive = false
     @ScaledMetric(relativeTo: .headline) private var cardTitleHeight = 44
 
     private var filtered: [MasteryExercise] {
         let items = store.exercises.filter {
-            $0.isArchived == showingArchive &&
+            $0.songID == nil && $0.isArchived == showingArchive &&
             (category.isEmpty || $0.category == category) &&
             (search.isEmpty || $0.name.localizedCaseInsensitiveContains(search) || $0.comment.localizedCaseInsensitiveContains(search))
         }
@@ -35,31 +39,27 @@ struct MasteryPathView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("mastery.title").font(.largeTitle.bold())
-                            Text("mastery.subtitle").font(.subheadline).foregroundStyle(.secondary)
+                            Button { showingWorkspaceChooser = true } label: {
+                                HStack(spacing: 8) {
+                                    Text(showsSongs ? "song.library" : "song.exercises").font(.largeTitle.bold())
+                                    Image(systemName: "chevron.up.chevron.down").font(.title3.bold())
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            Text(showsSongs ? "song.empty.hint" : "mastery.subtitle")
+                                .font(.subheadline).foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Button { adding = true } label: {
+                        Button { if showsSongs { addingSong = true } else { adding = true } } label: {
                             Image(systemName: "plus").font(.title2.bold()).frame(width: 44, height: 44)
                         }
                         .buttonStyle(.borderedProminent)
-                        .accessibilityLabel("mastery.add")
+                        .accessibilityLabel(showsSongs ? "song.add" : "mastery.add")
                     }
-                    HStack(spacing: 12) {
-                        Picker("mastery.workspace", selection: $showingArchive) {
-                            Text("mastery.active").tag(false)
-                            Text("mastery.archive").tag(true)
-                        }.pickerStyle(.segmented)
-                        Button { dailyStatistics = true } label: {
-                            Image(systemName: "calendar")
-                                .font(.title3)
-                                .frame(width: 44, height: 44)
-                                .background(AppColors.control, in: RoundedRectangle(cornerRadius: 10))
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(AppColors.rootText)
-                        .accessibilityLabel("mastery.daily.title")
-                    }
+                    if showsSongs {
+                        SongLibraryView(store: store, adding: $addingSong, dailyStatistics: $dailyStatistics)
+                    } else {
+                    MasteryWorkspaceControls(openArchive: { showingExerciseArchive = true }, openStatistics: { dailyStatistics = true })
                     TextField("mastery.search", text: $search).textFieldStyle(.roundedBorder)
                     HStack {
                         Picker("mastery.category", selection: $category) {
@@ -103,10 +103,11 @@ struct MasteryPathView: View {
                             }
                         }
                     }
+                    }
                 }.padding(16)
             }
             .scrollDismissesKeyboard(.interactively)
-            .background(AppBackgroundView())
+            .background(AppBackgroundView().ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
             .safeAreaInset(edge: .top, spacing: 0) {
                 HStack {
@@ -121,6 +122,7 @@ struct MasteryPathView: View {
                     .interactiveDismissDisabled()
             }
             .sheet(isPresented: $dailyStatistics) { MasteryDailyStatistics(store: store) }
+            .fullScreenCover(isPresented: $showingExerciseArchive) { ExerciseArchiveView(store: store) }
             .sheet(item: $editingExercise) { MasteryEditor(store: store, exercise: $0) }
             .alert("mastery.delete.title", isPresented: $confirmingDelete) {
                 Button("mastery.delete", role: .destructive) {
@@ -134,6 +136,11 @@ struct MasteryPathView: View {
             } message: { Text(store.error ?? "") }
             .onChange(of: store.categories) { categories in
                 if !category.isEmpty && !categories.contains(category) { category = "" }
+            }
+            .confirmationDialog("", isPresented: $showingWorkspaceChooser, titleVisibility: .hidden) {
+                Button("song.library") { showsSongs = true }
+                Button("song.exercises") { showsSongs = false }
+                Button("mastery.cancel", role: .cancel) {}
             }
         }
         .tint(AppColors.rootText)
@@ -186,6 +193,63 @@ struct MasteryPathView: View {
     }
 }
 
+private struct ExerciseArchiveView: View {
+    @ObservedObject var store: MasteryStore
+    @Environment(\.dismiss) private var dismiss
+
+    private var exercises: [MasteryExercise] {
+        store.exercises.filter { $0.songID == nil && $0.isArchived }.sorted { $0.createdAt > $1.createdAt }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if exercises.isEmpty {
+                    VStack(spacing: 12) {
+                        Spacer()
+                        Image(systemName: "archivebox").font(.system(size: 40)).foregroundStyle(AppColors.rootText)
+                        Text("mastery.archive.empty").font(.headline)
+                        Spacer()
+                    }
+                    .padding(24)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .multilineTextAlignment(.center)
+                } else {
+                    ScrollView {
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
+                        ForEach(exercises) { exercise in
+                            NavigationLink { MasteryExerciseView(store: store, exerciseID: exercise.id) } label: {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Image(systemName: "checkmark.circle.fill").font(.system(size: 34)).foregroundStyle(.green)
+                                        .frame(maxWidth: .infinity, minHeight: 92).background(AppColors.control, in: RoundedRectangle(cornerRadius: 8))
+                                    Text(exercise.name).font(.headline).lineLimit(2).frame(height: 44, alignment: .topLeading)
+                                    Text("\(exercise.targetBPM) BPM").font(.caption).foregroundStyle(.secondary)
+                                }
+                                .padding(12).background(AppColors.panel, in: RoundedRectangle(cornerRadius: 12))
+                            }
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                Button { store.setArchived(false, id: exercise.id) } label: { Label("mastery.reactivate", systemImage: "arrow.uturn.backward") }
+                            }
+                        }
+                    }.padding(16)
+                    }
+                }
+            }
+            .background(AppBackgroundView().ignoresSafeArea())
+            .navigationTitle("mastery.archive")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button { dismiss() } label: { Image(systemName: "xmark") }
+                        .accessibilityLabel("mastery.done")
+                }
+            }
+            .toolbarBackground(.hidden, for: .navigationBar)
+        }
+    }
+}
+
 private struct MasteryThumbnail: View {
     let url: URL
     @State private var image: UIImage?
@@ -215,14 +279,21 @@ private struct MasteryThumbnail: View {
     }
 }
 
-private struct MasteryEditor: View {
+struct MasteryEditor: View {
     @ObservedObject var store: MasteryStore
     let exercise: MasteryExercise?
+    let songID: UUID?
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var target = "120"
     @State private var category = ""
     @State private var subdivision: PracticeSubdivision? = nil
+
+    init(store: MasteryStore, exercise: MasteryExercise?, songID: UUID? = nil) {
+        self.store = store
+        self.exercise = exercise
+        self.songID = songID
+    }
 
     var body: some View {
         NavigationStack {
@@ -262,12 +333,13 @@ private struct MasteryEditor: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("mastery.save") {
                         guard let bpm = Int(target) else { return }
-                        var value = exercise.flatMap { original in store.exercises.first { $0.id == original.id } }
+                        var value = exercise.flatMap { store.exercise($0.id) }
                             ?? MasteryExercise(name: name, targetBPM: bpm)
                         value.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
                         value.targetBPM = bpm
                         value.subdivision = subdivision
                         value.category = category.trimmingCharacters(in: .whitespacesAndNewlines)
+                        value.songID = songID ?? value.songID
                         if store.save(value) { dismiss() }
                     }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !(20...400).contains(Int(target) ?? 0))
                 }
@@ -280,7 +352,7 @@ private struct MasteryEditor: View {
     }
 }
 
-private struct MasteryExerciseView: View {
+struct MasteryExerciseView: View {
     @ObservedObject var store: MasteryStore
     let exerciseID: UUID
     @Environment(\.dismiss) private var dismiss
@@ -310,8 +382,9 @@ private struct MasteryExerciseView: View {
     @State private var selectedPDF: MasteryPDF?
     @State private var importingPDF = false
     @State private var selectedPhoto: PhotoSelection?
+    @State private var showingUnsavedChanges = false
     private struct PhotoSelection: Identifiable { let id: String }
-    private var exercise: MasteryExercise? { store.exercises.first { $0.id == exerciseID } }
+    private var exercise: MasteryExercise? { store.exercise(exerciseID) }
 
     var body: some View {
         Group {
@@ -349,7 +422,7 @@ private struct MasteryExerciseView: View {
                         Text(Duration.seconds(exercise.practiceSeconds).formatted(.time(pattern: .hourMinuteSecond)))
                         Button {
                             practice.stopAll()
-                            if store.setArchived(!exercise.isArchived, id: exerciseID) { dismiss() }
+                            store.setArchived(!exercise.isArchived, id: exerciseID)
                         } label: {
                             Label(exercise.isArchived ? "mastery.reactivate" : "mastery.complete",
                                   systemImage: exercise.isArchived ? "arrow.uturn.backward" : "checkmark.circle")
@@ -360,8 +433,20 @@ private struct MasteryExerciseView: View {
                 .masteryKeyboardDismiss()
                 .background(AppBackgroundView())
                 .navigationTitle(exercise.name).navigationBarTitleDisplayMode(.inline)
+                .navigationBarBackButtonHidden(true)
                 .toolbar(.visible, for: .navigationBar)
                 .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button { attemptDismiss() } label: { Image(systemName: "chevron.left") }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button {
+                            practice.stopAll()
+                            if store.commitExercise(exerciseID) { store.beginEditingExercise(exerciseID) }
+                        } label: { Image(systemName: "checkmark") }
+                        .disabled(importing || importingPDF || !store.hasUnsavedExerciseChanges(exerciseID))
+                        .accessibilityLabel("mastery.save")
+                    }
                     ToolbarItem(placement: .primaryAction) {
                         Menu {
                             Button("mastery.edit") { editing = true }
@@ -413,9 +498,15 @@ private struct MasteryExerciseView: View {
                     }
                     Button("mastery.cancel", role: .cancel) { }
                 } message: { Text("mastery.delete.message") }
+                .alert("mastery.unsaved.title", isPresented: $showingUnsavedChanges) {
+                    Button("mastery.save") { if store.commitExercise(exerciseID) { dismiss() } }
+                    Button("mastery.discard", role: .destructive) { store.discardExerciseChanges(exerciseID); dismiss() }
+                    Button("mastery.cancel", role: .cancel) { }
+                } message: { Text("mastery.unsaved.message") }
             }
         }
         .onAppear {
+            store.beginEditingExercise(exerciseID)
             bpm = "\(exercise?.latest?.bpm ?? 80)"
             metroBPM = min(240, max(30, exercise?.latest?.bpm ?? 80))
             practice.onSession = { seconds in
@@ -448,6 +539,13 @@ private struct MasteryExerciseView: View {
         .alert("mastery.error", isPresented: Binding(get: { practice.error != nil || store.error != nil }, set: { if !$0 { practice.error = nil; store.error = nil } })) {
             Button("OK") { practice.error = nil; store.error = nil }
         } message: { Text(practice.error ?? store.error ?? "") }
+    }
+
+    private func attemptDismiss() {
+        guard !importing, !importingPDF else { return }
+        practice.stopAll()
+        if store.hasUnsavedExerciseChanges(exerciseID) { showingUnsavedChanges = true }
+        else { store.discardExerciseChanges(exerciseID); dismiss() }
     }
 
     private func summary(_ exercise: MasteryExercise) -> some View {

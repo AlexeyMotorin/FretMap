@@ -16,6 +16,8 @@ struct MasteryAllStatistics: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("mastery.statistics.all").font(.headline)
                         row("mastery.training.days", value: String(days.count))
+                        row("song.title", value: String(store.songs.count))
+                        row("song.statistics.archived", value: String(store.songs.filter(\.isArchived).count))
                         row("mastery.statistics.exercises", value: String(exercises.count))
                         row("mastery.active", value: String(exercises.filter { !$0.isArchived }.count))
                         row("mastery.completed", value: String(exercises.filter(\.isArchived).count))
@@ -26,6 +28,9 @@ struct MasteryAllStatistics: View {
                     ForEach(exercises) { exercise in
                         VStack(alignment: .leading, spacing: 12) {
                             Text(exercise.name).font(.headline)
+                            if let songID = exercise.songID, let song = store.song(songID) {
+                                Text("\(song.artist) · \(song.title)").font(.caption).foregroundStyle(.secondary)
+                            }
                             row("mastery.daily.results", value: String(exercise.results.count))
                             row("mastery.best", value: exercise.bestCleanBPM.map { "\($0) BPM" } ?? "—")
                             row("mastery.target", value: "\(exercise.targetBPM) BPM")

@@ -46,6 +46,9 @@ struct MasteryDailyStatistics: View {
                             let dayResults = exercise.results.filter { calendar.isDate($0.date, inSameDayAs: selectedDate) }
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(exercise.name).font(.headline)
+                                if let songID = exercise.songID, let song = store.song(songID) {
+                                    Text("\(song.artist) · \(song.title)").font(.caption).foregroundStyle(.secondary)
+                                }
                                 row("mastery.daily.results", value: String(dayResults.count))
                                 row("mastery.best", value: dayResults.filter(\.clean).map(\.bpm).max().map { "\($0) BPM" } ?? "—")
                                 ForEach(dayResults.sorted { $0.date > $1.date }) { result in
