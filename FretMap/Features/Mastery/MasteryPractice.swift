@@ -82,9 +82,11 @@ final class MasteryPractice: ObservableObject {
             }
         }
         do {
+            #if !targetEnvironment(macCatalyst)
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
             try session.setActive(true)
+            #endif
             let engine = AVAudioEngine()
             let player = AVAudioPlayerNode()
             engine.attach(player)

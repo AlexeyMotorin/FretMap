@@ -350,3 +350,14 @@
 "mastery.links.name" = "Link title";
 "mastery.links.duplicate" = "This link has already been added.";
 "mastery.time.signature" = "Time signature";
+"mac.fretboard.resize" = "지판 크기 조절";
+"mac.fretboard.resize.hint" = "이 모서리를 드래그하여 지판 크기를 조절하세요.";
+"mac.sidebar.resize" = "설정 패널 너비 조절";
+"mac.sidebar.resize.hint" = "구분선을 드래그하여 설정 패널을 창 너비의 3분의 1까지 넓히세요.";
+"mac.photos.hint" = "사진 최대 3장. 클릭하여 보고, 마우스 오른쪽 버튼으로 삭제하세요.";
+"mac.pdf.hint" = "최대 5 MB의 PDF 1개. 클릭하여 보고, 마우스 오른쪽 버튼으로 삭제하세요.";
+"mastery.view" = "보기";
+"mastery.view.tiles" = "타일";
+"mastery.view.list" = "목록";
+"mac.fretboard.window" = "지판 — 스케일";
+"mac.fretboard.open.window" = "지판을 별도 창에서 열기";

@@ -6,7 +6,13 @@ struct FunctionalHarmonyView: View {
     @ObservedObject var store: AppSettingsStore
     @Environment(\.verticalSizeClass) private var verticalSizeClass
 
-    private var isPortrait: Bool { verticalSizeClass != .compact }
+    private var isPortrait: Bool {
+        #if targetEnvironment(macCatalyst)
+        return false
+        #else
+        return verticalSizeClass != .compact
+        #endif
+    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -27,6 +33,19 @@ struct FunctionalHarmonyView: View {
                             )
                         }
 
+                        #if targetEnvironment(macCatalyst)
+                        HStack(alignment: .top, spacing: 16) {
+                            ForEach(HarmonyData.functional) { group in
+                                VStack(alignment: .leading, spacing: 16) {
+                                    functionalGroupTitle(group)
+                                    functionalDegreeChips(group)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(16)
+                                .background(AppColors.control.opacity(0.35), in: RoundedRectangle(cornerRadius: 10))
+                            }
+                        }
+                        #else
                         ForEach(HarmonyData.functional) { group in
                             Group {
                                 if isPortrait {
@@ -43,6 +62,7 @@ struct FunctionalHarmonyView: View {
                                 }
                             }
                         }
+                        #endif
                     }
                     .padding(isPortrait ? 16 : 26)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -123,7 +143,13 @@ private struct FunctionalProgressionBuilder: View {
     @State private var progressionName = ""
     @Environment(\.verticalSizeClass) private var verticalSizeClass
 
-    private var isPortrait: Bool { verticalSizeClass != .compact }
+    private var isPortrait: Bool {
+        #if targetEnvironment(macCatalyst)
+        return false
+        #else
+        return verticalSizeClass != .compact
+        #endif
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -492,7 +518,13 @@ struct ModalHarmonyView: View {
     @ObservedObject var store: AppSettingsStore
     @Environment(\.verticalSizeClass) private var verticalSizeClass
 
-    private var isPortrait: Bool { verticalSizeClass != .compact }
+    private var isPortrait: Bool {
+        #if targetEnvironment(macCatalyst)
+        return false
+        #else
+        return verticalSizeClass != .compact
+        #endif
+    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -589,7 +621,13 @@ private struct ModalProgressionBuilder: View {
     @State private var progressionName = ""
     @Environment(\.verticalSizeClass) private var verticalSizeClass
 
-    private var isPortrait: Bool { verticalSizeClass != .compact }
+    private var isPortrait: Bool {
+        #if targetEnvironment(macCatalyst)
+        return false
+        #else
+        return verticalSizeClass != .compact
+        #endif
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -881,7 +919,13 @@ struct PopularHarmonyView: View {
     @ObservedObject var store: AppSettingsStore
     @Environment(\.verticalSizeClass) private var verticalSizeClass
 
-    private var isPortrait: Bool { verticalSizeClass != .compact }
+    private var isPortrait: Bool {
+        #if targetEnvironment(macCatalyst)
+        return false
+        #else
+        return verticalSizeClass != .compact
+        #endif
+    }
 
     var body: some View {
         Group {
@@ -1126,7 +1170,13 @@ struct SavedHarmonyView: View {
     @State private var progressionPendingDeletion: SavedHarmonyProgression?
     @Environment(\.verticalSizeClass) private var verticalSizeClass
 
-    private var isPortrait: Bool { verticalSizeClass != .compact }
+    private var isPortrait: Bool {
+        #if targetEnvironment(macCatalyst)
+        return false
+        #else
+        return verticalSizeClass != .compact
+        #endif
+    }
 
     var body: some View {
         Group {

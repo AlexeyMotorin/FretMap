@@ -350,3 +350,14 @@
 "mastery.links.name" = "Название ссылки";
 "mastery.links.duplicate" = "Эта ссылка уже добавлена.";
 "mastery.time.signature" = "Размер";
+"mac.fretboard.resize" = "Изменить размер грифа";
+"mac.fretboard.resize.hint" = "Потяни за угол, чтобы изменить высоту грифа.";
+"mac.sidebar.resize" = "Изменить ширину настроек";
+"mac.sidebar.resize.hint" = "Потяни разделитель, чтобы расширить меню до трети окна.";
+"mac.photos.hint" = "До 3 фото. Нажми для просмотра, правая кнопка мыши — удалить.";
+"mac.pdf.hint" = "Один PDF до 5 МБ. Нажми для просмотра, правая кнопка мыши — удалить.";
+"mastery.view" = "Вид";
+"mastery.view.tiles" = "Плитка";
+"mastery.view.list" = "Список";
+"mac.fretboard.window" = "Гриф — Scales";
+"mac.fretboard.open.window" = "Открыть гриф в отдельном окне";

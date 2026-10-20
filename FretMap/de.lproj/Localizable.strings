@@ -350,3 +350,14 @@
 "mastery.links.name" = "Link title";
 "mastery.links.duplicate" = "This link has already been added.";
 "mastery.time.signature" = "Time signature";
+"mac.fretboard.resize" = "Griffbrettgröße ändern";
+"mac.fretboard.resize.hint" = "Ziehe diese Ecke, um die Größe des Griffbretts zu ändern.";
+"mac.sidebar.resize" = "Einstellungsbereich vergrößern";
+"mac.sidebar.resize.hint" = "Ziehe die Trennlinie, um die Einstellungen auf bis zu ein Drittel des Fensters zu verbreitern.";
+"mac.photos.hint" = "Bis zu 3 Fotos. Zum Anzeigen klicken, zum Löschen rechtsklicken.";
+"mac.pdf.hint" = "Eine PDF bis 5 MB. Zum Anzeigen klicken, zum Löschen rechtsklicken.";
+"mastery.view" = "Ansicht";
+"mastery.view.tiles" = "Kacheln";
+"mastery.view.list" = "Liste";
+"mac.fretboard.window" = "Griffbrett — Tonleitern";
+"mac.fretboard.open.window" = "Griffbrett in einem separaten Fenster öffnen";

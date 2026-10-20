@@ -5,6 +5,10 @@ struct HomeCoordinatorView: View {
     @ObservedObject var store: AppSettingsStore
     @Binding var customTuningTargetMode: AppMode?
     @Binding var isCreatingSavedProgression: Bool
+    var standaloneFretboard = false
+    #if targetEnvironment(macCatalyst)
+    @Environment(\.openWindow) private var openWindow
+    #endif
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var isModeSelectionVisible = true
     @State private var showsBackup = false
@@ -24,7 +28,21 @@ struct HomeCoordinatorView: View {
     private var selectedTuning: TuningPreset {
         selectedTuning(for: store.appMode == .chords || store.isCustomMode ? .chords : .modes)
     }
-    private var isPortraitLayout: Bool { verticalSizeClass != .compact }
+    private var isPortraitLayout: Bool {
+        #if targetEnvironment(macCatalyst)
+        return false
+        #else
+        return verticalSizeClass != .compact
+        #endif
+    }
+
+    private var fitsEntireMacFretboard: Bool {
+        #if targetEnvironment(macCatalyst)
+        return true
+        #else
+        return false
+        #endif
+    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -32,7 +50,12 @@ struct HomeCoordinatorView: View {
                 AppBackgroundView()
                     .allowsHitTesting(false)
 
-                if isModeSelectionVisible {
+                if standaloneFretboard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(selectedScale.name).font(.headline)
+                        modesFretboard
+                    }.padding(16)
+                } else if isModeSelectionVisible {
                     HomeModeSelectionView(
                         isPortrait: isPortraitLayout,
                         containerSize: proxy.size,
@@ -132,6 +155,27 @@ struct HomeCoordinatorView: View {
 
     private var modesModeView: some View {
         GeometryReader { proxy in
+            #if targetEnvironment(macCatalyst)
+            MacFretboardWorkspace(showsSettings: store.isSettingsVisible) {
+                settingsPanel
+            } board: {
+                    ZStack(alignment: .bottomLeading) {
+                        modesFretboard
+                            .overlay(alignment: .topTrailing) {
+                                Button { openWindow(id: "scale-fretboard") } label: {
+                                    Image(systemName: "arrow.up.forward.app")
+                                        .font(.title3).frame(width: 40, height: 40)
+                                        .background(AppColors.control, in: RoundedRectangle(cornerRadius: 8))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("mac.fretboard.open.window")
+                                .help(Text("mac.fretboard.open.window"))
+                                .padding(8)
+                            }
+                        if !store.isSettingsVisible { settingsButton.padding(12) }
+                    }
+            }
+            #else
             if isPortraitLayout {
                 VStack(spacing: 12) {
                     // Leave room for navigation above the open-string labels.
@@ -158,26 +202,33 @@ struct HomeCoordinatorView: View {
                     }
                 }
             }
+            #endif
         }
         .clipped()
     }
 
+    private var scaleFretCount: Int { standaloneFretboard ? 24 : store.fretCount }
+
     private var modesFretboard: some View {
         FretboardView(
-            tuning: selectedTuning,
-            fretCount: store.fretCount,
+            tuning: selectedTuning(for: .modes),
+            fretCount: scaleFretCount,
             allowsZoom: true,
+            fitsEntireFretboard: standaloneFretboard,
             markers: scaleMarkers,
             barres: [],
             selectedPositions: [],
             customMode: false,
             onTapPosition: nil,
-            onSwipe: !isPortraitLayout && store.isSettingsVisible ? { setSettingsVisible(false) } : nil
+            onSwipe: !standaloneFretboard && !isPortraitLayout && store.isSettingsVisible ? { setSettingsVisible(false) } : nil
         )
     }
 
     private var chordsModeView: some View {
         GeometryReader { proxy in
+            #if targetEnvironment(macCatalyst)
+            MacFretboardWorkspace(resizesBoard: false) { chordSettingsPanel } board: { macChordGallery }
+            #else
             let isPortrait = isPortraitLayout
 
             Group {
@@ -216,10 +267,56 @@ struct HomeCoordinatorView: View {
                     }
                 }
             }
+            #endif
         }
         .background(Color.clear)
         .clipped()
     }
+
+    #if targetEnvironment(macCatalyst)
+    private var macChordGallery: some View {
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    Text(chordDisplayName).font(.largeTitle.bold())
+                    if availableChordShapes.isEmpty {
+                        chordFretboard.frame(height: 320)
+                    } else {
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 18), count: proxy.size.width >= 650 ? 2 : 1), spacing: 18) {
+                            ForEach(availableChordShapes) { shape in
+                                macChordCard(shape)
+                            }
+                        }
+                    }
+                }
+                .padding(24)
+                .frame(maxWidth: 1500)
+                .frame(maxWidth: .infinity, alignment: .top)
+            }
+        }
+    }
+
+    private func macChordCard(_ shape: ChordShape) -> some View {
+        let notes = markers(for: shape)
+        let barres = shape.transposedBarres(to: appliedChordSettings.root)
+        let frets = notes.map { $0.position.fret } + barres.map(\.fret)
+        let first = frets.min() ?? 0
+        let lower = first == 0 ? 0 : max(1, first - 1)
+        let upper = min(store.chordFretCount, max((frets.max() ?? 3) + 1, lower + 3))
+        return VStack(alignment: .leading, spacing: 14) {
+            Text(shape.title).font(.headline).foregroundStyle(AppColors.primaryText)
+                .fixedSize(horizontal: false, vertical: true)
+            FretboardView(tuning: selectedTuning(for: .chords), fretCount: store.chordFretCount,
+                          visibleFretRange: lower...max(lower, upper), markers: notes, barres: barres,
+                          selectedPositions: [], customMode: false, onTapPosition: nil, onSwipe: nil)
+                .frame(height: 230)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .padding(16)
+        .background(AppColors.panel, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(AppColors.border, lineWidth: 1))
+    }
+    #endif
 
     private var harmonyModeView: some View {
         HarmonyRootView(
@@ -239,6 +336,7 @@ struct HomeCoordinatorView: View {
                 tuning: selectedTuning,
                 fretCount: store.chordFretCount,
                 visibleFretRange: chordVisibleFretRange,
+                fitsEntireFretboard: fitsEntireMacFretboard,
                 markers: chordMarkers,
                 barres: chordBarres,
                 selectedPositions: [],
@@ -249,7 +347,8 @@ struct HomeCoordinatorView: View {
             .highPriorityGesture(chordShapeSwipeGesture)
 
             chordTitleOverlay
-                .padding(12)
+                .padding(.top, fitsEntireMacFretboard ? 44 : 12)
+                .padding([.horizontal, .bottom], 12)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 .allowsHitTesting(false)
 
@@ -762,16 +861,16 @@ struct HomeCoordinatorView: View {
     }
 
     private var scaleMarkers: [FretMarker] {
-        makeMarkers { stringIndex, fret, pitch in
+        makeMarkers(tuning: selectedTuning(for: .modes), fretCount: scaleFretCount) { stringIndex, fret, pitch in
             guard selectedScale.intervals.contains((pitch - store.rootNote + 12) % 12),
                   let degree = selectedScale.degreeLabel(for: pitch, root: store.rootNote) else { return nil }
             let noteName = MusicNoteSpeller.scaleNoteName(
                 pitchClass: pitch,
                 tonicPitchClass: store.rootNote,
                 scale: selectedScale,
-                preferredNames: noteNames
+                preferredNames: store.accidentalStyle.noteNames
             )
-            let label = showsDegreeNumbers ? "\(noteName)/\(degree)" : noteName
+            let label = store.showsDegreeNumbers ? "\(noteName)/\(degree)" : noteName
             return FretMarker(
                 position: FretPosition(stringIndex: stringIndex, fret: fret),
                 label: label,
@@ -867,6 +966,10 @@ struct HomeCoordinatorView: View {
 
     private var cagedChordMarkers: [FretMarker]? {
         guard usesCagedChordShape, let shape = selectedChordShape else { return nil }
+        return markers(for: shape)
+    }
+
+    private func markers(for shape: ChordShape) -> [FretMarker] {
         let settings = appliedChordSettings
         let displayedStrings = Array(selectedTuning(for: .chords).strings.reversed())
         return shape.transposedNotes(to: settings.root).compactMap { note in
@@ -1004,12 +1107,13 @@ struct HomeCoordinatorView: View {
         }
     }
 
-    private func makeMarkers(_ builder: (Int, Int, Int) -> FretMarker?) -> [FretMarker] {
-        let displayedStrings = Array(selectedTuning.strings.reversed())
+    private func makeMarkers(tuning: TuningPreset? = nil, fretCount: Int? = nil,
+                             _ builder: (Int, Int, Int) -> FretMarker?) -> [FretMarker] {
+        let displayedStrings = Array((tuning ?? selectedTuning).strings.reversed())
         var markers: [FretMarker] = []
         for stringIndex in displayedStrings.indices {
             let string = displayedStrings[stringIndex]
-            for fret in 0...activeFretCount {
+            for fret in 0...(fretCount ?? activeFretCount) {
                 let pitch = (string.pitchClass + fret) % 12
                 if let marker = builder(stringIndex, fret, pitch) {
                     markers.append(marker)

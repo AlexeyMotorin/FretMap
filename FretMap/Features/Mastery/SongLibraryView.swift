@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 /// The Songs workspace owns collections; individual exercises continue to use the
 /// existing practice flow and are only distinguished by their `songID`.
 struct SongLibraryView: View {
+    @AppStorage("mac.mastery.listLayout") private var listLayout = false
     @ObservedObject var store: MasteryStore
     @Binding var adding: Bool
     @Binding var dailyStatistics: Bool
@@ -42,10 +43,19 @@ struct SongLibraryView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 44)
             } else {
-                LazyVGrid(columns: [GridItem(.flexible(), alignment: .top), GridItem(.flexible(), alignment: .top)], spacing: 14) {
+                LazyVGrid(columns: MasteryWorkspaceLayout.columns(list: listLayout), spacing: 14) {
                     ForEach(songs) { song in
                         NavigationLink { SongDetailView(store: store, songID: song.id) } label: {
-                            songCard(song)
+                            if MasteryWorkspaceLayout.usesList(listLayout) {
+                                let parts = store.parts(for: song.id)
+                                let learned = parts.filter(\.isArchived).count
+                                MasteryLibraryRow(title: song.title, subtitle: song.artist,
+                                                  detail: "\(learned)/\(parts.count) · \(L10n.string("song.parts"))",
+                                                  progress: parts.isEmpty ? 0 : Double(learned) / Double(parts.count),
+                                                  completed: store.isLearned(song))
+                            } else {
+                                songCard(song)
+                            }
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
@@ -154,6 +164,7 @@ private struct SongEditor: View {
 }
 
 private struct SongArchiveView: View {
+    @AppStorage("mac.mastery.listLayout") private var listLayout = false
     @ObservedObject var store: MasteryStore
     @Environment(\.dismiss) private var dismiss
 
@@ -175,10 +186,15 @@ private struct SongArchiveView: View {
                     .multilineTextAlignment(.center)
                 } else {
                     ScrollView {
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
+                    LazyVGrid(columns: MasteryWorkspaceLayout.columns(list: listLayout), spacing: 14) {
                         ForEach(songs) { song in
                             NavigationLink { SongDetailView(store: store, songID: song.id) } label: {
                                 let parts = store.parts(for: song.id)
+                                if MasteryWorkspaceLayout.usesList(listLayout) {
+                                    MasteryLibraryRow(title: song.title, subtitle: song.artist,
+                                                      detail: "\(parts.count)/\(parts.count) · \(L10n.string("song.parts"))",
+                                                      progress: 1, completed: true)
+                                } else {
                                 VStack(alignment: .leading, spacing: 8) {
                                     Image(systemName: "checkmark.circle.fill").font(.system(size: 34)).foregroundStyle(.green)
                                         .frame(maxWidth: .infinity, minHeight: 92).background(AppColors.control, in: RoundedRectangle(cornerRadius: 8))
@@ -187,6 +203,7 @@ private struct SongArchiveView: View {
                                     Text("\(parts.count)/\(parts.count) · \(L10n.string("song.parts"))").font(.caption).foregroundStyle(.secondary)
                                 }
                                 .padding(12).background(AppColors.panel, in: RoundedRectangle(cornerRadius: 12))
+                                }
                             }
                             .buttonStyle(.plain)
                             .contextMenu {
@@ -201,6 +218,9 @@ private struct SongArchiveView: View {
             .navigationTitle("mastery.archive")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                #if targetEnvironment(macCatalyst)
+                ToolbarItem(placement: .primaryAction) { MasteryLayoutPicker() }
+                #endif
                 ToolbarItem(placement: .cancellationAction) {
                     Button { dismiss() } label: { Image(systemName: "xmark") }
                         .accessibilityLabel("mastery.done")

@@ -350,3 +350,14 @@
 "mastery.links.name" = "Link title";
 "mastery.links.duplicate" = "This link has already been added.";
 "mastery.time.signature" = "Time signature";
+"mac.fretboard.resize" = "Cambiar tamaño del diapasón";
+"mac.fretboard.resize.hint" = "Arrastra esta esquina para cambiar el tamaño del diapasón.";
+"mac.sidebar.resize" = "Cambiar ancho de ajustes";
+"mac.sidebar.resize.hint" = "Arrastra el divisor para ampliar los ajustes hasta un tercio de la ventana.";
+"mac.photos.hint" = "Hasta 3 fotos. Haz clic para ver y clic derecho para eliminar.";
+"mac.pdf.hint" = "Un PDF de hasta 5 MB. Haz clic para ver y clic derecho para eliminar.";
+"mastery.view" = "Vista";
+"mastery.view.tiles" = "Mosaico";
+"mastery.view.list" = "Lista";
+"mac.fretboard.window" = "Diapasón — Escalas";
+"mac.fretboard.open.window" = "Abrir diapasón en una ventana independiente";

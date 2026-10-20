@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 import ImageIO
 
 struct MasteryPathView: View {
+    @AppStorage("mac.mastery.listLayout") private var listLayout = false
     let onBack: () -> Void
     @StateObject private var store = MasteryStore()
     @State private var dailyStatistics = false
@@ -80,11 +81,21 @@ struct MasteryPathView: View {
                             }
                         }.frame(maxWidth: .infinity).padding(.vertical, 60)
                     }
-                    LazyVGrid(columns: [GridItem(.flexible(), alignment: .top), GridItem(.flexible(), alignment: .top)], spacing: 14) {
+                    LazyVGrid(columns: MasteryWorkspaceLayout.columns(list: listLayout), spacing: 14) {
                         ForEach(filtered) { exercise in
                             NavigationLink {
                                 MasteryExerciseView(store: store, exerciseID: exercise.id)
-                            } label: { exerciseCard(exercise) }
+                            } label: {
+                                if MasteryWorkspaceLayout.usesList(listLayout) {
+                                    MasteryLibraryRow(title: exercise.name,
+                                                      subtitle: exercise.category.isEmpty ? L10n.string("mastery.uncategorized") : exercise.category,
+                                                      detail: "\(exercise.latest.map { String($0.bpm) } ?? "—") → \(exercise.targetBPM) BPM",
+                                                      progress: exercise.progress, icon: "guitars.fill",
+                                                      photoURL: exercise.photos.first.map { store.photoURL($0) })
+                                } else {
+                                    exerciseCard(exercise)
+                                }
+                            }
                             .buttonStyle(.plain)
                             .contextMenu {
                                 Button { editingExercise = exercise } label: {
@@ -194,6 +205,7 @@ struct MasteryPathView: View {
 }
 
 private struct ExerciseArchiveView: View {
+    @AppStorage("mac.mastery.listLayout") private var listLayout = false
     @ObservedObject var store: MasteryStore
     @Environment(\.dismiss) private var dismiss
 
@@ -216,9 +228,14 @@ private struct ExerciseArchiveView: View {
                     .multilineTextAlignment(.center)
                 } else {
                     ScrollView {
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
+                    LazyVGrid(columns: MasteryWorkspaceLayout.columns(list: listLayout), spacing: 14) {
                         ForEach(exercises) { exercise in
                             NavigationLink { MasteryExerciseView(store: store, exerciseID: exercise.id) } label: {
+                                if MasteryWorkspaceLayout.usesList(listLayout) {
+                                    MasteryLibraryRow(title: exercise.name,
+                                                      subtitle: exercise.category.isEmpty ? L10n.string("mastery.uncategorized") : exercise.category,
+                                                      detail: "\(exercise.targetBPM) BPM", progress: 1, completed: true)
+                                } else {
                                 VStack(alignment: .leading, spacing: 8) {
                                     Image(systemName: "checkmark.circle.fill").font(.system(size: 34)).foregroundStyle(.green)
                                         .frame(maxWidth: .infinity, minHeight: 92).background(AppColors.control, in: RoundedRectangle(cornerRadius: 8))
@@ -226,6 +243,7 @@ private struct ExerciseArchiveView: View {
                                     Text("\(exercise.targetBPM) BPM").font(.caption).foregroundStyle(.secondary)
                                 }
                                 .padding(12).background(AppColors.panel, in: RoundedRectangle(cornerRadius: 12))
+                                }
                             }
                             .buttonStyle(.plain)
                             .contextMenu {
@@ -240,6 +258,9 @@ private struct ExerciseArchiveView: View {
             .navigationTitle("mastery.archive")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                #if targetEnvironment(macCatalyst)
+                ToolbarItem(placement: .primaryAction) { MasteryLayoutPicker() }
+                #endif
                 ToolbarItem(placement: .cancellationAction) {
                     Button { dismiss() } label: { Image(systemName: "xmark") }
                         .accessibilityLabel("mastery.done")
@@ -250,7 +271,7 @@ private struct ExerciseArchiveView: View {
     }
 }
 
-private struct MasteryThumbnail: View {
+struct MasteryThumbnail: View {
     let url: URL
     @State private var image: UIImage?
     var body: some View {
@@ -411,6 +432,21 @@ struct MasteryExerciseView: View {
                             }
                             Button("mastery.cancel", role: .cancel) { }
                         }
+                        #if targetEnvironment(macCatalyst)
+                        HStack(alignment: .top, spacing: 20) {
+                            VStack(spacing: 20) {
+                                resultEntry
+                                chart(exercise)
+                                timerPanel
+                                metronomePanel
+                            }.frame(maxWidth: .infinity)
+                            VStack(spacing: 20) {
+                                photos(exercise)
+                                MasteryVideoLinks(store: store, exerciseID: exerciseID).masteryPanel()
+                                notes(exercise)
+                            }.frame(maxWidth: .infinity)
+                        }
+                        #else
                         photos(exercise)
                         MasteryVideoLinks(store: store, exerciseID: exerciseID).masteryPanel()
                         resultEntry
@@ -418,6 +454,7 @@ struct MasteryExerciseView: View {
                         notes(exercise)
                         timerPanel
                         metronomePanel
+                        #endif
                         Text("mastery.practice.total").font(.caption).foregroundStyle(.secondary)
                         Text(Duration.seconds(exercise.practiceSeconds).formatted(.time(pattern: .hourMinuteSecond)))
                         Button {
@@ -428,7 +465,12 @@ struct MasteryExerciseView: View {
                                   systemImage: exercise.isArchived ? "arrow.uturn.backward" : "checkmark.circle")
                                 .frame(maxWidth: .infinity, minHeight: 44)
                         }.buttonStyle(.bordered)
-                    }.padding(16)
+                    }
+                    #if targetEnvironment(macCatalyst)
+                    .padding(24).frame(maxWidth: 1440).frame(maxWidth: .infinity)
+                    #else
+                    .padding(16)
+                    #endif
                 }.scrollDismissesKeyboard(.interactively)
                 .masteryKeyboardDismiss()
                 .background(AppBackgroundView())
@@ -580,7 +622,13 @@ struct MasteryExerciseView: View {
     private func photos(_ exercise: MasteryExercise) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("mastery.photos").font(.headline)
-            if exercise.photos.isEmpty { Text("mastery.photos.hint").font(.caption).foregroundStyle(.secondary) }
+            if exercise.photos.isEmpty {
+                #if targetEnvironment(macCatalyst)
+                Text("mac.photos.hint").font(.caption).foregroundStyle(.secondary)
+                #else
+                Text("mastery.photos.hint").font(.caption).foregroundStyle(.secondary)
+                #endif
+            }
             ScrollView(.horizontal) {
                 HStack(spacing: 6) {
                     ForEach(exercise.photos, id: \.self) { name in
@@ -600,10 +648,12 @@ struct MasteryExerciseView: View {
                         Label("mastery.photo.add", systemImage: "photo.badge.plus")
                     }.disabled(importing)
                     Spacer()
+                    #if !targetEnvironment(macCatalyst)
                     if UIImagePickerController.isSourceTypeAvailable(.camera) {
                         Button { camera = true } label: { Image(systemName: "camera").frame(width: 44, height: 44) }
                             .accessibilityLabel("mastery.camera")
                     }
+                    #endif
                     if importing { ProgressView() }
                 }
             }
@@ -624,7 +674,11 @@ struct MasteryExerciseView: View {
                     .disabled(importingPDF)
             }
             if importingPDF { ProgressView() }
+            #if targetEnvironment(macCatalyst)
+            Text("mac.pdf.hint").font(.caption).foregroundStyle(.secondary)
+            #else
             Text("mastery.pdf.hint").font(.caption).foregroundStyle(.secondary)
+            #endif
         }.masteryPanel()
     }
 

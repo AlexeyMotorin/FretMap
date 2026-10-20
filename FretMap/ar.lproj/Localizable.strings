@@ -350,3 +350,14 @@
 "mastery.links.name" = "Link title";
 "mastery.links.duplicate" = "This link has already been added.";
 "mastery.time.signature" = "Time signature";
+"mac.fretboard.resize" = "تغيير حجم لوحة الأصابع";
+"mac.fretboard.resize.hint" = "اسحب هذه الزاوية لتغيير حجم لوحة الأصابع.";
+"mac.sidebar.resize" = "تغيير عرض لوحة الإعدادات";
+"mac.sidebar.resize.hint" = "اسحب الفاصل لتوسيع الإعدادات حتى ثلث النافذة.";
+"mac.photos.hint" = "حتى 3 صور. انقر للعرض، وانقر بالزر الأيمن للحذف.";
+"mac.pdf.hint" = "ملف PDF واحد حتى 5 ميغابايت. انقر للعرض، وانقر بالزر الأيمن للحذف.";
+"mastery.view" = "العرض";
+"mastery.view.tiles" = "بلاطات";
+"mastery.view.list" = "قائمة";
+"mac.fretboard.window" = "لوحة الأصابع — السلالم";
+"mac.fretboard.open.window" = "فتح لوحة الأصابع في نافذة منفصلة";

@@ -119,6 +119,7 @@ struct BackupView: View {
                     Button { exportBackup() } label: { Label("backup.export", systemImage: "square.and.arrow.up") }
                     Button { importing = true } label: { Label("backup.import", systemImage: "square.and.arrow.down") }
                 }
+                #if !targetEnvironment(macCatalyst)
                 Section("backup.reminder.title") {
                     Text(L10n.string(reminder.status))
                     if let expiration = reminder.expiration {
@@ -130,6 +131,7 @@ struct BackupView: View {
                         }
                     }
                 }
+                #endif
                 Section { Text("backup.hint").font(.footnote).foregroundStyle(.secondary) }
                 if busy { ProgressView("backup.working") }
             }

@@ -350,3 +350,14 @@
 "mastery.links.name" = "Link title";
 "mastery.links.duplicate" = "This link has already been added.";
 "mastery.time.signature" = "Time signature";
+"mac.fretboard.resize" = "Redimensionner le manche";
+"mac.fretboard.resize.hint" = "Faites glisser ce coin pour redimensionner le manche.";
+"mac.sidebar.resize" = "Redimensionner les réglages";
+"mac.sidebar.resize.hint" = "Faites glisser le séparateur pour élargir les réglages jusqu’à un tiers de la fenêtre.";
+"mac.photos.hint" = "Jusqu’à 3 photos. Cliquez pour afficher, clic droit pour supprimer.";
+"mac.pdf.hint" = "Un PDF de 5 Mo maximum. Cliquez pour afficher, clic droit pour supprimer.";
+"mastery.view" = "Affichage";
+"mastery.view.tiles" = "Vignettes";
+"mastery.view.list" = "Liste";
+"mac.fretboard.window" = "Manche — Gammes";
+"mac.fretboard.open.window" = "Ouvrir le manche dans une fenêtre séparée";

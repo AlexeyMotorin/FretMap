@@ -350,3 +350,14 @@
 "mastery.links.name" = "Link title";
 "mastery.links.duplicate" = "This link has already been added.";
 "mastery.time.signature" = "Time signature";
+"mac.fretboard.resize" = "指板のサイズを変更";
+"mac.fretboard.resize.hint" = "この角をドラッグして指板のサイズを変更します。";
+"mac.sidebar.resize" = "設定パネルの幅を変更";
+"mac.sidebar.resize.hint" = "区切り線をドラッグすると、設定パネルをウインドウの幅の3分の1まで広げられます。";
+"mac.photos.hint" = "写真は3枚まで。クリックで表示、右クリックで削除します。";
+"mac.pdf.hint" = "PDFは1つ、5 MBまで。クリックで表示、右クリックで削除します。";
+"mastery.view" = "表示";
+"mastery.view.tiles" = "タイル";
+"mastery.view.list" = "リスト";
+"mac.fretboard.window" = "指板 — スケール";
+"mac.fretboard.open.window" = "指板を別ウインドウで開く";

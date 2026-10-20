@@ -5,6 +5,7 @@ struct FretboardView: View {
     let fretCount: Int
     var visibleFretRange: ClosedRange<Int>? = nil
     var allowsZoom: Bool = false
+    var fitsEntireFretboard: Bool = false
     @State private var savedZoom: CGFloat = 1
     @GestureState private var pinchZoom: CGFloat = 1
     let markers: [FretMarker]
@@ -26,7 +27,7 @@ struct FretboardView: View {
             let boardHeight = max(120, proxy.size.height)
             let layout = fretLayout(for: proxy.size.width)
 
-            if visibleFretRange == nil {
+            if visibleFretRange == nil && !fitsEntireFretboard {
                 ScrollView(.horizontal) {
                     fretboardCanvas(boardHeight: boardHeight, layout: layout)
                         .padding(.horizontal, 12)
@@ -46,7 +47,11 @@ struct FretboardView: View {
                 .onTapGesture(count: 2) {
                     if allowsZoom { savedZoom = 1 }
                 }
+                #if targetEnvironment(macCatalyst)
+                .scrollIndicators(.visible)
+                #else
                 .scrollIndicators(.hidden)
+                #endif
                 .background(AppColors.fretboard)
                 .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
                 .contentShape(Rectangle())
@@ -94,7 +99,7 @@ struct FretboardView: View {
 
     private func fretLayout(for availableWidth: CGFloat) -> FretLayout {
         let range = normalizedVisibleRange
-        guard visibleFretRange != nil else {
+        guard visibleFretRange != nil || fitsEntireFretboard else {
             return FretLayout(
                 range: range,
                 fretWidth: zoomedFretWidth,
@@ -105,7 +110,7 @@ struct FretboardView: View {
         let contentWidth = max(160, availableWidth - horizontalPadding * 2)
         if range.lowerBound == 0 {
             let fretSlots = max(range.upperBound, 1)
-            let fittedFretWidth = max(30, (contentWidth - openStringWidth) / CGFloat(fretSlots))
+            let fittedFretWidth = max(fitsEntireFretboard ? 1 : 30, (contentWidth - openStringWidth) / CGFloat(fretSlots))
             return FretLayout(
                 range: range,
                 fretWidth: fittedFretWidth,
@@ -123,6 +128,7 @@ struct FretboardView: View {
     }
 
     private var normalizedVisibleRange: ClosedRange<Int> {
+        if fitsEntireFretboard { return 0...fretCount }
         guard let visibleFretRange else { return 0...fretCount }
         let lower = max(0, min(visibleFretRange.lowerBound, fretCount))
         let upper = max(lower, min(visibleFretRange.upperBound, fretCount))

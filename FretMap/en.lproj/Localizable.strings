@@ -350,3 +350,14 @@
 "mastery.links.name" = "Link title";
 "mastery.links.duplicate" = "This link has already been added.";
 "mastery.time.signature" = "Time signature";
+"mac.fretboard.resize" = "Resize fretboard";
+"mac.fretboard.resize.hint" = "Drag this corner to resize the fretboard.";
+"mac.sidebar.resize" = "Resize settings panel";
+"mac.sidebar.resize.hint" = "Drag the divider to widen the settings up to one third of the window.";
+"mac.photos.hint" = "Up to 3 photos. Click to view; right-click to delete.";
+"mac.pdf.hint" = "One PDF up to 5 MB. Click to view; right-click to delete.";
+"mastery.view" = "View";
+"mastery.view.tiles" = "Tiles";
+"mastery.view.list" = "List";
+"mac.fretboard.window" = "Fretboard — Scales";
+"mac.fretboard.open.window" = "Open fretboard in a separate window";

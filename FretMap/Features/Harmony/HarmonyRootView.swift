@@ -9,12 +9,18 @@ struct HarmonyRootView: View {
 
     var body: some View {
         GeometryReader { proxy in
+            #if targetEnvironment(macCatalyst)
+            let contentWidth = min(proxy.size.width, 1440)
+            #else
+            let contentWidth = proxy.size.width
+            #endif
             VStack(spacing: 0) {
                 modePicker
 
                 selectedHarmonyView
-                    .frame(width: proxy.size.width, alignment: .topLeading)
+                    .frame(width: contentWidth, alignment: .topLeading)
                     .frame(maxHeight: .infinity, alignment: .topLeading)
+                    .frame(maxWidth: .infinity, alignment: .top)
                     .clipped()
             }
         }
@@ -35,6 +41,19 @@ struct HarmonyRootView: View {
             ForEach(HarmonyMode.allCases) { mode in
                 let selected = store.harmonyMode == mode
                 Button { modeSelection.wrappedValue = mode } label: {
+                    #if targetEnvironment(macCatalyst)
+                    HStack(spacing: 10) {
+                        Image(systemName: iconName(for: mode))
+                            .font(.system(size: 16, weight: .semibold))
+                        Text(mode.title).font(.system(size: 14, weight: .semibold))
+                            .lineLimit(1).minimumScaleFactor(0.8)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .foregroundStyle(selected ? AppColors.rootText : AppColors.mutedText)
+                    .background(selected ? AppColors.rootText.opacity(0.16) : AppColors.control.opacity(0.25),
+                                in: RoundedRectangle(cornerRadius: 8))
+                    .contentShape(Rectangle())
+                    #else
                     VStack(spacing: 4) {
                         Image(systemName: iconName(for: mode))
                             .font(.system(size: 17, weight: .semibold))
@@ -47,6 +66,7 @@ struct HarmonyRootView: View {
                     .foregroundStyle(selected ? AppColors.rootText : AppColors.mutedText)
                     .background(selected ? AppColors.rootText.opacity(0.12) : Color.clear,
                                 in: RoundedRectangle(cornerRadius: 10))
+                    #endif
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(mode.title)

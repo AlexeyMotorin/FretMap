@@ -350,3 +350,14 @@
 "mastery.links.name" = "Link title";
 "mastery.links.duplicate" = "This link has already been added.";
 "mastery.time.signature" = "Time signature";
+"mac.fretboard.resize" = "调整指板大小";
+"mac.fretboard.resize.hint" = "拖动此角以调整指板大小。";
+"mac.sidebar.resize" = "调整设置面板宽度";
+"mac.sidebar.resize.hint" = "拖动分隔线，可将设置面板扩展至窗口宽度的三分之一。";
+"mac.photos.hint" = "最多3张照片。单击查看，右键单击删除。";
+"mac.pdf.hint" = "一个PDF，最大5 MB。单击查看，右键单击删除。";
+"mastery.view" = "视图";
+"mastery.view.tiles" = "平铺";
+"mastery.view.list" = "列表";
+"mac.fretboard.window" = "指板 — 音阶";
+"mac.fretboard.open.window" = "在独立窗口中打开指板";

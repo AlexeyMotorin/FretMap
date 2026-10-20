@@ -113,7 +113,7 @@ final class ProgressionAudioPlayer: ObservableObject {
     }
 
     private func configureAudioSession() {
-        #if os(iOS)
+        #if os(iOS) && !targetEnvironment(macCatalyst)
         let session = AVAudioSession.sharedInstance()
         do {
             try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
