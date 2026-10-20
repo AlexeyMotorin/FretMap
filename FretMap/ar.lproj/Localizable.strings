@@ -361,3 +361,7 @@
 "mastery.view.list" = "قائمة";
 "mac.fretboard.window" = "لوحة الأصابع — السلالم";
 "mac.fretboard.open.window" = "فتح لوحة الأصابع في نافذة منفصلة";
+"app.language" = "اللغة";
+"app.language.system" = "لغة النظام";
+"mac.chord.expand" = "فتح الوتر بملء الشاشة";
+"mac.links.hint" = "ألصق عنوان الموقع. العنوان اختياري؛ سيُستخدم اسم الموقع.";

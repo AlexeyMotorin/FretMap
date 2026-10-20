@@ -3,7 +3,7 @@ import PDFKit
 
 nonisolated enum PDFImportError: LocalizedError {
     case invalid
-    var errorDescription: String? { NSLocalizedString("mastery.pdf.error", comment: "PDF import error") }
+    var errorDescription: String? { L10n.string("mastery.pdf.error") }
 }
 
 nonisolated enum MasteryPDFReader {

@@ -361,3 +361,7 @@
 "mastery.view.list" = "リスト";
 "mac.fretboard.window" = "指板 — スケール";
 "mac.fretboard.open.window" = "指板を別ウインドウで開く";
+"app.language" = "言語";
+"app.language.system" = "システム設定";
+"mac.chord.expand" = "コードを全画面で表示";
+"mac.links.hint" = "サイトのアドレスを貼り付けてください。タイトルは省略でき、サイト名が使用されます。";

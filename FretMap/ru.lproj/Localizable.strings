@@ -361,3 +361,7 @@
 "mastery.view.list" = "Список";
 "mac.fretboard.window" = "Гриф — Scales";
 "mac.fretboard.open.window" = "Открыть гриф в отдельном окне";
+"app.language" = "Язык";
+"app.language.system" = "Как в системе";
+"mac.chord.expand" = "Открыть аккорд на весь экран";
+"mac.links.hint" = "Вставь адрес сайта. Название можно не указывать — используем название сайта.";

@@ -300,7 +300,7 @@ struct ScalePattern: Identifiable, Equatable {
     static let chromatic = ScalePattern(id: "chromatic", name: "Хроматика", shortName: "Хроматика", intervals: Array(0...11), degreeNames: ["1", "b2", "2", "b3", "3", "4", "b5", "5", "b6", "6", "b7", "7"])
 
     static let harmonicMinor = ScalePattern(id: "harmonic-minor", name: "Гармонический минор", shortName: "Гарм. минор", intervals: [0, 2, 3, 5, 7, 8, 11], degreeNames: ["1", "2", "b3", "4", "5", "b6", "7"])
-    static let melodicMinor = ScalePattern(id: "melodic-minor", name: L10n.string("Мелодический минор (восходящий / джазовый)"), shortName: L10n.string("Мелод. минор ↑"), intervals: [0, 2, 3, 5, 7, 9, 11], degreeNames: ["1", "2", "b3", "4", "5", "6", "7"])
+    static let melodicMinor = ScalePattern(id: "melodic-minor", name: "Мелодический минор (восходящий / джазовый)", shortName: "Мелод. минор ↑", intervals: [0, 2, 3, 5, 7, 9, 11], degreeNames: ["1", "2", "b3", "4", "5", "6", "7"])
     static let harmonicMajor = ScalePattern(id: "harmonic-major", name: "Гармонический мажор", shortName: "Гарм. мажор", intervals: [0, 2, 4, 5, 7, 8, 11], degreeNames: ["1", "2", "3", "4", "5", "b6", "7"])
     static let doubleHarmonicMajor = ScalePattern(id: "double-harmonic-major", name: "Дважды гармонический мажор", shortName: "Двойной гарм. мажор", intervals: [0, 1, 4, 5, 7, 8, 11], degreeNames: ["1", "b2", "3", "4", "5", "b6", "7"])
     static let hungarianMinor = ScalePattern(id: "hungarian-minor", name: "Венгерский минор", shortName: "Венгерский минор", intervals: [0, 2, 3, 6, 7, 8, 11], degreeNames: ["1", "2", "b3", "#4", "5", "b6", "7"])

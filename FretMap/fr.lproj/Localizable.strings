@@ -361,3 +361,7 @@
 "mastery.view.list" = "Liste";
 "mac.fretboard.window" = "Manche — Gammes";
 "mac.fretboard.open.window" = "Ouvrir le manche dans une fenêtre séparée";
+"app.language" = "Langue";
+"app.language.system" = "Langue du système";
+"mac.chord.expand" = "Afficher l’accord en plein écran";
+"mac.links.hint" = "Collez l’adresse du site. Le titre est facultatif ; le nom du site sera utilisé.";

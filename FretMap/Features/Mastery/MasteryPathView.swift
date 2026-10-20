@@ -397,6 +397,9 @@ struct MasteryExerciseView: View {
     @State private var noteValue = 4
     @State private var ratingExercise = false
     @State private var photoItems: [PhotosPickerItem] = []
+    #if targetEnvironment(macCatalyst)
+    @State private var pickingPhotos = false
+    #endif
     @State private var importing = false
     @State private var camera = false
     @State private var pickingPDF = false
@@ -556,6 +559,32 @@ struct MasteryExerciseView: View {
             }
         }
         .onDisappear { if !showingTimer { practice.stopAll() } }
+        #if targetEnvironment(macCatalyst)
+        .fileImporter(isPresented: $pickingPhotos, allowedContentTypes: [.image], allowsMultipleSelection: true) { result in
+            guard case .success(let urls) = result else {
+                if case .failure = result { store.error = L10n.string("mastery.photo.error") }
+                return
+            }
+            importing = true
+            Task { @MainActor in
+                defer { importing = false }
+                for url in urls.prefix(max(0, 3 - (exercise?.photos.count ?? 0))) {
+                    do {
+                        let data = try await Task.detached(priority: .userInitiated) {
+                            let access = url.startAccessingSecurityScopedResource()
+                            defer { if access { url.stopAccessingSecurityScopedResource() } }
+                            return try Data(contentsOf: url)
+                        }.value
+                        guard let image = UIImage(data: data) else {
+                            store.error = L10n.string("mastery.photo.error")
+                            continue
+                        }
+                        store.addPhoto(image, to: exerciseID)
+                    } catch { store.error = L10n.string("mastery.photo.error") }
+                }
+            }
+        }
+        #endif
         .onChange(of: scenePhase) { phase in
             if phase != .active {
                 practice.pauseTimer()
@@ -644,9 +673,15 @@ struct MasteryExerciseView: View {
             }
             if exercise.photos.count < 3 {
                 HStack {
+                    #if targetEnvironment(macCatalyst)
+                    Button { pickingPhotos = true } label: {
+                        Label("mastery.photo.add", systemImage: "photo.badge.plus")
+                    }.disabled(importing)
+                    #else
                     PhotosPicker(selection: $photoItems, maxSelectionCount: 3 - exercise.photos.count, matching: .images) {
                         Label("mastery.photo.add", systemImage: "photo.badge.plus")
                     }.disabled(importing)
+                    #endif
                     Spacer()
                     #if !targetEnvironment(macCatalyst)
                     if UIImagePickerController.isSourceTypeAvailable(.camera) {

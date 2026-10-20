@@ -333,7 +333,21 @@ private struct SongDetailView: View {
         }
         .sheet(isPresented: $addingPart) { MasteryEditor(store: store, exercise: nil, songID: songID) }
         .sheet(isPresented: $editingSong) { SongEditor(store: store, song: song) { _ in } }
-        .sheet(isPresented: $addingMaterialLink) { SongMaterialLinkEditor(store: store, songID: songID) }
+        .sheet(isPresented: $addingMaterialLink) {
+            #if targetEnvironment(macCatalyst)
+            MacMaterialLinkEditor(existingLinks: self.song?.materialLinks ?? []) { link, name in
+                store.updateSong(songID) {
+                    $0.materialLinks = ($0.materialLinks ?? []) + [link]
+                    var titles = $0.materialLinkTitles ?? [:]
+                    titles[link] = name
+                    $0.materialLinkTitles = titles
+                }
+                return self.song?.materialLinks?.contains(link) == true
+            }
+            #else
+            SongMaterialLinkEditor(store: store, songID: songID)
+            #endif
+        }
         .fullScreenCover(item: $selectedSongPDF) { pdf in MasteryPDFViewer(url: store.photoURL(pdf.id), name: pdf.name) }
         .fileImporter(isPresented: $pickingPDF, allowedContentTypes: [.pdf]) { result in
             switch result {

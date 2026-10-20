@@ -361,3 +361,7 @@
 "mastery.view.list" = "Lista";
 "mac.fretboard.window" = "Braço — Escalas";
 "mac.fretboard.open.window" = "Abrir braço em uma janela separada";
+"app.language" = "Idioma";
+"app.language.system" = "Idioma do sistema";
+"mac.chord.expand" = "Abrir acorde em tela cheia";
+"mac.links.hint" = "Cole o endereço do site. O título é opcional; será usado o nome do site.";

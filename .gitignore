@@ -4,3 +4,4 @@ DerivedData/
 *.xcuserstate
 Logo.png
 AppStore/*.zip
+outputs/mac/*.dmg

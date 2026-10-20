@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct HomeModeSelectionView: View {
+    #if targetEnvironment(macCatalyst)
+    @AppStorage(SupportedAppLanguage.preferenceKey) private var language = ""
+    #endif
     let isPortrait: Bool
     let containerSize: CGSize
     let onSelectMode: (AppMode) -> Void
@@ -46,6 +49,23 @@ struct HomeModeSelectionView: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(AppColors.mutedText)
+            #if targetEnvironment(macCatalyst)
+            HStack {
+                Label("app.language", systemImage: "globe")
+                Spacer()
+                Picker("app.language", selection: $language) {
+                    Text("app.language.system").tag("")
+                    ForEach(SupportedAppLanguage.allCases) { language in
+                        Text(verbatim: language.nativeName).tag(language.rawValue)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+            }
+            .font(.callout)
+            .padding(.horizontal, 12)
+            .padding(.top, 4)
+            #endif
         }
     }
 

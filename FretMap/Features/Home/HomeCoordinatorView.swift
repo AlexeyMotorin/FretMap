@@ -8,6 +8,7 @@ struct HomeCoordinatorView: View {
     var standaloneFretboard = false
     #if targetEnvironment(macCatalyst)
     @Environment(\.openWindow) private var openWindow
+    @State private var expandedChord: ChordShape?
     #endif
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var isModeSelectionVisible = true
@@ -52,7 +53,7 @@ struct HomeCoordinatorView: View {
 
                 if standaloneFretboard {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text(selectedScale.name).font(.headline)
+                        Text(L10n.string(selectedScale.name)).font(.headline)
                         modesFretboard
                     }.padding(16)
                 } else if isModeSelectionVisible {
@@ -135,6 +136,21 @@ struct HomeCoordinatorView: View {
             )
         }
         .sheet(isPresented: $showsBackup) { BackupView(settings: store) }
+        #if targetEnvironment(macCatalyst)
+        .fullScreenCover(item: $expandedChord) { shape in
+            VStack(spacing: 20) {
+                HStack {
+                    Text(chordDisplayName + " · " + L10n.string(shape.title)).font(.title2.bold())
+                    Spacer()
+                    Button { expandedChord = nil } label: {
+                        Image(systemName: "xmark").frame(width: 36, height: 36)
+                    }.accessibilityLabel("mastery.cancel").keyboardShortcut(.cancelAction)
+                }
+                macChordDiagram(shape)
+            }
+            .padding(24).background(AppBackgroundView()).preferredColorScheme(.dark)
+        }
+        #endif
         .preferredColorScheme(.dark)
     }
     
@@ -297,24 +313,36 @@ struct HomeCoordinatorView: View {
     }
 
     private func macChordCard(_ shape: ChordShape) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text(L10n.string(shape.title)).font(.headline).foregroundStyle(AppColors.primaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer()
+                Button { expandedChord = shape } label: {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .frame(width: 36, height: 36)
+                }.buttonStyle(.plain).foregroundStyle(AppColors.rootText)
+                    .accessibilityLabel("mac.chord.expand").help("mac.chord.expand")
+            }
+            macChordDiagram(shape)
+                .frame(height: CGFloat(max(6, selectedTuning(for: .chords).strings.count) - 1) * 50 + 72)
+        }
+        .padding(16)
+        .background(AppColors.panel, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(AppColors.border, lineWidth: 1))
+    }
+
+    private func macChordDiagram(_ shape: ChordShape) -> some View {
         let notes = markers(for: shape)
         let barres = shape.transposedBarres(to: appliedChordSettings.root)
         let frets = notes.map { $0.position.fret } + barres.map(\.fret)
         let first = frets.min() ?? 0
         let lower = first == 0 ? 0 : max(1, first - 1)
         let upper = min(store.chordFretCount, max((frets.max() ?? 3) + 1, lower + 3))
-        return VStack(alignment: .leading, spacing: 14) {
-            Text(shape.title).font(.headline).foregroundStyle(AppColors.primaryText)
-                .fixedSize(horizontal: false, vertical: true)
-            FretboardView(tuning: selectedTuning(for: .chords), fretCount: store.chordFretCount,
+        return FretboardView(tuning: selectedTuning(for: .chords), fretCount: store.chordFretCount,
                           visibleFretRange: lower...max(lower, upper), markers: notes, barres: barres,
                           selectedPositions: [], customMode: false, onTapPosition: nil, onSwipe: nil)
-                .frame(height: 230)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
-        }
-        .padding(16)
-        .background(AppColors.panel, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(AppColors.border, lineWidth: 1))
     }
     #endif
 

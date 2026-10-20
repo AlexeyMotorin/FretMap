@@ -361,3 +361,7 @@
 "mastery.view.list" = "列表";
 "mac.fretboard.window" = "指板 — 音阶";
 "mac.fretboard.open.window" = "在独立窗口中打开指板";
+"app.language" = "语言";
+"app.language.system" = "跟随系统";
+"mac.chord.expand" = "全屏显示和弦";
+"mac.links.hint" = "粘贴网站地址。标题可选；留空时使用网站名称。";

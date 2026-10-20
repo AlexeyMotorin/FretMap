@@ -361,3 +361,7 @@
 "mastery.view.list" = "List";
 "mac.fretboard.window" = "Fretboard — Scales";
 "mac.fretboard.open.window" = "Open fretboard in a separate window";
+"app.language" = "Language";
+"app.language.system" = "System default";
+"mac.chord.expand" = "Open chord full screen";
+"mac.links.hint" = "Paste a website address. The title is optional; the site name will be used.";

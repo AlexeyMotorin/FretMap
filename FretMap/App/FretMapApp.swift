@@ -64,6 +64,7 @@ struct FretMapApp: App {
             ContentView(store: settings)
                 .background(MacWindowSizeSetup(minimumSize: CGSize(width: 1040, height: 680)).allowsHitTesting(false))
                 .modifier(MainWindowLifecycle())
+                .modifier(MacAppLanguage())
             #else
             ContentView()
                 .modifier(MainWindowLifecycle())
@@ -75,12 +76,26 @@ struct FretMapApp: App {
                                 isCreatingSavedProgression: .constant(false), standaloneFretboard: true)
                 .background(MacWindowSizeSetup(minimumSize: CGSize(width: 1280, height: 480),
                                                title: L10n.string("mac.fretboard.window")).allowsHitTesting(false))
+                .modifier(MacAppLanguage())
         }
         #endif
     }
 }
 
 #if targetEnvironment(macCatalyst)
+private struct MacAppLanguage: ViewModifier {
+    @AppStorage(SupportedAppLanguage.preferenceKey) private var language = ""
+    @Environment(\.layoutDirection) private var systemLayoutDirection
+
+    func body(content: Content) -> some View {
+        let selected = SupportedAppLanguage.resolved(language)
+        content
+            .environment(\.locale, selected?.locale ?? .autoupdatingCurrent)
+            .environment(\.layoutDirection, selected.map { $0 == .arabic ? .rightToLeft : .leftToRight } ?? systemLayoutDirection)
+            .id(language)
+    }
+}
+
 private struct MacWindowSizeSetup: UIViewRepresentable {
     let minimumSize: CGSize
     var title: String?

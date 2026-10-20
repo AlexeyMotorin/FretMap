@@ -361,3 +361,7 @@
 "mastery.view.list" = "Liste";
 "mac.fretboard.window" = "Griffbrett — Tonleitern";
 "mac.fretboard.open.window" = "Griffbrett in einem separaten Fenster öffnen";
+"app.language" = "Sprache";
+"app.language.system" = "Systemsprache";
+"mac.chord.expand" = "Akkord im Vollbild öffnen";
+"mac.links.hint" = "Website-Adresse einfügen. Ohne Titel wird der Name der Website verwendet.";

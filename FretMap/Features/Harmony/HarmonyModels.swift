@@ -8,8 +8,8 @@ enum FunctionalKeyMode: String, CaseIterable, Identifiable, Codable {
 
     var title: String {
         switch self {
-        case .major: String(localized: "Мажор")
-        case .minor: String(localized: "Минор")
+        case .major: L10n.string("Мажор")
+        case .minor: L10n.string("Минор")
         }
     }
 
@@ -51,9 +51,9 @@ enum FunctionalChordKind: String, CaseIterable, Identifiable, Codable, Hashable 
 
     var title: String {
         switch self {
-        case .triad: String(localized: "Трезвучие")
-        case .seventh: String(localized: "Септаккорд")
-        case .mixed: String(localized: "Смешанный")
+        case .triad: L10n.string("Трезвучие")
+        case .seventh: L10n.string("Септаккорд")
+        case .mixed: L10n.string("Смешанный")
         }
     }
 }
@@ -69,11 +69,11 @@ enum ModalBuilderMode: String, CaseIterable, Identifiable, Codable {
 
     var title: String {
         switch self {
-        case .dorian: String(localized: "Дорийский")
-        case .phrygian: String(localized: "Фригийский")
-        case .lydian: String(localized: "Лидийский")
-        case .mixolydian: String(localized: "Миксолидийский")
-        case .locrian: String(localized: "Локрийский")
+        case .dorian: L10n.string("Дорийский")
+        case .phrygian: L10n.string("Фригийский")
+        case .lydian: L10n.string("Лидийский")
+        case .mixolydian: L10n.string("Миксолидийский")
+        case .locrian: L10n.string("Локрийский")
         }
     }
 
@@ -106,8 +106,8 @@ enum PopularCollectionMode: String, CaseIterable, Identifiable, Codable {
 
     var title: String {
         switch self {
-        case .popular: String(localized: "Популярные")
-        case .favorites: String(localized: "Избранное")
+        case .popular: L10n.string("Популярные")
+        case .favorites: L10n.string("Избранное")
         }
     }
 }
@@ -120,8 +120,8 @@ enum PopularSortMode: String, CaseIterable, Identifiable, Codable {
 
     var title: String {
         switch self {
-        case .defaultOrder: String(localized: "По умолчанию")
-        case .ratingDescending: String(localized: "По рейтингу")
+        case .defaultOrder: L10n.string("По умолчанию")
+        case .ratingDescending: L10n.string("По рейтингу")
         }
     }
 }

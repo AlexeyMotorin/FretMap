@@ -361,3 +361,7 @@
 "mastery.view.list" = "Lista";
 "mac.fretboard.window" = "Diapasón — Escalas";
 "mac.fretboard.open.window" = "Abrir diapasón en una ventana independiente";
+"app.language" = "Idioma";
+"app.language.system" = "Idioma del sistema";
+"mac.chord.expand" = "Abrir acorde a pantalla completa";
+"mac.links.hint" = "Pega la dirección del sitio. El título es opcional; se usará el nombre del sitio.";
