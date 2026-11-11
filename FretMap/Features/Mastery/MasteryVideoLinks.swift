@@ -45,9 +45,9 @@ struct MasteryVideoLinks: View {
             }
             Text("mastery.links.hint").font(.caption).foregroundStyle(.secondary)
         }
-        .sheet(isPresented: $adding) {
-            #if targetEnvironment(macCatalyst)
-            MacMaterialLinkEditor(existingLinks: links) { link, name in
+        #if targetEnvironment(macCatalyst)
+        .macEditorDialog(isPresented: $adding, height: 340) {
+            MacMaterialLinkEditor(existingLinks: links, onClose: { adding = false }) { link, name in
                 store.update(exerciseID) {
                     $0.videoLinks = ($0.videoLinks ?? []) + [link]
                     var titles = $0.linkTitles ?? [:]
@@ -56,7 +56,9 @@ struct MasteryVideoLinks: View {
                 }
                 return links.contains(link)
             }
-            #else
+        }
+        #else
+        .sheet(isPresented: $adding) {
             NavigationStack {
                 Form {
                     TextField("mastery.links.name", text: $title)
@@ -79,8 +81,8 @@ struct MasteryVideoLinks: View {
                     }
                 }
             }
-            #endif
         }
+        #endif
     }
     private func save() {
         guard let url = validURL else { return }

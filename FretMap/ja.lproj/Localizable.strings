@@ -155,7 +155,8 @@
 
 "mastery.chart.legend" = "Green: clean · orange: with mistakes · dashed: target";
 
-"mastery.notes" = "What to focus on";
+"mastery.notes" = "Notes";
+"mastery.manual.order" = "Manual order";
 
 "mastery.notes.hint" = "Hand position, rhythm, picking, difficult passages…";
 
@@ -365,3 +366,10 @@
 "app.language.system" = "システム設定";
 "mac.chord.expand" = "コードを全画面で表示";
 "mac.links.hint" = "サイトのアドレスを貼り付けてください。タイトルは省略でき、サイト名が使用されます。";
+"mac.materials.add" = "ファイルを追加";
+"mac.materials.drop.active" = "ドロップして追加";
+"mac.materials.drop.hint" = "画像またはPDFをここにドラッグ";
+"mac.materials.limits" = "画像3枚と5MB以下のPDF1件まで。曲の共有資料はこの制限に含まれません。";
+"mac.materials.inherited" = "曲の資料";
+"mac.materials.inherited.hint" = "すべてのパートで共有。曲の画面で編集できます。";
+"mac.materials.invalid" = "画像とPDFファイルのみ対応しています。";

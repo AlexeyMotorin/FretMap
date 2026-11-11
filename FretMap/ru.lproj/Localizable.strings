@@ -155,7 +155,8 @@
 
 "mastery.chart.legend" = "Зелёный — чисто · оранжевый — с ошибками · пунктир — цель";
 
-"mastery.notes" = "На что обратить внимание";
+"mastery.notes" = "Заметки";
+"mastery.manual.order" = "Вручную";
 
 "mastery.notes.hint" = "Постановка рук, ритм, штрих, сложные места…";
 
@@ -365,3 +366,10 @@
 "app.language.system" = "Как в системе";
 "mac.chord.expand" = "Открыть аккорд на весь экран";
 "mac.links.hint" = "Вставь адрес сайта. Название можно не указывать — используем название сайта.";
+"mac.materials.add" = "Добавить файлы";
+"mac.materials.drop.active" = "Отпусти, чтобы добавить файлы";
+"mac.materials.drop.hint" = "Перетащи сюда картинки или PDF";
+"mac.materials.limits" = "До 3 картинок и 1 PDF до 5 МБ. Общие материалы песни не занимают этот лимит.";
+"mac.materials.inherited" = "Материалы песни";
+"mac.materials.inherited.hint" = "Доступны во всех частях. Изменить их можно в самой песне.";
+"mac.materials.invalid" = "Можно добавить только картинки и PDF.";

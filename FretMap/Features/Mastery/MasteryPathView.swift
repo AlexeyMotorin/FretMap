@@ -10,6 +10,8 @@ struct MasteryPathView: View {
     @State private var dailyStatistics = false
     @State private var adding = false
     @State private var addingSong = false
+    @State private var openedSongID: UUID?
+    @State private var openedExerciseID: UUID?
     @State private var showingArchive = false
     @State private var editingExercise: MasteryExercise?
     @State private var deletingExercise: MasteryExercise?
@@ -17,6 +19,7 @@ struct MasteryPathView: View {
     @State private var category = ""
     @State private var search = ""
     @State private var newestFirst = true
+    @AppStorage("mac.mastery.exerciseManualOrder") private var manualOrder = false
     @State private var showsSongs = true
     @State private var showingWorkspaceChooser = false
     @State private var showingExerciseArchive = false
@@ -29,6 +32,9 @@ struct MasteryPathView: View {
             (search.isEmpty || $0.name.localizedCaseInsensitiveContains(search) || $0.comment.localizedCaseInsensitiveContains(search))
         }
         return items.sorted {
+            #if targetEnvironment(macCatalyst)
+            if manualOrder, $0.manualOrder != $1.manualOrder { return ($0.manualOrder ?? -1) < ($1.manualOrder ?? -1) }
+            #endif
             if newestFirst { return $0.createdAt > $1.createdAt }
             return ($0.latest?.date ?? $0.createdAt) > ($1.latest?.date ?? $1.createdAt)
         }
@@ -40,13 +46,17 @@ struct MasteryPathView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
-                            Button { showingWorkspaceChooser = true } label: {
-                                HStack(spacing: 8) {
-                                    Text(showsSongs ? "song.library" : "song.exercises").font(.largeTitle.bold())
-                                    Image(systemName: "chevron.up.chevron.down").font(.title3.bold())
-                                }
-                            }
+                            #if targetEnvironment(macCatalyst)
+                            Menu {
+                                Button("song.library") { showsSongs = true }
+                                Button("song.exercises") { showsSongs = false }
+                            } label: { workspaceTitle }
                             .buttonStyle(.plain)
+                            .fixedSize(horizontal: true, vertical: false)
+                            #else
+                            Button { showingWorkspaceChooser = true } label: { workspaceTitle }
+                                .buttonStyle(.plain)
+                            #endif
                             Text(showsSongs ? "song.empty.hint" : "mastery.subtitle")
                                 .font(.subheadline).foregroundStyle(.secondary)
                         }
@@ -58,7 +68,7 @@ struct MasteryPathView: View {
                         .accessibilityLabel(showsSongs ? "song.add" : "mastery.add")
                     }
                     if showsSongs {
-                        SongLibraryView(store: store, adding: $addingSong, dailyStatistics: $dailyStatistics)
+                        SongLibraryView(store: store, adding: $addingSong, dailyStatistics: $dailyStatistics, openedSongID: $openedSongID)
                     } else {
                     MasteryWorkspaceControls(openArchive: { showingExerciseArchive = true }, openStatistics: { dailyStatistics = true })
                     TextField("mastery.search", text: $search).textFieldStyle(.roundedBorder)
@@ -68,8 +78,8 @@ struct MasteryPathView: View {
                             ForEach(store.categories, id: \.self) { Text($0).tag($0) }
                         }.pickerStyle(.menu)
                         Spacer()
-                        Button { newestFirst.toggle() } label: {
-                            Label(newestFirst ? "mastery.newest" : "mastery.recent", systemImage: "arrow.up.arrow.down")
+                        Button { if manualOrder { manualOrder = false } else { newestFirst.toggle() } } label: {
+                            Label(manualOrder ? "mastery.manual.order" : (newestFirst ? "mastery.newest" : "mastery.recent"), systemImage: "arrow.up.arrow.down")
                         }.font(.caption)
                     }
                     if filtered.isEmpty {
@@ -83,20 +93,17 @@ struct MasteryPathView: View {
                     }
                     LazyVGrid(columns: MasteryWorkspaceLayout.columns(list: listLayout), spacing: 14) {
                         ForEach(filtered) { exercise in
-                            NavigationLink {
-                                MasteryExerciseView(store: store, exerciseID: exercise.id)
-                            } label: {
-                                if MasteryWorkspaceLayout.usesList(listLayout) {
-                                    MasteryLibraryRow(title: exercise.name,
-                                                      subtitle: exercise.category.isEmpty ? L10n.string("mastery.uncategorized") : exercise.category,
-                                                      detail: "\(exercise.latest.map { String($0.bpm) } ?? "—") → \(exercise.targetBPM) BPM",
-                                                      progress: exercise.progress, icon: "guitars.fill",
-                                                      photoURL: exercise.photos.first.map { store.photoURL($0) })
-                                } else {
-                                    exerciseCard(exercise)
-                                }
+                            Group {
+                                #if targetEnvironment(macCatalyst)
+                                exerciseLibraryLabel(exercise)
+                                #else
+                                NavigationLink { MasteryExerciseView(store: store, exerciseID: exercise.id) } label: { exerciseLibraryLabel(exercise) }
+                                #endif
                             }
                             .buttonStyle(.plain)
+                            .modifier(MasteryReorderModifier(id: exercise.id, songs: false, title: exercise.name, open: { openedExerciseID = exercise.id }) { source in
+                                if store.reorder(source, before: exercise.id, visibleIDs: filtered.map(\.id), songs: false) { manualOrder = true }
+                            })
                             .contextMenu {
                                 Button { editingExercise = exercise } label: {
                                     Label("mastery.edit", systemImage: "pencil")
@@ -128,13 +135,28 @@ struct MasteryPathView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
             }
+            #if targetEnvironment(macCatalyst)
+            .macEditorDialog(isPresented: $adding) {
+                MasteryEditor(store: store, exercise: nil, onClose: { adding = false; if !store.exercises.isEmpty { showingArchive = false } })
+            }
+            .macEditorDialog(isPresented: $addingSong, height: 360) {
+                SongEditor(store: store, onClose: { addingSong = false }) { openedSongID = $0.id }
+            }
+            .macEditorDialog(item: $editingExercise) { exercise in
+                MasteryEditor(store: store, exercise: exercise, onClose: { editingExercise = nil })
+            }
+            #else
             .fullScreenCover(isPresented: $adding, onDismiss: { if !store.exercises.isEmpty { showingArchive = false } }) {
                 MasteryEditor(store: store, exercise: nil)
                     .interactiveDismissDisabled()
             }
+            .sheet(item: $editingExercise) { MasteryEditor(store: store, exercise: $0) }
+            #endif
             .sheet(isPresented: $dailyStatistics) { MasteryDailyStatistics(store: store) }
             .fullScreenCover(isPresented: $showingExerciseArchive) { ExerciseArchiveView(store: store) }
-            .sheet(item: $editingExercise) { MasteryEditor(store: store, exercise: $0) }
+            .navigationDestination(isPresented: Binding(get: { openedExerciseID != nil }, set: { if !$0 { openedExerciseID = nil } })) {
+                if let openedExerciseID { MasteryExerciseView(store: store, exerciseID: openedExerciseID) }
+            }
             .alert("mastery.delete.title", isPresented: $confirmingDelete) {
                 Button("mastery.delete", role: .destructive) {
                     if let deletingExercise { store.delete(deletingExercise.id) }
@@ -151,10 +173,27 @@ struct MasteryPathView: View {
             .confirmationDialog("", isPresented: $showingWorkspaceChooser, titleVisibility: .hidden) {
                 Button("song.library") { showsSongs = true }
                 Button("song.exercises") { showsSongs = false }
-                Button("mastery.cancel", role: .cancel) {}
+                Button("mastery.cancel", role: .cancel) { showingWorkspaceChooser = false }
             }
         }
         .tint(AppColors.rootText)
+    }
+
+    private var workspaceTitle: some View {
+        HStack(spacing: 8) {
+            Text(showsSongs ? "song.library" : "song.exercises").font(.largeTitle.bold())
+            Image(systemName: "chevron.up.chevron.down").font(.title3.bold())
+        }
+    }
+
+    @ViewBuilder private func exerciseLibraryLabel(_ exercise: MasteryExercise) -> some View {
+        if MasteryWorkspaceLayout.usesList(listLayout) {
+            MasteryLibraryRow(title: exercise.name,
+                              subtitle: exercise.category.isEmpty ? L10n.string("mastery.uncategorized") : exercise.category,
+                              detail: "\(exercise.latest.map { String($0.bpm) } ?? "—") → \(exercise.targetBPM) BPM",
+                              progress: exercise.progress, icon: "guitars.fill",
+                              photoURL: exercise.photos.first.map { store.photoURL($0) })
+        } else { exerciseCard(exercise) }
     }
 
     private func exerciseCard(_ exercise: MasteryExercise) -> some View {
@@ -304,20 +343,68 @@ struct MasteryEditor: View {
     @ObservedObject var store: MasteryStore
     let exercise: MasteryExercise?
     let songID: UUID?
+    private let onClose: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var target = "120"
     @State private var category = ""
     @State private var subdivision: PracticeSubdivision? = nil
 
-    init(store: MasteryStore, exercise: MasteryExercise?, songID: UUID? = nil) {
+    init(store: MasteryStore, exercise: MasteryExercise?, songID: UUID? = nil, onClose: (() -> Void)? = nil) {
         self.store = store
         self.exercise = exercise
         self.songID = songID
+        self.onClose = onClose
     }
 
     var body: some View {
-        NavigationStack {
+        Group {
+            #if targetEnvironment(macCatalyst)
+            VStack(spacing: 0) {
+                Text(editorTitle).font(.headline).frame(maxWidth: .infinity, alignment: .leading).padding(20)
+                editorForm.scrollContentBackground(.hidden)
+                HStack {
+                    Spacer()
+                    Button("mastery.cancel", action: close)
+                        .buttonStyle(.bordered)
+                        .keyboardShortcut(.cancelAction)
+                    Button("mastery.save", action: save)
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(!canSave)
+                }.padding(20)
+            }
+            .frame(minWidth: 500, idealWidth: 620, minHeight: 480)
+            .background(AppBackgroundView().ignoresSafeArea())
+            #else
+            NavigationStack {
+                editorForm
+                    .navigationTitle(editorTitle)
+                    .navigationBarTitleDisplayMode(.inline)
+                    .masteryKeyboardDismiss()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) { Button("mastery.cancel", action: close) }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("mastery.save", action: save).disabled(!canSave)
+                        }
+                    }
+            }
+            #endif
+        }
+        .onAppear { if let exercise { name = exercise.name; target = "\(exercise.targetBPM)"; category = exercise.category; subdivision = exercise.subdivision } }
+        .alert("mastery.error", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
+            Button("OK") { store.error = nil }
+        } message: { Text(store.error ?? "") }
+    }
+
+    private var editorTitle: LocalizedStringKey {
+        exercise == nil ? (songID == nil ? "mastery.add" : "song.part.add") : "mastery.edit"
+    }
+    private var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (20...400).contains(Int(target) ?? 0)
+    }
+
+    private var editorForm: some View {
             Form {
                 Section {
                     TextField("mastery.name", text: $name)
@@ -346,30 +433,22 @@ struct MasteryEditor: View {
                     }
                 }
             }
-            .navigationTitle(exercise == nil ? "mastery.add" : "mastery.edit")
-            .navigationBarTitleDisplayMode(.inline)
-            .masteryKeyboardDismiss()
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("mastery.cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("mastery.save") {
-                        guard let bpm = Int(target) else { return }
-                        var value = exercise.flatMap { store.exercise($0.id) }
-                            ?? MasteryExercise(name: name, targetBPM: bpm)
-                        value.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-                        value.targetBPM = bpm
-                        value.subdivision = subdivision
-                        value.category = category.trimmingCharacters(in: .whitespacesAndNewlines)
-                        value.songID = songID ?? value.songID
-                        if store.save(value) { dismiss() }
-                    }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !(20...400).contains(Int(target) ?? 0))
-                }
-            }
-            .onAppear { if let exercise { name = exercise.name; target = "\(exercise.targetBPM)"; category = exercise.category; subdivision = exercise.subdivision } }
-            .alert("mastery.error", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
-                Button("OK") { store.error = nil }
-            } message: { Text(store.error ?? "") }
-        }
+    }
+
+    private func save() {
+        guard canSave, let bpm = Int(target) else { return }
+        var value = exercise.flatMap { store.exercise($0.id) } ?? MasteryExercise(name: name, targetBPM: bpm)
+        value.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        value.targetBPM = bpm
+        value.subdivision = subdivision
+        value.category = category.trimmingCharacters(in: .whitespacesAndNewlines)
+        value.songID = songID ?? value.songID
+        if store.save(value) { close() }
+    }
+
+    private func close() {
+        if let onClose { onClose() }
+        else { dismiss() }
     }
 }
 
@@ -380,6 +459,8 @@ struct MasteryExerciseView: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var practice = MasteryPractice()
     @State private var editing = false
+    @State private var addingMaterialLink = false
+    @State private var wheelEditor: MasteryWheelRequest?
     @State private var deleting = false
     @State private var history = false
     @State private var bpm = "80"
@@ -397,9 +478,6 @@ struct MasteryExerciseView: View {
     @State private var noteValue = 4
     @State private var ratingExercise = false
     @State private var photoItems: [PhotosPickerItem] = []
-    #if targetEnvironment(macCatalyst)
-    @State private var pickingPhotos = false
-    #endif
     @State private var importing = false
     @State private var camera = false
     @State private var pickingPDF = false
@@ -433,7 +511,7 @@ struct MasteryExerciseView: View {
                                     store.update(exerciseID) { $0.difficulty = difficulty }
                                 }
                             }
-                            Button("mastery.cancel", role: .cancel) { }
+                            Button("mastery.cancel", role: .cancel) { ratingExercise = false }
                         }
                         #if targetEnvironment(macCatalyst)
                         HStack(alignment: .top, spacing: 20) {
@@ -444,8 +522,7 @@ struct MasteryExerciseView: View {
                                 metronomePanel
                             }.frame(maxWidth: .infinity)
                             VStack(spacing: 20) {
-                                photos(exercise)
-                                MasteryVideoLinks(store: store, exerciseID: exerciseID).masteryPanel()
+                                MacMaterialsPanel(store: store, target: .exercise(exerciseID), isImporting: $importing, addingLink: $addingMaterialLink).masteryPanel()
                                 notes(exercise)
                             }.frame(maxWidth: .infinity)
                         }
@@ -499,7 +576,25 @@ struct MasteryExerciseView: View {
                         } label: { Image(systemName: "ellipsis.circle") }
                     }
                 }
+                #if targetEnvironment(macCatalyst)
+                .macEditorDialog(isPresented: $editing) {
+                    MasteryEditor(store: store, exercise: self.exercise, onClose: { editing = false })
+                }
+                .macEditorDialog(isPresented: $addingMaterialLink, height: 340) {
+                    MacMaterialLinkEditor(existingLinks: self.exercise?.videoLinks ?? [], onClose: { addingMaterialLink = false }) { link, name in
+                        store.update(exerciseID) {
+                            $0.videoLinks = ($0.videoLinks ?? []) + [link]
+                            var titles = $0.linkTitles ?? [:]; titles[link] = name; $0.linkTitles = titles
+                        }
+                        return self.exercise?.videoLinks?.contains(link) == true
+                    }
+                }
+                .macEditorDialog(item: $wheelEditor, width: 420, height: 260) { request in
+                    MacWheelEditor(request: request, onClose: { wheelEditor = nil })
+                }
+                #else
                 .sheet(isPresented: $editing) { MasteryEditor(store: store, exercise: self.exercise) }
+                #endif
                 .sheet(isPresented: $history) { historySheet }
                 .sheet(isPresented: $camera) {
                     MasteryCamera { image in
@@ -520,7 +615,8 @@ struct MasteryExerciseView: View {
                                 try store.addPDF(data: data, name: url.lastPathComponent, to: exerciseID)
                             } catch { store.error = error.localizedDescription }
                         }
-                    case .failure(let error): store.error = error.localizedDescription
+                    case .failure(let error):
+                        if !FileSelectionError.isCancellation(error) { store.error = error.localizedDescription }
                     }
                 }
                 .fullScreenCover(isPresented: $showingTimer) {
@@ -541,12 +637,12 @@ struct MasteryExerciseView: View {
                         store.delete(exerciseID)
                         if self.exercise == nil { dismiss() }
                     }
-                    Button("mastery.cancel", role: .cancel) { }
+                    Button("mastery.cancel", role: .cancel) { deleting = false }
                 } message: { Text("mastery.delete.message") }
                 .alert("mastery.unsaved.title", isPresented: $showingUnsavedChanges) {
                     Button("mastery.save") { if store.commitExercise(exerciseID) { dismiss() } }
                     Button("mastery.discard", role: .destructive) { store.discardExerciseChanges(exerciseID); dismiss() }
-                    Button("mastery.cancel", role: .cancel) { }
+                    Button("mastery.cancel", role: .cancel) { showingUnsavedChanges = false }
                 } message: { Text("mastery.unsaved.message") }
             }
         }
@@ -559,32 +655,6 @@ struct MasteryExerciseView: View {
             }
         }
         .onDisappear { if !showingTimer { practice.stopAll() } }
-        #if targetEnvironment(macCatalyst)
-        .fileImporter(isPresented: $pickingPhotos, allowedContentTypes: [.image], allowsMultipleSelection: true) { result in
-            guard case .success(let urls) = result else {
-                if case .failure = result { store.error = L10n.string("mastery.photo.error") }
-                return
-            }
-            importing = true
-            Task { @MainActor in
-                defer { importing = false }
-                for url in urls.prefix(max(0, 3 - (exercise?.photos.count ?? 0))) {
-                    do {
-                        let data = try await Task.detached(priority: .userInitiated) {
-                            let access = url.startAccessingSecurityScopedResource()
-                            defer { if access { url.stopAccessingSecurityScopedResource() } }
-                            return try Data(contentsOf: url)
-                        }.value
-                        guard let image = UIImage(data: data) else {
-                            store.error = L10n.string("mastery.photo.error")
-                            continue
-                        }
-                        store.addPhoto(image, to: exerciseID)
-                    } catch { store.error = L10n.string("mastery.photo.error") }
-                }
-            }
-        }
-        #endif
         .onChange(of: scenePhase) { phase in
             if phase != .active {
                 practice.pauseTimer()
@@ -673,15 +743,9 @@ struct MasteryExerciseView: View {
             }
             if exercise.photos.count < 3 {
                 HStack {
-                    #if targetEnvironment(macCatalyst)
-                    Button { pickingPhotos = true } label: {
-                        Label("mastery.photo.add", systemImage: "photo.badge.plus")
-                    }.disabled(importing)
-                    #else
                     PhotosPicker(selection: $photoItems, maxSelectionCount: 3 - exercise.photos.count, matching: .images) {
                         Label("mastery.photo.add", systemImage: "photo.badge.plus")
                     }.disabled(importing)
-                    #endif
                     Spacer()
                     #if !targetEnvironment(macCatalyst)
                     if UIImagePickerController.isSourceTypeAvailable(.camera) {
@@ -754,7 +818,7 @@ struct MasteryExerciseView: View {
                 ForEach(ExerciseDifficulty.allCases, id: \.self) { difficulty in
                     Button(L10n.string(difficulty.localizationKey)) { resultDifficulty = difficulty }
                 }
-                Button("mastery.cancel", role: .cancel) { }
+                Button("mastery.cancel", role: .cancel) { choosingResultDifficulty = false }
             }
             TextField("mastery.result.note", text: $resultNote, axis: .vertical).lineLimit(2...4)
             Button("mastery.record") {
@@ -817,10 +881,12 @@ struct MasteryExerciseView: View {
         showingTimer = true
     }
 
+    private func presentWheel(_ request: MasteryWheelRequest) { wheelEditor = request }
+
     private var timerPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("mastery.timer").font(.headline)
-            MasteryWheelControl(title: "mastery.timer", value: $minutes, range: 1...120, unit: L10n.string("mastery.minutes"))
+            MasteryWheelControl(title: "mastery.timer", value: $minutes, range: 1...120, unit: L10n.string("mastery.minutes"), onRequest: presentWheel)
                 .disabled(practice.running)
             Button(action: openTimer) {
                 Text(Duration.seconds(practice.remaining.rounded(.up)).formatted(.time(pattern: .minuteSecond)))
@@ -839,15 +905,15 @@ struct MasteryExerciseView: View {
     private var metronomePanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("mastery.metronome").font(.headline)
-            MasteryWheelControl(title: "mastery.metronome", value: $metroBPM, range: 30...240, unit: "BPM")
+            MasteryWheelControl(title: "mastery.metronome", value: $metroBPM, range: 30...240, unit: "BPM", onRequest: presentWheel)
             Button("mastery.use.bpm") { if let value = Int(bpm) { metroBPM = min(240, max(30, value)) } }
                 .font(.caption)
             Text("mastery.time.signature").font(.subheadline)
             HStack(spacing: 12) {
-                MasteryWheelControl(title: "mastery.time.signature", value: $beats, range: 1...96, unit: "", compact: true)
+                MasteryWheelControl(title: "mastery.time.signature", value: $beats, range: 1...96, unit: "", compact: true, onRequest: presentWheel)
                     .accessibilityLabel("mastery.beats")
                 Text("/").font(.title2).foregroundStyle(.secondary)
-                MasteryWheelControl(title: "mastery.time.signature", value: $noteValue, range: 2...64, unit: "", values: [2, 4, 8, 16, 32, 64], compact: true)
+                MasteryWheelControl(title: "mastery.time.signature", value: $noteValue, range: 2...64, unit: "", values: [2, 4, 8, 16, 32, 64], compact: true, onRequest: presentWheel)
                     .accessibilityLabel("mastery.note.value")
                 Spacer()
             }
@@ -920,7 +986,7 @@ private extension View {
     }
 }
 
-private struct MasteryPhotoViewer: View {
+struct MasteryPhotoViewer: View {
     let url: URL
     @Environment(\.dismiss) private var dismiss
     var body: some View {
@@ -1038,6 +1104,47 @@ private struct MasteryProgressPlot: View {
     }
 }
 
+private struct MasteryWheelRequest: Identifiable {
+    let id = UUID()
+    let title: LocalizedStringKey
+    let value: Binding<Int>
+    let range: ClosedRange<Int>
+    let unit: String
+    let values: [Int]?
+}
+
+#if targetEnvironment(macCatalyst)
+private struct MacWheelEditor: View {
+    let request: MasteryWheelRequest
+    let onClose: () -> Void
+    @State private var draft: Int
+
+    init(request: MasteryWheelRequest, onClose: @escaping () -> Void) {
+        self.request = request
+        self.onClose = onClose
+        _draft = State(initialValue: request.value.wrappedValue)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text(request.title).font(.headline)
+            Picker(request.title, selection: $draft) {
+                ForEach(request.values ?? Array(request.range), id: \.self) { number in
+                    Text("\(number) \(request.unit)").tag(number)
+                }
+            }.pickerStyle(.menu)
+            Spacer(minLength: 0)
+            HStack {
+                Spacer()
+                Button("mastery.cancel", action: onClose).keyboardShortcut(.cancelAction)
+                Button("mastery.done") { request.value.wrappedValue = draft; onClose() }
+                    .buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
+            }
+        }.padding(24).background(AppBackgroundView())
+    }
+}
+#endif
+
 private struct MasteryWheelControl: View {
     let title: LocalizedStringKey
     @Binding var value: Int
@@ -1045,13 +1152,18 @@ private struct MasteryWheelControl: View {
     let unit: String
     var values: [Int]? = nil
     var compact = false
+    var onRequest: ((MasteryWheelRequest) -> Void)? = nil
     @State private var showing = false
     @State private var draft = 0
 
     var body: some View {
         Button {
+            #if targetEnvironment(macCatalyst)
+            onRequest?(MasteryWheelRequest(title: title, value: $value, range: range, unit: unit, values: values))
+            #else
             draft = value
             showing = true
+            #endif
         } label: {
             HStack {
                 Text("\(value) \(unit)").font(.title3.monospacedDigit().bold())
@@ -1064,6 +1176,7 @@ private struct MasteryWheelControl: View {
         }
         .accessibilityLabel(title)
         .accessibilityValue("\(value) \(unit)")
+        #if !targetEnvironment(macCatalyst)
         .sheet(isPresented: $showing) {
             NavigationStack {
                 Picker(title, selection: $draft) {
@@ -1082,5 +1195,6 @@ private struct MasteryWheelControl: View {
                     }
             }.presentationDetents([.height(300)])
         }
+        #endif
     }
 }

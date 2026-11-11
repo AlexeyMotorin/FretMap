@@ -155,7 +155,8 @@
 
 "mastery.chart.legend" = "Green: clean · orange: with mistakes · dashed: target";
 
-"mastery.notes" = "What to focus on";
+"mastery.notes" = "Notes";
+"mastery.manual.order" = "Manual order";
 
 "mastery.notes.hint" = "Hand position, rhythm, picking, difficult passages…";
 
@@ -365,3 +366,10 @@
 "app.language.system" = "لغة النظام";
 "mac.chord.expand" = "فتح الوتر بملء الشاشة";
 "mac.links.hint" = "ألصق عنوان الموقع. العنوان اختياري؛ سيُستخدم اسم الموقع.";
+"mac.materials.add" = "إضافة ملفات";
+"mac.materials.drop.active" = "أفلت لإضافة الملفات";
+"mac.materials.drop.hint" = "اسحب الصور أو ملفات PDF إلى هنا";
+"mac.materials.limits" = "حتى 3 صور وملف PDF واحد بحجم 5 ميغابايت. لا تُحتسب مواد الأغنية المشتركة ضمن هذا الحد.";
+"mac.materials.inherited" = "مواد الأغنية";
+"mac.materials.inherited.hint" = "مشتركة بين جميع الأجزاء. عدّلها داخل الأغنية.";
+"mac.materials.invalid" = "يتم دعم الصور وملفات PDF فقط.";

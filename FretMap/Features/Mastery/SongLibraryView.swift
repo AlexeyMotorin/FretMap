@@ -10,14 +10,20 @@ struct SongLibraryView: View {
     @Binding var dailyStatistics: Bool
     @State private var showingArchive = false
     @State private var deleting: MasterySong?
-    @State private var openedSongID: UUID?
+    @Binding var openedSongID: UUID?
     @State private var search = ""
     @State private var newestFirst = true
+    @AppStorage("mac.mastery.songManualOrder") private var manualOrder = false
 
     private var songs: [MasterySong] {
         store.songs.filter {
             !$0.isArchived && (search.isEmpty || $0.title.localizedCaseInsensitiveContains(search) || $0.artist.localizedCaseInsensitiveContains(search))
-        }.sorted { newestFirst ? $0.createdAt > $1.createdAt : $0.createdAt < $1.createdAt }
+        }.sorted {
+            #if targetEnvironment(macCatalyst)
+            if manualOrder, $0.manualOrder != $1.manualOrder { return ($0.manualOrder ?? -1) < ($1.manualOrder ?? -1) }
+            #endif
+            return newestFirst ? $0.createdAt > $1.createdAt : $0.createdAt < $1.createdAt
+        }
     }
 
     var body: some View {
@@ -27,8 +33,8 @@ struct SongLibraryView: View {
             HStack {
                 Text("song.library").font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Button { newestFirst.toggle() } label: {
-                    Label(newestFirst ? "mastery.newest" : "song.oldest", systemImage: "arrow.up.arrow.down")
+                Button { if manualOrder { manualOrder = false } else { newestFirst.toggle() } } label: {
+                    Label(manualOrder ? "mastery.manual.order" : (newestFirst ? "mastery.newest" : "song.oldest"), systemImage: "arrow.up.arrow.down")
                 }.font(.caption)
             }
 
@@ -45,19 +51,17 @@ struct SongLibraryView: View {
             } else {
                 LazyVGrid(columns: MasteryWorkspaceLayout.columns(list: listLayout), spacing: 14) {
                     ForEach(songs) { song in
-                        NavigationLink { SongDetailView(store: store, songID: song.id) } label: {
-                            if MasteryWorkspaceLayout.usesList(listLayout) {
-                                let parts = store.parts(for: song.id)
-                                let learned = parts.filter(\.isArchived).count
-                                MasteryLibraryRow(title: song.title, subtitle: song.artist,
-                                                  detail: "\(learned)/\(parts.count) · \(L10n.string("song.parts"))",
-                                                  progress: parts.isEmpty ? 0 : Double(learned) / Double(parts.count),
-                                                  completed: store.isLearned(song))
-                            } else {
-                                songCard(song)
-                            }
+                        Group {
+                            #if targetEnvironment(macCatalyst)
+                            songLibraryLabel(song)
+                            #else
+                            NavigationLink { SongDetailView(store: store, songID: song.id) } label: { songLibraryLabel(song) }
+                            #endif
                         }
                         .buttonStyle(.plain)
+                        .modifier(MasteryReorderModifier(id: song.id, songs: true, title: song.title, open: { openedSongID = song.id }) { source in
+                            if store.reorder(source, before: song.id, visibleIDs: songs.map(\.id), songs: true) { manualOrder = true }
+                        })
                         .contextMenu {
                             if song.isArchived {
                                 Button { store.setSongArchived(false, id: song.id) } label: {
@@ -81,11 +85,13 @@ struct SongLibraryView: View {
                 }
             }
         }
+        #if !targetEnvironment(macCatalyst)
         .sheet(isPresented: $adding) {
             SongEditor(store: store) { song in
                 openedSongID = song.id
             }
         }
+        #endif
         .fullScreenCover(isPresented: $showingArchive) { SongArchiveView(store: store) }
         .navigationDestination(isPresented: Binding(get: { openedSongID != nil }, set: { if !$0 { openedSongID = nil } })) {
             if let openedSongID { SongDetailView(store: store, songID: openedSongID) }
@@ -97,6 +103,17 @@ struct SongLibraryView: View {
             }
             Button("mastery.cancel", role: .cancel) { deleting = nil }
         } message: { Text("song.delete.message") }
+    }
+
+    @ViewBuilder private func songLibraryLabel(_ song: MasterySong) -> some View {
+        if MasteryWorkspaceLayout.usesList(listLayout) {
+            let parts = store.parts(for: song.id)
+            let learned = parts.filter(\.isArchived).count
+            MasteryLibraryRow(title: song.title, subtitle: song.artist,
+                              detail: "\(learned)/\(parts.count) · \(L10n.string("song.parts"))",
+                              progress: parts.isEmpty ? 0 : Double(learned) / Double(parts.count),
+                              completed: store.isLearned(song))
+        } else { songCard(song) }
     }
 
     private func songCard(_ song: MasterySong) -> some View {
@@ -121,45 +138,74 @@ struct SongLibraryView: View {
     }
 }
 
-private struct SongEditor: View {
+struct SongEditor: View {
     @ObservedObject var store: MasteryStore
     let onCreated: (MasterySong) -> Void
     let song: MasterySong?
+    private let onClose: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
     @State private var artist = ""
     @State private var title = ""
 
-    init(store: MasteryStore, song: MasterySong? = nil, onCreated: @escaping (MasterySong) -> Void) {
+    init(store: MasteryStore, song: MasterySong? = nil, onClose: (() -> Void)? = nil, onCreated: @escaping (MasterySong) -> Void) {
         self.store = store
         self.song = song
         self.onCreated = onCreated
+        self.onClose = onClose
         _artist = State(initialValue: song?.artist ?? "")
         _title = State(initialValue: song?.title ?? "")
     }
 
     var body: some View {
-        NavigationStack {
+        Group {
+            #if targetEnvironment(macCatalyst)
+            VStack(spacing: 0) {
+                Text(song == nil ? "song.add" : "mastery.edit").font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(20)
+                editorForm.scrollContentBackground(.hidden)
+                HStack {
+                    Spacer()
+                    Button("mastery.cancel", action: close).keyboardShortcut(.cancelAction)
+                    Button(song == nil ? "song.create" : "mastery.save", action: save)
+                        .buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction).disabled(!canSave)
+                }.padding(20)
+            }.background(AppBackgroundView().ignoresSafeArea())
+            #else
+            NavigationStack {
+                editorForm
+                    .navigationTitle(song == nil ? "song.add" : "mastery.edit")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) { Button("mastery.cancel", action: close) }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button(song == nil ? "song.create" : "mastery.save", action: save).disabled(!canSave)
+                        }
+                    }
+            }
+            #endif
+        }
+    }
+
+    private var canSave: Bool {
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !artist.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    private var editorForm: some View {
             Form {
                 Section {
                     TextField("song.artist", text: $artist)
                     TextField("song.name", text: $title)
                 } footer: { Text("song.create.hint") }
             }
-            .navigationTitle(song == nil ? "song.add" : "mastery.edit")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("mastery.cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(song == nil ? "song.create" : "mastery.save") {
-                        var value = song.flatMap { store.song($0.id) } ?? MasterySong(title: "", artist: "")
-                        value.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-                        value.artist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
-                        if store.save(value) { onCreated(value); dismiss() }
-                    }
-                    .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || artist.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-            }
-        }
+    }
+    private func save() {
+        guard canSave else { return }
+        var value = song.flatMap { store.song($0.id) } ?? MasterySong(title: "", artist: "")
+        value.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        value.artist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
+        if store.save(value) { close(); onCreated(value) }
+    }
+    private func close() {
+        if let onClose { onClose() } else { dismiss() }
     }
 }
 
@@ -282,8 +328,12 @@ private struct SongDetailView: View {
                         }
                     }
                     Section("song.materials") {
+                        #if targetEnvironment(macCatalyst)
+                        MacMaterialsPanel(store: store, target: .song(songID), isImporting: $importingPDF, addingLink: $addingMaterialLink, showsHeading: false)
+                        #else
                         SongMaterials(store: store, songID: songID, addingLink: $addingMaterialLink, selectedPDF: $selectedSongPDF, pickingPDF: $pickingPDF)
                             .disabled(importingPDF)
+                        #endif
                     }
                     Section("song.parts") {
                         if parts.isEmpty {
@@ -331,23 +381,35 @@ private struct SongDetailView: View {
                 Button { addingPart = true } label: { Image(systemName: "plus") }.accessibilityLabel("song.part.add")
             }
         }
-        .sheet(isPresented: $addingPart) { MasteryEditor(store: store, exercise: nil, songID: songID) }
-        .sheet(isPresented: $editingSong) { SongEditor(store: store, song: song) { _ in } }
-        .sheet(isPresented: $addingMaterialLink) {
-            #if targetEnvironment(macCatalyst)
-            MacMaterialLinkEditor(existingLinks: self.song?.materialLinks ?? []) { link, name in
+        #if targetEnvironment(macCatalyst)
+        .macEditorDialog(isPresented: $addingPart) {
+            MasteryEditor(store: store, exercise: nil, songID: songID, onClose: { addingPart = false })
+        }
+        .macEditorDialog(isPresented: $editingSong, height: 360) {
+            SongEditor(store: store, song: song, onClose: { editingSong = false }) { _ in }
+        }
+        .macEditorDialog(item: $editingPart) { part in
+            MasteryEditor(store: store, exercise: part, onClose: { editingPart = nil })
+        }
+        .macEditorDialog(isPresented: $addingMaterialLink, height: 340) {
+            MacMaterialLinkEditor(existingLinks: self.song?.materialLinks ?? [], onClose: { addingMaterialLink = false }) { link, name in
                 store.updateSong(songID) {
                     $0.materialLinks = ($0.materialLinks ?? []) + [link]
-                    var titles = $0.materialLinkTitles ?? [:]
-                    titles[link] = name
-                    $0.materialLinkTitles = titles
+                    var titles = $0.materialLinkTitles ?? [:]; titles[link] = name; $0.materialLinkTitles = titles
                 }
                 return self.song?.materialLinks?.contains(link) == true
             }
-            #else
-            SongMaterialLinkEditor(store: store, songID: songID)
-            #endif
         }
+        #else
+        .sheet(isPresented: $addingPart) {
+            MasteryEditor(store: store, exercise: nil, songID: songID, onClose: { addingPart = false })
+        }
+        .sheet(isPresented: $editingSong) { SongEditor(store: store, song: song) { _ in } }
+        .sheet(isPresented: $addingMaterialLink) {
+            SongMaterialLinkEditor(store: store, songID: songID)
+        }
+        .sheet(item: $editingPart) { MasteryEditor(store: store, exercise: $0) }
+        #endif
         .fullScreenCover(item: $selectedSongPDF) { pdf in MasteryPDFViewer(url: store.photoURL(pdf.id), name: pdf.name) }
         .fileImporter(isPresented: $pickingPDF, allowedContentTypes: [.pdf]) { result in
             switch result {
@@ -360,13 +422,13 @@ private struct SongDetailView: View {
                         try store.addSongPDF(data: data, name: url.lastPathComponent, to: songID)
                     } catch { importError = error.localizedDescription }
                 }
-            case .failure(let error): importError = error.localizedDescription
+            case .failure(let error):
+                if !FileSelectionError.isCancellation(error) { importError = error.localizedDescription }
             }
         }
         .alert("mastery.error", isPresented: Binding(get: { importError != nil || store.error != nil }, set: { if !$0 { importError = nil; store.error = nil } })) {
             Button("OK") { importError = nil; store.error = nil }
         } message: { Text(importError ?? store.error ?? "") }
-        .sheet(item: $editingPart) { MasteryEditor(store: store, exercise: $0) }
         .alert("mastery.delete.title", isPresented: Binding(get: { deletingPart != nil }, set: { if !$0 { deletingPart = nil } })) {
             Button("mastery.delete", role: .destructive) { if let deletingPart { store.delete(deletingPart.id) }; deletingPart = nil }
             Button("mastery.cancel", role: .cancel) { deletingPart = nil }
@@ -374,7 +436,7 @@ private struct SongDetailView: View {
         .alert("mastery.unsaved.title", isPresented: $showingUnsavedChanges) {
             Button("mastery.save") { if store.commitSong(songID) { dismiss() } }
             Button("mastery.discard", role: .destructive) { store.discardSongChanges(songID); dismiss() }
-            Button("mastery.cancel", role: .cancel) { }
+            Button("mastery.cancel", role: .cancel) { showingUnsavedChanges = false }
         } message: { Text("mastery.unsaved.message") }
     }
 

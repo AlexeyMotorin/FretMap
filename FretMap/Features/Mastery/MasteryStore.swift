@@ -63,6 +63,7 @@ nonisolated enum ExerciseDifficulty: String, Codable, CaseIterable, Sendable {
 nonisolated struct MasteryExercise: Identifiable, Codable, Sendable, Equatable {
     var id = UUID()
     var name: String
+    var manualOrder: Int? = nil
     var targetBPM: Int
     var subdivision: PracticeSubdivision? = nil
     var category: String = ""
@@ -98,14 +99,17 @@ nonisolated struct MasterySong: Identifiable, Codable, Sendable, Equatable {
     var id = UUID()
     var title: String
     var artist: String
+    var manualOrder: Int? = nil
     var archivedAt: Date? = nil
     var createdAt = Date()
     var materialLinks: [String]? = nil
     var materialLinkTitles: [String: String]? = nil
     var pdfs: [MasteryPDF]? = nil
+    var photos: [String]? = nil
 
     var isArchived: Bool { archivedAt != nil }
     var attachedPDFs: [MasteryPDF] { pdfs ?? [] }
+    var attachedPhotos: [String] { photos ?? [] }
     var hasValidMaterialLinks: Bool {
         let links = materialLinks ?? []
         return Set(links).count == links.count && links.allSatisfy {
@@ -114,20 +118,23 @@ nonisolated struct MasterySong: Identifiable, Codable, Sendable, Equatable {
         }
     }
 
-    enum CodingKeys: String, CodingKey { case id, title, artist, archivedAt, createdAt, materialLinks, materialLinkTitles, pdfs }
-    init(id: UUID = UUID(), title: String, artist: String, archivedAt: Date? = nil, createdAt: Date = Date(), materialLinks: [String]? = nil, materialLinkTitles: [String: String]? = nil, pdfs: [MasteryPDF]? = nil) {
+    enum CodingKeys: String, CodingKey { case id, title, artist, archivedAt, createdAt, materialLinks, materialLinkTitles, pdfs, photos, manualOrder }
+    init(id: UUID = UUID(), title: String, artist: String, archivedAt: Date? = nil, createdAt: Date = Date(), materialLinks: [String]? = nil, materialLinkTitles: [String: String]? = nil, pdfs: [MasteryPDF]? = nil, photos: [String]? = nil) {
         self.id = id; self.title = title; self.artist = artist; self.archivedAt = archivedAt; self.createdAt = createdAt
         self.materialLinks = materialLinks; self.materialLinkTitles = materialLinkTitles; self.pdfs = pdfs
+        self.photos = photos
     }
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         id = try values.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
         title = try values.decode(String.self, forKey: .title)
         artist = try values.decode(String.self, forKey: .artist)
+        manualOrder = try values.decodeIfPresent(Int.self, forKey: .manualOrder)
         archivedAt = try values.decodeIfPresent(Date.self, forKey: .archivedAt)
         createdAt = try values.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
         materialLinks = try values.decodeIfPresent([String].self, forKey: .materialLinks)
         materialLinkTitles = try values.decodeIfPresent([String: String].self, forKey: .materialLinkTitles)
+        photos = try values.decodeIfPresent([String].self, forKey: .photos)
         pdfs = try values.decodeIfPresent([MasteryPDF].self, forKey: .pdfs)
     }
 }
@@ -176,6 +183,10 @@ final class MasteryStore: ObservableObject {
 
     func exercise(_ id: UUID) -> MasteryExercise? { exerciseDrafts[id] ?? exercises.first { $0.id == id } }
     func song(_ id: UUID) -> MasterySong? { songDrafts[id] ?? songs.first { $0.id == id } }
+    /// Parent materials are shared, never copied into a part's own attachments.
+    func inheritedMaterials(for exerciseID: UUID) -> MasterySong? {
+        exercise(exerciseID)?.songID.flatMap { song($0) }
+    }
     func beginEditingExercise(_ id: UUID) { if exerciseDrafts[id] == nil, let value = exercises.first(where: { $0.id == id }) { exerciseDrafts[id] = value } }
     func beginEditingSong(_ id: UUID) { if songDrafts[id] == nil, let value = songs.first(where: { $0.id == id }) { songDrafts[id] = value } }
     func hasUnsavedExerciseChanges(_ id: UUID) -> Bool {
@@ -211,7 +222,7 @@ final class MasteryStore: ObservableObject {
 
     func discardSongChanges(_ id: UUID) {
         guard let draft = songDrafts.removeValue(forKey: id), let saved = songs.first(where: { $0.id == id }) else { return }
-        for pdf in Set(draft.attachedPDFs.map(\.id)).subtracting(saved.attachedPDFs.map(\.id)) { try? FileManager.default.removeItem(at: photoURL(pdf)) }
+        for file in Set(draft.attachedPhotos + draft.attachedPDFs.map(\.id)).subtracting(saved.attachedPhotos + saved.attachedPDFs.map(\.id)) { try? FileManager.default.removeItem(at: photoURL(file)) }
     }
 
     func parts(for songID: UUID) -> [MasteryExercise] {
@@ -254,7 +265,7 @@ final class MasteryStore: ObservableObject {
         for part in partsToDelete {
             for name in part.photos + part.attachedPDFs.map(\.id) { try? FileManager.default.removeItem(at: photoURL(name)) }
         }
-        for pdf in songToDelete?.attachedPDFs ?? [] { try? FileManager.default.removeItem(at: photoURL(pdf.id)) }
+        for file in (songToDelete?.attachedPhotos ?? []) + (songToDelete?.attachedPDFs.map(\.id) ?? []) { try? FileManager.default.removeItem(at: photoURL(file)) }
     }
 
     func updateSong(_ id: UUID, _ change: (inout MasterySong) -> Void) {
@@ -325,7 +336,7 @@ final class MasteryStore: ObservableObject {
         guard canWrite else { throw BackupError.invalid }
         var photos: [String: Data] = [:]
         var total = 0
-        for name in Set(exercises.flatMap(\.photos)) {
+        for name in Set(exercises.flatMap(\.photos) + songs.flatMap(\.attachedPhotos)) {
             let data = try Data(contentsOf: photoURL(name))
             total += data.count
             guard total <= 70 * 1024 * 1024 else { throw BackupError.tooLarge }
@@ -344,7 +355,7 @@ final class MasteryStore: ObservableObject {
     func restoreBackup(_ backup: FretMapBackup) throws {
         try backup.validate()
         var created: [URL] = []
-        let oldPhotos = Set(exercises.flatMap { $0.photos + $0.attachedPDFs.map(\.id) } + songs.flatMap { $0.attachedPDFs.map(\.id) })
+        let oldPhotos = Set(exercises.flatMap { $0.photos + $0.attachedPDFs.map(\.id) } + songs.flatMap { $0.attachedPhotos + $0.attachedPDFs.map(\.id) })
         let oldCanWrite = canWrite
         var committed = false
         defer {
@@ -354,7 +365,7 @@ final class MasteryStore: ObservableObject {
             }
         }
         var names: [String: String] = [:]
-        for original in Set(backup.exercises.flatMap(\.photos)) {
+        for original in Set(backup.exercises.flatMap(\.photos) + backup.songs.flatMap(\.attachedPhotos)) {
             guard let data = backup.photos[original] else { throw BackupError.invalid }
             let name = UUID().uuidString + ".jpg"
             let url = photoURL(name)
@@ -380,6 +391,7 @@ final class MasteryStore: ObservableObject {
             }
         }
         for index in restoredSongs.indices {
+            restoredSongs[index].photos = restoredSongs[index].attachedPhotos.compactMap { names[$0] }
             restoredSongs[index].pdfs = restoredSongs[index].attachedPDFs.compactMap { pdf in
                 pdfNames[pdf.id].map { MasteryPDF(id: $0, name: pdf.name) }
             }
@@ -391,6 +403,45 @@ final class MasteryStore: ObservableObject {
         committed = true
         error = nil
         for name in oldPhotos { try? FileManager.default.removeItem(at: photoURL(name)) }
+    }
+
+    /// Reorder only the displayed subset; hidden items keep their relative order.
+    @discardableResult
+    func reorder(_ source: UUID, before target: UUID, visibleIDs: [UUID], songs: Bool) -> Bool {
+        guard source != target, Set(visibleIDs).count == visibleIDs.count,
+              let destination = visibleIDs.firstIndex(of: target), visibleIDs.contains(source) else { return false }
+        var ids = visibleIDs.filter { $0 != source }
+        ids.insert(source, at: min(destination, ids.count))
+        func ranks(in all: [UUID]) -> [UUID: Int] {
+            guard Set(visibleIDs).isSubset(of: Set(all)) else { return [:] }
+            var remaining = ids.makeIterator()
+            let visible = Set(visibleIDs)
+            let ordered = all.map { visible.contains($0) ? remaining.next()! : $0 }
+            return Dictionary(uniqueKeysWithValues: ordered.enumerated().map { ($0.element, $0.offset) })
+        }
+        if songs {
+            var next = self.songs
+            let ranks = ranks(in: next.sorted {
+                if $0.manualOrder != $1.manualOrder { return ($0.manualOrder ?? -1) < ($1.manualOrder ?? -1) }
+                return $0.createdAt > $1.createdAt
+            }.map(\.id))
+            guard !ranks.isEmpty else { return false }
+            for index in next.indices {
+                if let rank = ranks[next[index].id] { next[index].manualOrder = rank }
+            }
+            return persistSongs(next)
+        } else {
+            var next = exercises
+            let ranks = ranks(in: next.sorted {
+                if $0.manualOrder != $1.manualOrder { return ($0.manualOrder ?? -1) < ($1.manualOrder ?? -1) }
+                return $0.createdAt > $1.createdAt
+            }.map(\.id))
+            guard !ranks.isEmpty else { return false }
+            for index in next.indices {
+                if let rank = ranks[next[index].id] { next[index].manualOrder = rank }
+            }
+            return persist(next)
+        }
     }
 
     private func persist(_ next: [MasteryExercise]) -> Bool {
@@ -414,8 +465,8 @@ final class MasteryStore: ObservableObject {
         }
         do {
             try JSONEncoder().encode(Snapshot(exercises: nextExercises, songs: nextSongs)).write(to: snapshotURL, options: .atomic)
-            let oldFiles = Set(exercises.flatMap { $0.photos + $0.attachedPDFs.map(\.id) } + songs.flatMap { $0.attachedPDFs.map(\.id) })
-            let newFiles = Set(nextExercises.flatMap { $0.photos + $0.attachedPDFs.map(\.id) } + nextSongs.flatMap { $0.attachedPDFs.map(\.id) })
+            let oldFiles = Set(exercises.flatMap { $0.photos + $0.attachedPDFs.map(\.id) } + songs.flatMap { $0.attachedPhotos + $0.attachedPDFs.map(\.id) })
+            let newFiles = Set(nextExercises.flatMap { $0.photos + $0.attachedPDFs.map(\.id) } + nextSongs.flatMap { $0.attachedPhotos + $0.attachedPDFs.map(\.id) })
             exercises = nextExercises
             songs = nextSongs
             for name in oldFiles.subtracting(newFiles) { try? FileManager.default.removeItem(at: photoURL(name)) }
@@ -428,8 +479,38 @@ final class MasteryStore: ObservableObject {
 
     func photoURL(_ name: String) -> URL { directory.appendingPathComponent(name) }
 
+    func addSongPhoto(_ image: UIImage, to id: UUID) throws {
+        guard var song = song(id), song.attachedPhotos.count < 3 else { throw BackupError.invalid }
+        let data = try preparedPhotoData(image)
+        let name = UUID().uuidString + ".jpg"
+        try data.write(to: photoURL(name), options: .atomic)
+        song.photos = song.attachedPhotos + [name]
+        if !save(song) {
+            try? FileManager.default.removeItem(at: photoURL(name))
+            throw BackupError.storage
+        }
+    }
+
+    func removeSongPhoto(_ name: String, from id: UUID) {
+        guard var song = song(id) else { return }
+        song.photos = song.attachedPhotos.filter { $0 != name }
+        if save(song), !(songs.first { $0.id == id }?.attachedPhotos.contains(name) ?? false) {
+            try? FileManager.default.removeItem(at: photoURL(name))
+        }
+    }
+
     func addPhoto(_ image: UIImage, to id: UUID) {
         guard var exercise = exercise(id), exercise.photos.count < 3 else { return }
+        let name = UUID().uuidString + ".jpg"
+        do {
+            let data = try preparedPhotoData(image)
+            try data.write(to: photoURL(name), options: .atomic)
+            exercise.photos.append(name)
+            if !save(exercise) { try? FileManager.default.removeItem(at: photoURL(name)) }
+        } catch { self.error = L10n.string("mastery.photo.error") }
+    }
+
+    private func preparedPhotoData(_ image: UIImage) throws -> Data {
         let ratio = min(1, 2400 / max(image.size.width, image.size.height))
         let size = CGSize(width: max(1, image.size.width * ratio), height: max(1, image.size.height * ratio))
         let format = UIGraphicsImageRendererFormat()
@@ -437,13 +518,8 @@ final class MasteryStore: ObservableObject {
         let resized = UIGraphicsImageRenderer(size: size, format: format).image { _ in
             image.draw(in: CGRect(origin: .zero, size: size))
         }
-        guard let data = resized.jpegData(compressionQuality: 0.9) else { error = L10n.string("mastery.photo.error"); return }
-        let name = UUID().uuidString + ".jpg"
-        do {
-            try data.write(to: photoURL(name), options: .atomic)
-            exercise.photos.append(name)
-            if !save(exercise) { try? FileManager.default.removeItem(at: photoURL(name)) }
-        } catch { self.error = L10n.string("mastery.photo.error") }
+        guard let data = resized.jpegData(compressionQuality: 0.9) else { throw BackupError.invalid }
+        return data
     }
 
     func addPDF(data: Data, name: String, to id: UUID) throws {

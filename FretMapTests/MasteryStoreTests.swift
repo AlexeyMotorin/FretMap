@@ -2,6 +2,29 @@ import XCTest
 @testable import FretMap
 
 final class MasteryStoreTests: XCTestCase {
+    @MainActor func testManualOrderMovesBothDirectionsAndSurvivesRestart() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = MasteryStore(directory: directory)
+        let exercises = (0..<3).map { MasteryExercise(name: "Exercise \($0)", targetBPM: 120) }
+        let songs = (0..<3).map { MasterySong(title: "Song \($0)", artist: "Artist") }
+        exercises.forEach { XCTAssertTrue(store.save($0)) }
+        songs.forEach { XCTAssertTrue(store.save($0)) }
+        for isSong in [false, true] {
+            let ids = isSong ? songs.map(\.id) : exercises.map(\.id)
+            XCTAssertTrue(store.reorder(ids[0], before: ids[2], visibleIDs: ids, songs: isSong))
+            let restored = MasteryStore(directory: directory)
+            let actual = isSong ? restored.songs.sorted { $0.manualOrder! < $1.manualOrder! }.map(\.id)
+                : restored.exercises.sorted { $0.manualOrder! < $1.manualOrder! }.map(\.id)
+            XCTAssertEqual(actual, [ids[1], ids[2], ids[0]])
+            XCTAssertTrue(store.reorder(ids[0], before: ids[1], visibleIDs: actual, songs: isSong))
+            let reordered = isSong ? store.songs.sorted { $0.manualOrder! < $1.manualOrder! }.map(\.id)
+                : store.exercises.sorted { $0.manualOrder! < $1.manualOrder! }.map(\.id)
+            XCTAssertEqual(reordered, ids)
+            XCTAssertFalse(store.reorder(UUID(), before: ids[1], visibleIDs: ids, songs: isSong))
+        }
+    }
+
     func testArchiveAndReactivatePreserveHistoryAndSurviveRestart() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }

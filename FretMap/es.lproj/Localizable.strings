@@ -155,7 +155,8 @@
 
 "mastery.chart.legend" = "Green: clean · orange: with mistakes · dashed: target";
 
-"mastery.notes" = "What to focus on";
+"mastery.notes" = "Notes";
+"mastery.manual.order" = "Manual order";
 
 "mastery.notes.hint" = "Hand position, rhythm, picking, difficult passages…";
 
@@ -365,3 +366,10 @@
 "app.language.system" = "Idioma del sistema";
 "mac.chord.expand" = "Abrir acorde a pantalla completa";
 "mac.links.hint" = "Pega la dirección del sitio. El título es opcional; se usará el nombre del sitio.";
+"mac.materials.add" = "Añadir archivos";
+"mac.materials.drop.active" = "Suelta para añadir archivos";
+"mac.materials.drop.hint" = "Arrastra imágenes o PDF aquí";
+"mac.materials.limits" = "Hasta 3 imágenes y 1 PDF de hasta 5 MB. El material compartido no cuenta para este límite.";
+"mac.materials.inherited" = "Material de la canción";
+"mac.materials.inherited.hint" = "Disponible en todas las partes. Edítalo en la canción.";
+"mac.materials.invalid" = "Solo se admiten imágenes y archivos PDF.";

@@ -16,6 +16,7 @@ nonisolated enum MaterialLinkAddress {
 #if targetEnvironment(macCatalyst)
 struct MacMaterialLinkEditor: View {
     let existingLinks: [String]
+    var onClose: (() -> Void)? = nil
     let onSave: (String, String) -> Bool
     @Environment(\.dismiss) private var dismiss
     @State private var title = ""
@@ -30,7 +31,7 @@ struct MacMaterialLinkEditor: View {
             HStack {
                 Text("mastery.links.add").font(.title2.bold())
                 Spacer()
-                Button { dismiss() } label: { Image(systemName: "xmark").frame(width: 32, height: 32) }
+                Button(action: close) { Image(systemName: "xmark").frame(width: 32, height: 32) }
                     .accessibilityLabel("mastery.cancel").keyboardShortcut(.cancelAction)
             }
             TextField("mastery.links.url", text: $address)
@@ -41,11 +42,11 @@ struct MacMaterialLinkEditor: View {
                 .font(.caption).foregroundStyle(.secondary)
             HStack {
                 Spacer()
-                Button("mastery.cancel") { dismiss() }
+                Button("mastery.cancel", action: close)
                 Button {
                     guard let url, !isDuplicate else { return }
                     let name = title.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if onSave(url.absoluteString, name.isEmpty ? (url.host ?? url.absoluteString) : name) { dismiss() }
+                    if onSave(url.absoluteString, name.isEmpty ? (url.host ?? url.absoluteString) : name) { close() }
                 } label: { Label("mastery.save", systemImage: "checkmark") }
                     .buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
                     .disabled(url == nil || isDuplicate)
@@ -54,9 +55,12 @@ struct MacMaterialLinkEditor: View {
         .padding(28).frame(maxWidth: 560)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(AppBackgroundView().ignoresSafeArea())
-        .presentationDetents([.height(340)])
         .preferredColorScheme(.dark)
         .onAppear { addressFocused = true }
+    }
+
+    private func close() {
+        if let onClose { onClose() } else { dismiss() }
     }
 }
 #endif

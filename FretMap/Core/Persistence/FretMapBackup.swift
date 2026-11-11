@@ -42,7 +42,9 @@ nonisolated struct FretMapBackup: Codable, Sendable {
               Set(songs.map(\.id)).count == songs.count,
               songs.allSatisfy({ !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !$0.artist.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }),
               songs.allSatisfy({ song in
-                  song.hasValidMaterialLinks && song.attachedPDFs.count <= 8 && Set(song.attachedPDFs.map(\.id)).count == song.attachedPDFs.count &&
+                  song.hasValidMaterialLinks && song.attachedPhotos.count <= 8 &&
+                  song.attachedPhotos.allSatisfy { photos[$0] != nil } &&
+                  song.attachedPDFs.count <= 8 && Set(song.attachedPDFs.map(\.id)).count == song.attachedPDFs.count &&
                   song.attachedPDFs.allSatisfy { documents?[$0.id] != nil }
               }),
               exercises.allSatisfy({ exercise in
@@ -143,19 +145,21 @@ struct BackupView: View {
                           defaultFilename: "FretMap-Backup-\(Date().formatted(.iso8601.year().month().day().dateSeparator(.dash)))") { result in
                 switch result {
                 case .success: show(L10n.string("backup.export.success"))
-                case .failure(let error): show(error.localizedDescription, error: true)
+                case .failure(let error):
+                    if !FileSelectionError.isCancellation(error) { show(error.localizedDescription, error: true) }
                 }
                 document = nil
             }
             .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
                 switch result {
                 case .success(let url): readBackup(url)
-                case .failure(let error): show(error.localizedDescription, error: true)
+                case .failure(let error):
+                    if !FileSelectionError.isCancellation(error) { show(error.localizedDescription, error: true) }
                 }
             }
             .confirmationDialog("backup.confirm", isPresented: $confirmRestore, titleVisibility: .visible) {
                 Button("backup.replace", role: .destructive) { restoreBackup() }
-                Button("mastery.cancel", role: .cancel) { pending = nil }
+                Button("mastery.cancel", role: .cancel) { pending = nil; confirmRestore = false }
             } message: {
                 if let pending {
                     Text("\(pending.createdAt.formatted(date: .abbreviated, time: .shortened)) · \(pending.exercises.count) \(L10n.string("backup.exercises"))")

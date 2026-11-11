@@ -155,7 +155,8 @@
 
 "mastery.chart.legend" = "Green: clean · orange: with mistakes · dashed: target";
 
-"mastery.notes" = "What to focus on";
+"mastery.notes" = "Notes";
+"mastery.manual.order" = "Manual order";
 
 "mastery.notes.hint" = "Hand position, rhythm, picking, difficult passages…";
 
@@ -365,3 +366,10 @@
 "app.language.system" = "시스템 설정";
 "mac.chord.expand" = "코드 전체 화면으로 열기";
 "mac.links.hint" = "웹사이트 주소를 붙여넣으세요. 제목을 생략하면 사이트 이름이 사용됩니다.";
+"mac.materials.add" = "파일 추가";
+"mac.materials.drop.active" = "놓아서 파일 추가";
+"mac.materials.drop.hint" = "이미지나 PDF를 여기에 끌어오세요";
+"mac.materials.limits" = "이미지 3개와 5MB 이하 PDF 1개까지. 곡의 공유 자료는 이 제한에 포함되지 않습니다.";
+"mac.materials.inherited" = "곡 자료";
+"mac.materials.inherited.hint" = "모든 파트에서 공유됩니다. 곡에서 수정하세요.";
+"mac.materials.invalid" = "이미지와 PDF 파일만 지원합니다.";

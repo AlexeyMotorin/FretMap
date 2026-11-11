@@ -155,7 +155,8 @@
 
 "mastery.chart.legend" = "Green: clean · orange: with mistakes · dashed: target";
 
-"mastery.notes" = "What to focus on";
+"mastery.notes" = "Notes";
+"mastery.manual.order" = "Manual order";
 
 "mastery.notes.hint" = "Hand position, rhythm, picking, difficult passages…";
 
@@ -365,3 +366,10 @@
 "app.language.system" = "跟随系统";
 "mac.chord.expand" = "全屏显示和弦";
 "mac.links.hint" = "粘贴网站地址。标题可选；留空时使用网站名称。";
+"mac.materials.add" = "添加文件";
+"mac.materials.drop.active" = "松开以添加文件";
+"mac.materials.drop.hint" = "将图片或 PDF 拖到此处";
+"mac.materials.limits" = "最多 3 张图片和 1 个不超过 5 MB 的 PDF。歌曲共享材料不计入此限制。";
+"mac.materials.inherited" = "歌曲材料";
+"mac.materials.inherited.hint" = "所有部分共享。请在歌曲中编辑。";
+"mac.materials.invalid" = "仅支持图片和 PDF 文件。";
