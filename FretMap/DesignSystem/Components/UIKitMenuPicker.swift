@@ -31,14 +31,16 @@ struct UIKitMenuPicker<Value: Hashable>: UIViewRepresentable {
         button.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         button.setContentHuggingPriority(.defaultLow, for: .horizontal)
         button.layer.cornerRadius = 8
+        button.layer.borderWidth = 1
+        button.layer.borderColor = UIColor.white.withAlphaComponent(0.12).cgColor
         button.clipsToBounds = true
         return button
     }
 
     func updateUIView(_ button: UIButton, context: Context) {
         var configuration = UIButton.Configuration.filled()
-        configuration.baseBackgroundColor = UIColor(red: 0.24, green: 0.28, blue: 0.38, alpha: 0.9)
-        configuration.baseForegroundColor = UIColor.white.withAlphaComponent(0.92)
+        configuration.baseBackgroundColor = UIColor(red: 0.17, green: 0.20, blue: 0.25, alpha: 0.96)
+        configuration.baseForegroundColor = UIColor.white.withAlphaComponent(0.96)
         configuration.cornerStyle = .medium
         configuration.image = UIImage(systemName: "chevron.up.chevron.down")
         configuration.imagePlacement = .trailing

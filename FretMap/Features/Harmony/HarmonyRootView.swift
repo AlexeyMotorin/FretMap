@@ -4,16 +4,23 @@ struct HarmonyRootView: View {
     @ObservedObject var store: AppSettingsStore
     let noteNames: [String]
     let isPortrait: Bool
+    let onBack: () -> Void
     let onCreateSavedProgression: () -> Void
 
     var body: some View {
         GeometryReader { proxy in
+            #if targetEnvironment(macCatalyst)
+            let contentWidth = min(proxy.size.width, 1440)
+            #else
+            let contentWidth = proxy.size.width
+            #endif
             VStack(spacing: 0) {
                 modePicker
 
                 selectedHarmonyView
-                    .frame(width: proxy.size.width, alignment: .topLeading)
+                    .frame(width: contentWidth, alignment: .topLeading)
                     .frame(maxHeight: .infinity, alignment: .topLeading)
+                    .frame(maxWidth: .infinity, alignment: .top)
                     .clipped()
             }
         }
@@ -21,22 +28,54 @@ struct HarmonyRootView: View {
     }
 
     private var modePicker: some View {
-        Picker("Гармония", selection: modeSelection) {
+        HStack(spacing: 8) {
+            Button(action: onBack) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 18, weight: .semibold))
+                    .frame(width: 44, height: 48)
+                    .foregroundStyle(AppColors.primaryText)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Назад к выбору режима")
+
             ForEach(HarmonyMode.allCases) { mode in
-                if isPortrait {
-                    Image(systemName: iconName(for: mode))
-                        .accessibilityLabel(mode.title)
-                        .tag(mode)
-                } else {
-                    Text(mode.title)
-                        .tag(mode)
+                let selected = store.harmonyMode == mode
+                Button { modeSelection.wrappedValue = mode } label: {
+                    #if targetEnvironment(macCatalyst)
+                    HStack(spacing: 10) {
+                        Image(systemName: iconName(for: mode))
+                            .font(.system(size: 16, weight: .semibold))
+                        Text(mode.title).font(.system(size: 14, weight: .semibold))
+                            .lineLimit(1).minimumScaleFactor(0.8)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .foregroundStyle(selected ? AppColors.rootText : AppColors.mutedText)
+                    .background(selected ? AppColors.rootText.opacity(0.16) : AppColors.control.opacity(0.25),
+                                in: RoundedRectangle(cornerRadius: 8))
+                    .contentShape(Rectangle())
+                    #else
+                    VStack(spacing: 4) {
+                        Image(systemName: iconName(for: mode))
+                            .font(.system(size: 17, weight: .semibold))
+                        Text(mode.title)
+                            .font(.system(size: isPortrait ? 9 : 11, weight: .semibold))
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 48)
+                    .foregroundStyle(selected ? AppColors.rootText : AppColors.mutedText)
+                    .background(selected ? AppColors.rootText.opacity(0.12) : Color.clear,
+                                in: RoundedRectangle(cornerRadius: 10))
+                    #endif
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(mode.title)
+                .accessibilityAddTraits(selected ? .isSelected : [])
             }
         }
-        .pickerStyle(.segmented)
-        .font(isPortrait ? .caption : .body)
-        .padding(isPortrait ? 8 : 12)
-        .padding(.leading, 52)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(AppColors.panel.opacity(0.72))
     }
 
     @ViewBuilder

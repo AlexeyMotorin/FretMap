@@ -4,6 +4,10 @@ struct FretboardView: View {
     let tuning: TuningPreset
     let fretCount: Int
     var visibleFretRange: ClosedRange<Int>? = nil
+    var allowsZoom: Bool = false
+    var fitsEntireFretboard: Bool = false
+    @State private var savedZoom: CGFloat = 1
+    @GestureState private var pinchZoom: CGFloat = 1
     let markers: [FretMarker]
     let barres: [ChordBarre]
     let selectedPositions: Set<FretPosition>
@@ -23,14 +27,31 @@ struct FretboardView: View {
             let boardHeight = max(120, proxy.size.height)
             let layout = fretLayout(for: proxy.size.width)
 
-            if visibleFretRange == nil {
+            if visibleFretRange == nil && !fitsEntireFretboard {
                 ScrollView(.horizontal) {
                     fretboardCanvas(boardHeight: boardHeight, layout: layout)
                         .padding(.horizontal, 12)
                         .contentShape(Rectangle())
                         .closeSettingsOnSingleFingerDrag(onSwipe)
                 }
+                .simultaneousGesture(
+                    MagnificationGesture()
+                        .updating($pinchZoom) { value, state, _ in
+                            if allowsZoom { state = value }
+                        }
+                        .onEnded { value in
+                            if allowsZoom { savedZoom = clampedZoom(savedZoom * value) }
+                        },
+                    including: allowsZoom ? .all : .none
+                )
+                .onTapGesture(count: 2) {
+                    if allowsZoom { savedZoom = 1 }
+                }
+                #if targetEnvironment(macCatalyst)
+                .scrollIndicators(.visible)
+                #else
                 .scrollIndicators(.hidden)
+                #endif
                 .background(AppColors.fretboard)
                 .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
                 .contentShape(Rectangle())
@@ -52,6 +73,7 @@ struct FretboardView: View {
                 .overlay(boardTexture)
                 .frame(width: layout.boardWidth, height: boardHeight)
 
+            fretShading(boardHeight: boardHeight, layout: layout)
             fretLines(boardHeight: boardHeight, layout: layout)
             fretNumbers(layout: layout)
             inlays(boardHeight: boardHeight, layout: layout)
@@ -66,20 +88,29 @@ struct FretboardView: View {
         .frame(width: layout.boardWidth, height: boardHeight)
     }
 
+    // Scale fret spacing only: note labels and string spacing stay readable.
+    private func clampedZoom(_ value: CGFloat) -> CGFloat {
+        min(1.6, max(0.75, value))
+    }
+
+    private var zoomedFretWidth: CGFloat {
+        fretWidth * (allowsZoom ? clampedZoom(savedZoom * pinchZoom) : 1)
+    }
+
     private func fretLayout(for availableWidth: CGFloat) -> FretLayout {
         let range = normalizedVisibleRange
-        guard visibleFretRange != nil else {
+        guard visibleFretRange != nil || fitsEntireFretboard else {
             return FretLayout(
                 range: range,
-                fretWidth: fretWidth,
-                boardWidth: openStringWidth + CGFloat(fretCount) * fretWidth + horizontalPadding * 2
+                fretWidth: zoomedFretWidth,
+                boardWidth: openStringWidth + CGFloat(fretCount) * zoomedFretWidth + horizontalPadding * 2
             )
         }
 
         let contentWidth = max(160, availableWidth - horizontalPadding * 2)
         if range.lowerBound == 0 {
             let fretSlots = max(range.upperBound, 1)
-            let fittedFretWidth = max(30, (contentWidth - openStringWidth) / CGFloat(fretSlots))
+            let fittedFretWidth = max(fitsEntireFretboard ? 1 : 30, (contentWidth - openStringWidth) / CGFloat(fretSlots))
             return FretLayout(
                 range: range,
                 fretWidth: fittedFretWidth,
@@ -97,6 +128,7 @@ struct FretboardView: View {
     }
 
     private var normalizedVisibleRange: ClosedRange<Int> {
+        if fitsEntireFretboard { return 0...fretCount }
         guard let visibleFretRange else { return 0...fretCount }
         let lower = max(0, min(visibleFretRange.lowerBound, fretCount))
         let upper = max(lower, min(visibleFretRange.upperBound, fretCount))
@@ -172,11 +204,41 @@ struct FretboardView: View {
     }
 
     private var boardTexture: some View {
-        LinearGradient(
-            colors: [Color.white.opacity(0.04), Color.black.opacity(0.08), Color.white.opacity(0.03)],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+        ZStack {
+            LinearGradient(
+                colors: [
+                    AppColors.rootText.opacity(0.055),
+                    Color.clear,
+                    AppColors.barre.opacity(0.025)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            LinearGradient(
+                colors: [Color.black.opacity(0.12), Color.white.opacity(0.025), Color.black.opacity(0.10)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+    }
+
+    private func fretShading(boardHeight: CGFloat, layout: FretLayout) -> some View {
+        ZStack(alignment: .topLeading) {
+            if layout.range.lowerBound == 0 {
+                Rectangle()
+                    .fill(Color.black.opacity(0.12))
+                    .frame(width: openStringWidth, height: boardHeight)
+                    .position(x: horizontalPadding + openStringWidth / 2, y: boardHeight / 2)
+            }
+
+            ForEach(layout.visibleFrets.filter { $0 > 0 }, id: \.self) { fret in
+                Rectangle()
+                    .fill(fret.isMultiple(of: 2) ? Color.white.opacity(0.018) : Color.black.opacity(0.035))
+                    .frame(width: layout.fretWidth, height: boardHeight)
+                    .position(x: noteX(fret, layout: layout), y: boardHeight / 2)
+            }
+        }
     }
 
     private func fretLines(boardHeight: CGFloat, layout: FretLayout) -> some View {
@@ -227,8 +289,9 @@ struct FretboardView: View {
 
     private func fretDot(fret: Int, offset: CGFloat, boardHeight: CGFloat, layout: FretLayout) -> some View {
         Circle()
-            .fill(AppColors.inlay)
-            .frame(width: 14, height: 14)
+            .fill(AppColors.inlay.opacity(0.74))
+            .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 1))
+            .frame(width: 12, height: 12)
             .position(x: noteX(fret, layout: layout), y: boardHeight / 2 + offset)
     }
 
@@ -237,7 +300,7 @@ struct FretboardView: View {
             Rectangle()
                 .fill(LinearGradient(colors: [.white.opacity(0.95), AppColors.string, .white.opacity(0.75)], startPoint: .top, endPoint: .bottom))
                 .frame(width: layout.stringWidth(horizontalPadding: horizontalPadding), height: stringThickness(for: index))
-                .shadow(color: AppColors.stringGlow.opacity(0.45), radius: 3, x: 0, y: 0)
+                .shadow(color: AppColors.stringGlow.opacity(0.28), radius: 2, x: 0, y: 0)
                 .position(x: layout.boardWidth / 2, y: stringY(index, boardHeight: boardHeight))
         }
     }

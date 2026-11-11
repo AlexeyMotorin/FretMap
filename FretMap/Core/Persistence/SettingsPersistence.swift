@@ -23,12 +23,14 @@ struct UserDefaultsSettingsPersistence: SettingsPersisting {
 
 final class InMemorySettingsPersistence: SettingsPersisting {
     private var storage: [String: Data] = [:]
+    private(set) var writeCount = 0
 
     func data(forKey key: String) -> Data? {
         storage[key]
     }
 
     func set(_ data: Data, forKey key: String) {
+        writeCount += 1
         storage[key] = data
     }
 }

@@ -1,0 +1,1200 @@
+import SwiftUI
+import PhotosUI
+import UniformTypeIdentifiers
+import ImageIO
+
+struct MasteryPathView: View {
+    @AppStorage("mac.mastery.listLayout") private var listLayout = false
+    let onBack: () -> Void
+    @StateObject private var store = MasteryStore()
+    @State private var dailyStatistics = false
+    @State private var adding = false
+    @State private var addingSong = false
+    @State private var openedSongID: UUID?
+    @State private var openedExerciseID: UUID?
+    @State private var showingArchive = false
+    @State private var editingExercise: MasteryExercise?
+    @State private var deletingExercise: MasteryExercise?
+    @State private var confirmingDelete = false
+    @State private var category = ""
+    @State private var search = ""
+    @State private var newestFirst = true
+    @AppStorage("mac.mastery.exerciseManualOrder") private var manualOrder = false
+    @State private var showsSongs = true
+    @State private var showingWorkspaceChooser = false
+    @State private var showingExerciseArchive = false
+    @ScaledMetric(relativeTo: .headline) private var cardTitleHeight = 44
+
+    private var filtered: [MasteryExercise] {
+        let items = store.exercises.filter {
+            $0.songID == nil && $0.isArchived == showingArchive &&
+            (category.isEmpty || $0.category == category) &&
+            (search.isEmpty || $0.name.localizedCaseInsensitiveContains(search) || $0.comment.localizedCaseInsensitiveContains(search))
+        }
+        return items.sorted {
+            #if targetEnvironment(macCatalyst)
+            if manualOrder, $0.manualOrder != $1.manualOrder { return ($0.manualOrder ?? -1) < ($1.manualOrder ?? -1) }
+            #endif
+            if newestFirst { return $0.createdAt > $1.createdAt }
+            return ($0.latest?.date ?? $0.createdAt) > ($1.latest?.date ?? $1.createdAt)
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            #if targetEnvironment(macCatalyst)
+                            Menu {
+                                Button("song.library") { showsSongs = true }
+                                Button("song.exercises") { showsSongs = false }
+                            } label: { workspaceTitle }
+                            .buttonStyle(.plain)
+                            .fixedSize(horizontal: true, vertical: false)
+                            #else
+                            Button { showingWorkspaceChooser = true } label: { workspaceTitle }
+                                .buttonStyle(.plain)
+                            #endif
+                            Text(showsSongs ? "song.empty.hint" : "mastery.subtitle")
+                                .font(.subheadline).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button { if showsSongs { addingSong = true } else { adding = true } } label: {
+                            Image(systemName: "plus").font(.title2.bold()).frame(width: 44, height: 44)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityLabel(showsSongs ? "song.add" : "mastery.add")
+                    }
+                    if showsSongs {
+                        SongLibraryView(store: store, adding: $addingSong, dailyStatistics: $dailyStatistics, openedSongID: $openedSongID)
+                    } else {
+                    MasteryWorkspaceControls(openArchive: { showingExerciseArchive = true }, openStatistics: { dailyStatistics = true })
+                    TextField("mastery.search", text: $search).textFieldStyle(.roundedBorder)
+                    HStack {
+                        Picker("mastery.category", selection: $category) {
+                            Text("mastery.all").tag("")
+                            ForEach(store.categories, id: \.self) { Text($0).tag($0) }
+                        }.pickerStyle(.menu)
+                        Spacer()
+                        Button { if manualOrder { manualOrder = false } else { newestFirst.toggle() } } label: {
+                            Label(manualOrder ? "mastery.manual.order" : (newestFirst ? "mastery.newest" : "mastery.recent"), systemImage: "arrow.up.arrow.down")
+                        }.font(.caption)
+                    }
+                    if filtered.isEmpty {
+                        VStack(spacing: 14) {
+                            Image(systemName: "chart.xyaxis.line").font(.system(size: 44)).foregroundStyle(AppColors.rootText)
+                            Text(showingArchive ? "mastery.archive.empty" : (store.exercises.isEmpty ? "mastery.empty" : "mastery.no.matches")).font(.headline)
+                            if store.exercises.isEmpty && !showingArchive {
+                                Button("mastery.add") { adding = true }.buttonStyle(.borderedProminent)
+                            }
+                        }.frame(maxWidth: .infinity).padding(.vertical, 60)
+                    }
+                    LazyVGrid(columns: MasteryWorkspaceLayout.columns(list: listLayout), spacing: 14) {
+                        ForEach(filtered) { exercise in
+                            Group {
+                                #if targetEnvironment(macCatalyst)
+                                exerciseLibraryLabel(exercise)
+                                #else
+                                NavigationLink { MasteryExerciseView(store: store, exerciseID: exercise.id) } label: { exerciseLibraryLabel(exercise) }
+                                #endif
+                            }
+                            .buttonStyle(.plain)
+                            .modifier(MasteryReorderModifier(id: exercise.id, songs: false, title: exercise.name, open: { openedExerciseID = exercise.id }) { source in
+                                if store.reorder(source, before: exercise.id, visibleIDs: filtered.map(\.id), songs: false) { manualOrder = true }
+                            })
+                            .contextMenu {
+                                Button { editingExercise = exercise } label: {
+                                    Label("mastery.edit", systemImage: "pencil")
+                                }
+                                Button {
+                                    store.setArchived(!exercise.isArchived, id: exercise.id)
+                                } label: {
+                                    Label(exercise.isArchived ? "mastery.reactivate" : "mastery.complete",
+                                          systemImage: exercise.isArchived ? "arrow.uturn.backward" : "checkmark.circle")
+                                }
+                                Button(role: .destructive) {
+                                    deletingExercise = exercise
+                                    confirmingDelete = true
+                                } label: { Label("mastery.delete", systemImage: "trash") }
+                            }
+                        }
+                    }
+                    }
+                }.padding(16)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .background(AppBackgroundView().ignoresSafeArea())
+            .toolbar(.hidden, for: .navigationBar)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                HStack {
+                    ModeBackButton(action: onBack)
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+            }
+            #if targetEnvironment(macCatalyst)
+            .macEditorDialog(isPresented: $adding) {
+                MasteryEditor(store: store, exercise: nil, onClose: { adding = false; if !store.exercises.isEmpty { showingArchive = false } })
+            }
+            .macEditorDialog(isPresented: $addingSong, height: 360) {
+                SongEditor(store: store, onClose: { addingSong = false }) { openedSongID = $0.id }
+            }
+            .macEditorDialog(item: $editingExercise) { exercise in
+                MasteryEditor(store: store, exercise: exercise, onClose: { editingExercise = nil })
+            }
+            #else
+            .fullScreenCover(isPresented: $adding, onDismiss: { if !store.exercises.isEmpty { showingArchive = false } }) {
+                MasteryEditor(store: store, exercise: nil)
+                    .interactiveDismissDisabled()
+            }
+            .sheet(item: $editingExercise) { MasteryEditor(store: store, exercise: $0) }
+            #endif
+            .sheet(isPresented: $dailyStatistics) { MasteryDailyStatistics(store: store) }
+            .fullScreenCover(isPresented: $showingExerciseArchive) { ExerciseArchiveView(store: store) }
+            .navigationDestination(isPresented: Binding(get: { openedExerciseID != nil }, set: { if !$0 { openedExerciseID = nil } })) {
+                if let openedExerciseID { MasteryExerciseView(store: store, exerciseID: openedExerciseID) }
+            }
+            .alert("mastery.delete.title", isPresented: $confirmingDelete) {
+                Button("mastery.delete", role: .destructive) {
+                    if let deletingExercise { store.delete(deletingExercise.id) }
+                    deletingExercise = nil
+                }
+                Button("mastery.cancel", role: .cancel) { deletingExercise = nil }
+            } message: { Text("mastery.delete.message") }
+            .alert("mastery.error", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
+                Button("OK") { store.error = nil }
+            } message: { Text(store.error ?? "") }
+            .onChange(of: store.categories) { categories in
+                if !category.isEmpty && !categories.contains(category) { category = "" }
+            }
+            .confirmationDialog("", isPresented: $showingWorkspaceChooser, titleVisibility: .hidden) {
+                Button("song.library") { showsSongs = true }
+                Button("song.exercises") { showsSongs = false }
+                Button("mastery.cancel", role: .cancel) { showingWorkspaceChooser = false }
+            }
+        }
+        .tint(AppColors.rootText)
+    }
+
+    private var workspaceTitle: some View {
+        HStack(spacing: 8) {
+            Text(showsSongs ? "song.library" : "song.exercises").font(.largeTitle.bold())
+            Image(systemName: "chevron.up.chevron.down").font(.title3.bold())
+        }
+    }
+
+    @ViewBuilder private func exerciseLibraryLabel(_ exercise: MasteryExercise) -> some View {
+        if MasteryWorkspaceLayout.usesList(listLayout) {
+            MasteryLibraryRow(title: exercise.name,
+                              subtitle: exercise.category.isEmpty ? L10n.string("mastery.uncategorized") : exercise.category,
+                              detail: "\(exercise.latest.map { String($0.bpm) } ?? "—") → \(exercise.targetBPM) BPM",
+                              progress: exercise.progress, icon: "guitars.fill",
+                              photoURL: exercise.photos.first.map { store.photoURL($0) })
+        } else { exerciseCard(exercise) }
+    }
+
+    private func exerciseCard(_ exercise: MasteryExercise) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Group {
+                if let photo = exercise.photos.first {
+                    MasteryThumbnail(url: store.photoURL(photo))
+                } else {
+                    Image(systemName: "guitars.fill").font(.system(size: 34))
+                        .foregroundStyle(AppColors.rootText).frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .frame(height: 100).frame(maxWidth: .infinity)
+            .background(AppColors.control).clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(alignment: .topTrailing) {
+                if exercise.isArchived {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                        .padding(6)
+                        .background(AppColors.panel, in: Circle())
+                        .padding(6)
+                        .accessibilityLabel("mastery.completed")
+                }
+            }
+            Text(exercise.difficulty.map { L10n.string($0.localizationKey) } ?? " ")
+                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                .accessibilityHidden(exercise.difficulty == nil)
+            Text(exercise.name).font(.headline).lineLimit(2)
+                .frame(height: cardTitleHeight, alignment: .topLeading)
+            Text(exercise.category.isEmpty ? L10n.string("mastery.uncategorized") : exercise.category)
+                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            HStack(alignment: .firstTextBaseline) {
+                Text(exercise.latest.map { "\($0.bpm)" } ?? "—").font(.title2.bold())
+                Text("→ \(exercise.targetBPM) BPM").font(.caption).foregroundStyle(.secondary)
+            }.minimumScaleFactor(0.7).lineLimit(1)
+            ProgressView(value: exercise.progress)
+            Group {
+                if let date = exercise.latest?.date {
+                    Text(date, style: .date)
+                } else {
+                    Text("mastery.no.results")
+                }
+            }
+            .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+        }
+        .padding(12).background(AppColors.panel, in: RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+private struct ExerciseArchiveView: View {
+    @AppStorage("mac.mastery.listLayout") private var listLayout = false
+    @ObservedObject var store: MasteryStore
+    @Environment(\.dismiss) private var dismiss
+
+    private var exercises: [MasteryExercise] {
+        store.exercises.filter { $0.songID == nil && $0.isArchived }.sorted { $0.createdAt > $1.createdAt }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if exercises.isEmpty {
+                    VStack(spacing: 12) {
+                        Spacer()
+                        Image(systemName: "archivebox").font(.system(size: 40)).foregroundStyle(AppColors.rootText)
+                        Text("mastery.archive.empty").font(.headline)
+                        Spacer()
+                    }
+                    .padding(24)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .multilineTextAlignment(.center)
+                } else {
+                    ScrollView {
+                    LazyVGrid(columns: MasteryWorkspaceLayout.columns(list: listLayout), spacing: 14) {
+                        ForEach(exercises) { exercise in
+                            NavigationLink { MasteryExerciseView(store: store, exerciseID: exercise.id) } label: {
+                                if MasteryWorkspaceLayout.usesList(listLayout) {
+                                    MasteryLibraryRow(title: exercise.name,
+                                                      subtitle: exercise.category.isEmpty ? L10n.string("mastery.uncategorized") : exercise.category,
+                                                      detail: "\(exercise.targetBPM) BPM", progress: 1, completed: true)
+                                } else {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Image(systemName: "checkmark.circle.fill").font(.system(size: 34)).foregroundStyle(.green)
+                                        .frame(maxWidth: .infinity, minHeight: 92).background(AppColors.control, in: RoundedRectangle(cornerRadius: 8))
+                                    Text(exercise.name).font(.headline).lineLimit(2).frame(height: 44, alignment: .topLeading)
+                                    Text("\(exercise.targetBPM) BPM").font(.caption).foregroundStyle(.secondary)
+                                }
+                                .padding(12).background(AppColors.panel, in: RoundedRectangle(cornerRadius: 12))
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                Button { store.setArchived(false, id: exercise.id) } label: { Label("mastery.reactivate", systemImage: "arrow.uturn.backward") }
+                            }
+                        }
+                    }.padding(16)
+                    }
+                }
+            }
+            .background(AppBackgroundView().ignoresSafeArea())
+            .navigationTitle("mastery.archive")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                #if targetEnvironment(macCatalyst)
+                ToolbarItem(placement: .primaryAction) { MasteryLayoutPicker() }
+                #endif
+                ToolbarItem(placement: .cancellationAction) {
+                    Button { dismiss() } label: { Image(systemName: "xmark") }
+                        .accessibilityLabel("mastery.done")
+                }
+            }
+            .toolbarBackground(.hidden, for: .navigationBar)
+        }
+    }
+}
+
+struct MasteryThumbnail: View {
+    let url: URL
+    @State private var image: UIImage?
+    var body: some View {
+        Group {
+            if let image {
+                GeometryReader { geometry in
+                    Image(uiImage: image).resizable().scaledToFill()
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .clipped()
+                }
+            }
+            else { Image(systemName: "photo").foregroundStyle(.secondary) }
+        }
+        .task(id: url) {
+            let loaded = await Task.detached(priority: .utility) {
+                guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+                      let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                        kCGImageSourceCreateThumbnailFromImageAlways: true,
+                        kCGImageSourceThumbnailMaxPixelSize: 600,
+                        kCGImageSourceCreateThumbnailWithTransform: true
+                      ] as CFDictionary) else { return Optional<UIImage>.none }
+                return UIImage(cgImage: thumbnail)
+            }.value
+            if !Task.isCancelled { image = loaded }
+        }
+    }
+}
+
+struct MasteryEditor: View {
+    @ObservedObject var store: MasteryStore
+    let exercise: MasteryExercise?
+    let songID: UUID?
+    private let onClose: (() -> Void)?
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var target = "120"
+    @State private var category = ""
+    @State private var subdivision: PracticeSubdivision? = nil
+
+    init(store: MasteryStore, exercise: MasteryExercise?, songID: UUID? = nil, onClose: (() -> Void)? = nil) {
+        self.store = store
+        self.exercise = exercise
+        self.songID = songID
+        self.onClose = onClose
+    }
+
+    var body: some View {
+        Group {
+            #if targetEnvironment(macCatalyst)
+            VStack(spacing: 0) {
+                Text(editorTitle).font(.headline).frame(maxWidth: .infinity, alignment: .leading).padding(20)
+                editorForm.scrollContentBackground(.hidden)
+                HStack {
+                    Spacer()
+                    Button("mastery.cancel", action: close)
+                        .buttonStyle(.bordered)
+                        .keyboardShortcut(.cancelAction)
+                    Button("mastery.save", action: save)
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(!canSave)
+                }.padding(20)
+            }
+            .frame(minWidth: 500, idealWidth: 620, minHeight: 480)
+            .background(AppBackgroundView().ignoresSafeArea())
+            #else
+            NavigationStack {
+                editorForm
+                    .navigationTitle(editorTitle)
+                    .navigationBarTitleDisplayMode(.inline)
+                    .masteryKeyboardDismiss()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) { Button("mastery.cancel", action: close) }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("mastery.save", action: save).disabled(!canSave)
+                        }
+                    }
+            }
+            #endif
+        }
+        .onAppear { if let exercise { name = exercise.name; target = "\(exercise.targetBPM)"; category = exercise.category; subdivision = exercise.subdivision } }
+        .alert("mastery.error", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
+            Button("OK") { store.error = nil }
+        } message: { Text(store.error ?? "") }
+    }
+
+    private var editorTitle: LocalizedStringKey {
+        exercise == nil ? (songID == nil ? "mastery.add" : "song.part.add") : "mastery.edit"
+    }
+    private var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (20...400).contains(Int(target) ?? 0)
+    }
+
+    private var editorForm: some View {
+            Form {
+                Section {
+                    TextField("mastery.name", text: $name)
+                    HStack {
+                        Text("mastery.target")
+                        TextField("BPM", text: $target).keyboardType(.numberPad).multilineTextAlignment(.trailing)
+                    }
+                    Text("mastery.range").font(.caption).foregroundStyle(.secondary)
+                    Picker("mastery.subdivision", selection: $subdivision) {
+                        Text("mastery.not.selected").tag(Optional<PracticeSubdivision>.none)
+                        ForEach(PracticeSubdivision.allCases, id: \.self) { item in
+                            Text(L10n.string(item.localizationKey)).tag(Optional(item))
+                        }
+                    }
+                    if let subdivision { MasteryRhythmPreview(subdivision: subdivision) }
+                    Text("mastery.subdivision.hint").font(.caption).foregroundStyle(.secondary)
+                }
+                Section("mastery.category") {
+                    TextField("mastery.category.new", text: $category)
+                    if !store.categories.isEmpty {
+                        Picker("mastery.category.existing", selection: $category) {
+                            Text("mastery.uncategorized").tag("")
+                            if !category.isEmpty && !store.categories.contains(category) { Text(category).tag(category) }
+                            ForEach(store.categories, id: \.self) { Text($0).tag($0) }
+                        }
+                    }
+                }
+            }
+    }
+
+    private func save() {
+        guard canSave, let bpm = Int(target) else { return }
+        var value = exercise.flatMap { store.exercise($0.id) } ?? MasteryExercise(name: name, targetBPM: bpm)
+        value.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        value.targetBPM = bpm
+        value.subdivision = subdivision
+        value.category = category.trimmingCharacters(in: .whitespacesAndNewlines)
+        value.songID = songID ?? value.songID
+        if store.save(value) { close() }
+    }
+
+    private func close() {
+        if let onClose { onClose() }
+        else { dismiss() }
+    }
+}
+
+struct MasteryExerciseView: View {
+    @ObservedObject var store: MasteryStore
+    let exerciseID: UUID
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
+    @StateObject private var practice = MasteryPractice()
+    @State private var editing = false
+    @State private var addingMaterialLink = false
+    @State private var wheelEditor: MasteryWheelRequest?
+    @State private var deleting = false
+    @State private var history = false
+    @State private var bpm = "80"
+    @State private var clean = true
+    @State private var resultNote = ""
+    @State private var resultDifficulty: ExerciseDifficulty?
+    @State private var choosingResultDifficulty = false
+    @State private var cleanRepetitions = 1
+    @State private var savedResult: MasteryResult?
+    @State private var savedResultNumber = 0
+    @State private var minutes = 5
+    @State private var showingTimer = false
+    @State private var metroBPM = 80
+    @State private var beats = 4
+    @State private var noteValue = 4
+    @State private var ratingExercise = false
+    @State private var photoItems: [PhotosPickerItem] = []
+    @State private var importing = false
+    @State private var camera = false
+    @State private var pickingPDF = false
+    @State private var selectedPDF: MasteryPDF?
+    @State private var importingPDF = false
+    @State private var selectedPhoto: PhotoSelection?
+    @State private var showingUnsavedChanges = false
+    private struct PhotoSelection: Identifiable { let id: String }
+    private var exercise: MasteryExercise? { store.exercise(exerciseID) }
+
+    var body: some View {
+        Group {
+            if let exercise {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        summary(exercise)
+                        Button { ratingExercise = true } label: {
+                            HStack {
+                                Label("mastery.difficulty", systemImage: "slider.horizontal.3")
+                                Spacer()
+                                Text(exercise.difficulty.map { L10n.string($0.localizationKey) } ?? L10n.string("mastery.not.selected"))
+                                    .foregroundStyle(.secondary)
+                            }.frame(minHeight: 44)
+                        }
+                        .confirmationDialog("mastery.difficulty", isPresented: $ratingExercise, titleVisibility: .visible) {
+                            Button("mastery.not.selected") {
+                                store.update(exerciseID) { $0.difficulty = nil }
+                            }
+                            ForEach(ExerciseDifficulty.allCases, id: \.self) { difficulty in
+                                Button(L10n.string(difficulty.localizationKey)) {
+                                    store.update(exerciseID) { $0.difficulty = difficulty }
+                                }
+                            }
+                            Button("mastery.cancel", role: .cancel) { ratingExercise = false }
+                        }
+                        #if targetEnvironment(macCatalyst)
+                        HStack(alignment: .top, spacing: 20) {
+                            VStack(spacing: 20) {
+                                resultEntry
+                                chart(exercise)
+                                timerPanel
+                                metronomePanel
+                            }.frame(maxWidth: .infinity)
+                            VStack(spacing: 20) {
+                                MacMaterialsPanel(store: store, target: .exercise(exerciseID), isImporting: $importing, addingLink: $addingMaterialLink).masteryPanel()
+                                notes(exercise)
+                            }.frame(maxWidth: .infinity)
+                        }
+                        #else
+                        photos(exercise)
+                        MasteryVideoLinks(store: store, exerciseID: exerciseID).masteryPanel()
+                        resultEntry
+                        chart(exercise)
+                        notes(exercise)
+                        timerPanel
+                        metronomePanel
+                        #endif
+                        Text("mastery.practice.total").font(.caption).foregroundStyle(.secondary)
+                        Text(Duration.seconds(exercise.practiceSeconds).formatted(.time(pattern: .hourMinuteSecond)))
+                        Button {
+                            practice.stopAll()
+                            store.setArchived(!exercise.isArchived, id: exerciseID)
+                        } label: {
+                            Label(exercise.isArchived ? "mastery.reactivate" : "mastery.complete",
+                                  systemImage: exercise.isArchived ? "arrow.uturn.backward" : "checkmark.circle")
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                        }.buttonStyle(.bordered)
+                    }
+                    #if targetEnvironment(macCatalyst)
+                    .padding(24).frame(maxWidth: 1440).frame(maxWidth: .infinity)
+                    #else
+                    .padding(16)
+                    #endif
+                }.scrollDismissesKeyboard(.interactively)
+                .masteryKeyboardDismiss()
+                .background(AppBackgroundView())
+                .navigationTitle(exercise.name).navigationBarTitleDisplayMode(.inline)
+                .navigationBarBackButtonHidden(true)
+                .toolbar(.visible, for: .navigationBar)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button { attemptDismiss() } label: { Image(systemName: "chevron.left") }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button {
+                            practice.stopAll()
+                            if store.commitExercise(exerciseID) { store.beginEditingExercise(exerciseID) }
+                        } label: { Image(systemName: "checkmark") }
+                        .disabled(importing || importingPDF || !store.hasUnsavedExerciseChanges(exerciseID))
+                        .accessibilityLabel("mastery.save")
+                    }
+                    ToolbarItem(placement: .primaryAction) {
+                        Menu {
+                            Button("mastery.edit") { editing = true }
+                            Button("mastery.delete", role: .destructive) { deleting = true }
+                        } label: { Image(systemName: "ellipsis.circle") }
+                    }
+                }
+                #if targetEnvironment(macCatalyst)
+                .macEditorDialog(isPresented: $editing) {
+                    MasteryEditor(store: store, exercise: self.exercise, onClose: { editing = false })
+                }
+                .macEditorDialog(isPresented: $addingMaterialLink, height: 340) {
+                    MacMaterialLinkEditor(existingLinks: self.exercise?.videoLinks ?? [], onClose: { addingMaterialLink = false }) { link, name in
+                        store.update(exerciseID) {
+                            $0.videoLinks = ($0.videoLinks ?? []) + [link]
+                            var titles = $0.linkTitles ?? [:]; titles[link] = name; $0.linkTitles = titles
+                        }
+                        return self.exercise?.videoLinks?.contains(link) == true
+                    }
+                }
+                .macEditorDialog(item: $wheelEditor, width: 420, height: 260) { request in
+                    MacWheelEditor(request: request, onClose: { wheelEditor = nil })
+                }
+                #else
+                .sheet(isPresented: $editing) { MasteryEditor(store: store, exercise: self.exercise) }
+                #endif
+                .sheet(isPresented: $history) { historySheet }
+                .sheet(isPresented: $camera) {
+                    MasteryCamera { image in
+                        if let image { store.addPhoto(image, to: exerciseID) }
+                        camera = false
+                    }.ignoresSafeArea()
+                }
+                .fileImporter(isPresented: $pickingPDF, allowedContentTypes: [.pdf]) { result in
+                    switch result {
+                    case .success(let url):
+                        importingPDF = true
+                        Task { @MainActor in
+                            defer { importingPDF = false }
+                            do {
+                                let data = try await Task.detached(priority: .userInitiated) {
+                                    try MasteryPDFReader.read(url)
+                                }.value
+                                try store.addPDF(data: data, name: url.lastPathComponent, to: exerciseID)
+                            } catch { store.error = error.localizedDescription }
+                        }
+                    case .failure(let error):
+                        if !FileSelectionError.isCancellation(error) { store.error = error.localizedDescription }
+                    }
+                }
+                .fullScreenCover(isPresented: $showingTimer) {
+                    MasteryTimerScreen(practice: practice, exerciseName: exercise.name) {
+                        practice.pauseTimer()
+                        showingTimer = false
+                    }
+                }
+                .fullScreenCover(item: $selectedPDF) { pdf in
+                    MasteryPDFViewer(url: store.photoURL(pdf.id), name: pdf.name)
+                }
+                .fullScreenCover(item: $selectedPhoto) { selection in
+                    MasteryPhotoViewer(url: store.photoURL(selection.id))
+                }
+                .alert("mastery.delete.title", isPresented: $deleting) {
+                    Button("mastery.delete", role: .destructive) {
+                        practice.stopAll()
+                        store.delete(exerciseID)
+                        if self.exercise == nil { dismiss() }
+                    }
+                    Button("mastery.cancel", role: .cancel) { deleting = false }
+                } message: { Text("mastery.delete.message") }
+                .alert("mastery.unsaved.title", isPresented: $showingUnsavedChanges) {
+                    Button("mastery.save") { if store.commitExercise(exerciseID) { dismiss() } }
+                    Button("mastery.discard", role: .destructive) { store.discardExerciseChanges(exerciseID); dismiss() }
+                    Button("mastery.cancel", role: .cancel) { showingUnsavedChanges = false }
+                } message: { Text("mastery.unsaved.message") }
+            }
+        }
+        .onAppear {
+            store.beginEditingExercise(exerciseID)
+            bpm = "\(exercise?.latest?.bpm ?? 80)"
+            metroBPM = min(240, max(30, exercise?.latest?.bpm ?? 80))
+            practice.onSession = { seconds in
+                store.update(exerciseID) { $0.sessions.append(MasterySession(seconds: seconds)) }
+            }
+        }
+        .onDisappear { if !showingTimer { practice.stopAll() } }
+        .onChange(of: scenePhase) { phase in
+            if phase != .active {
+                practice.pauseTimer()
+                practice.stopMetronome()
+                showingTimer = false
+            }
+        }
+        .task(id: photoItems) {
+            guard !photoItems.isEmpty else { return }
+            importing = true
+            for item in photoItems {
+                if Task.isCancelled { break }
+                do {
+                    guard let data = try await item.loadTransferable(type: Data.self), let image = UIImage(data: data) else {
+                        store.error = L10n.string("mastery.photo.error"); continue
+                    }
+                    if !Task.isCancelled { store.addPhoto(image, to: exerciseID) }
+                } catch { if !Task.isCancelled { store.error = L10n.string("mastery.photo.error") } }
+            }
+            importing = false
+            photoItems = []
+        }
+        .alert("mastery.error", isPresented: Binding(get: { practice.error != nil || store.error != nil }, set: { if !$0 { practice.error = nil; store.error = nil } })) {
+            Button("OK") { practice.error = nil; store.error = nil }
+        } message: { Text(practice.error ?? store.error ?? "") }
+    }
+
+    private func attemptDismiss() {
+        guard !importing, !importingPDF else { return }
+        practice.stopAll()
+        if store.hasUnsavedExerciseChanges(exerciseID) { showingUnsavedChanges = true }
+        else { store.discardExerciseChanges(exerciseID); dismiss() }
+    }
+
+    private func summary(_ exercise: MasteryExercise) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(exercise.category.isEmpty ? L10n.string("mastery.uncategorized") : exercise.category).font(.subheadline).foregroundStyle(.secondary)
+            HStack {
+                metric("mastery.current", value: exercise.latest.map { "\($0.bpm)" } ?? "—")
+                Spacer()
+                metric("mastery.best", value: exercise.bestCleanBPM.map(String.init) ?? "—", achieved: (exercise.bestCleanBPM ?? 0) >= exercise.targetBPM)
+                Spacer()
+                metric("mastery.target", value: "\(exercise.targetBPM)")
+            }
+            if let subdivision = exercise.subdivision {
+                Text(L10n.string(subdivision.localizationKey)).font(.caption).foregroundStyle(.secondary)
+                MasteryRhythmPreview(subdivision: subdivision)
+            }
+            ProgressView(value: exercise.progress)
+            Text(exercise.progress >= 1 ? "mastery.achieved" : "mastery.progress.hint").font(.caption).foregroundStyle(.secondary)
+        }.masteryPanel()
+    }
+
+    private func metric(_ title: LocalizedStringKey, value: String, achieved: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.caption).foregroundStyle(.secondary)
+            Text(value)
+                .font(achieved ? .system(size: 24, weight: .bold) : .title2.bold())
+                .foregroundStyle(achieved ? Color.green : AppColors.primaryText)
+            Text("BPM").font(.caption2).foregroundStyle(.secondary)
+        }
+    }
+
+    private func photos(_ exercise: MasteryExercise) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("mastery.photos").font(.headline)
+            if exercise.photos.isEmpty {
+                #if targetEnvironment(macCatalyst)
+                Text("mac.photos.hint").font(.caption).foregroundStyle(.secondary)
+                #else
+                Text("mastery.photos.hint").font(.caption).foregroundStyle(.secondary)
+                #endif
+            }
+            ScrollView(.horizontal) {
+                HStack(spacing: 6) {
+                    ForEach(exercise.photos, id: \.self) { name in
+                        Button { selectedPhoto = PhotoSelection(id: name) } label: {
+                            MasteryThumbnail(url: store.photoURL(name)).frame(width: 120, height: 90)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }.buttonStyle(.plain).accessibilityLabel("mastery.photos")
+                        .contextMenu {
+                            Button("mastery.delete", role: .destructive) { store.removePhoto(name, from: exerciseID) }
+                        }
+                    }
+                }
+            }
+            if exercise.photos.count < 3 {
+                HStack {
+                    PhotosPicker(selection: $photoItems, maxSelectionCount: 3 - exercise.photos.count, matching: .images) {
+                        Label("mastery.photo.add", systemImage: "photo.badge.plus")
+                    }.disabled(importing)
+                    Spacer()
+                    #if !targetEnvironment(macCatalyst)
+                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                        Button { camera = true } label: { Image(systemName: "camera").frame(width: 44, height: 44) }
+                            .accessibilityLabel("mastery.camera")
+                    }
+                    #endif
+                    if importing { ProgressView() }
+                }
+            }
+            ForEach(exercise.attachedPDFs) { pdf in
+                Button { selectedPDF = pdf } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "doc.richtext").font(.title2)
+                        Text(pdf.name).lineLimit(2).multilineTextAlignment(.leading)
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.caption)
+                    }.frame(minHeight: 44)
+                }.contextMenu {
+                    Button("mastery.delete", role: .destructive) { store.removePDF(pdf.id, from: exerciseID) }
+                }
+            }
+            if exercise.attachedPDFs.isEmpty {
+                Button { pickingPDF = true } label: { Label("mastery.pdf.add", systemImage: "doc.badge.plus") }
+                    .disabled(importingPDF)
+            }
+            if importingPDF { ProgressView() }
+            #if targetEnvironment(macCatalyst)
+            Text("mac.pdf.hint").font(.caption).foregroundStyle(.secondary)
+            #else
+            Text("mastery.pdf.hint").font(.caption).foregroundStyle(.secondary)
+            #endif
+        }.masteryPanel()
+    }
+
+    private var resultEntry: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("mastery.result").font(.headline)
+                Spacer()
+                Button { history = true } label: { Label("mastery.history", systemImage: "clock.arrow.circlepath") }.font(.caption)
+            }
+            HStack {
+                TextField("BPM", text: $bpm).keyboardType(.numberPad).textFieldStyle(.roundedBorder)
+                Stepper("BPM", value: Binding(get: { Int(bpm) ?? 80 }, set: { bpm = "\($0)" }), in: 20...400).labelsHidden()
+            }
+            if let subdivision = exercise?.subdivision {
+                Text(L10n.string(subdivision.localizationKey)).font(.subheadline).foregroundStyle(.secondary)
+            }
+            Toggle("mastery.clean", isOn: $clean)
+            if clean {
+                Stepper(value: $cleanRepetitions, in: 1...100) {
+                    HStack {
+                        Text("mastery.repetitions")
+                        Spacer()
+                        Text("\(cleanRepetitions)").monospacedDigit()
+                    }
+                }
+                Text("mastery.repetitions.hint").font(.caption).foregroundStyle(.secondary)
+            }
+            Button { choosingResultDifficulty = true } label: {
+                HStack {
+                    Text("mastery.result.difficulty")
+                    Spacer()
+                    Text(resultDifficulty.map { L10n.string($0.localizationKey) } ?? L10n.string("mastery.difficulty.choose"))
+                }.frame(minHeight: 44)
+            }
+            .confirmationDialog("mastery.result.difficulty", isPresented: $choosingResultDifficulty, titleVisibility: .visible) {
+                Button("mastery.not.selected") { resultDifficulty = nil }
+                ForEach(ExerciseDifficulty.allCases, id: \.self) { difficulty in
+                    Button(L10n.string(difficulty.localizationKey)) { resultDifficulty = difficulty }
+                }
+                Button("mastery.cancel", role: .cancel) { choosingResultDifficulty = false }
+            }
+            TextField("mastery.result.note", text: $resultNote, axis: .vertical).lineLimit(2...4)
+            Button("mastery.record") {
+                guard let value = Int(bpm), (20...400).contains(value) else { return }
+                let result = MasteryResult(bpm: value, clean: clean, note: resultNote, subdivision: exercise?.subdivision, cleanRepetitions: clean ? cleanRepetitions : nil, difficulty: resultDifficulty)
+                store.update(exerciseID) { $0.results.append(result) }
+                if let exercise, exercise.results.contains(where: { $0.id == result.id }) {
+                    resultNote = ""
+                    resultDifficulty = nil
+                    cleanRepetitions = 1
+                    savedResult = result
+                    savedResultNumber = exercise.results.count
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    UIAccessibility.post(notification: .announcement,
+                                         argument: "\(L10n.string("mastery.result.saved")): \(value) BPM")
+                }
+            }.buttonStyle(.borderedProminent).disabled(!(20...400).contains(Int(bpm) ?? 0))
+            if let savedResult, exercise?.results.contains(where: { $0.id == savedResult.id }) == true {
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("mastery.result.saved").font(.subheadline.weight(.semibold))
+                        Text("№\(savedResultNumber) · \(savedResult.bpm) BPM · \(savedResult.date.formatted(date: .omitted, time: .standard))")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                    Button("mastery.history") { history = true }.font(.caption)
+                }
+                .padding(12)
+                .background(Color.green.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+                .accessibilityElement(children: .combine)
+            }
+        }.masteryPanel()
+    }
+
+    private func chart(_ exercise: MasteryExercise) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("mastery.chart").font(.headline)
+            if exercise.results.isEmpty {
+                Text("mastery.chart.empty").foregroundStyle(.secondary)
+            } else {
+                MasteryProgressPlot(results: exercise.results, target: exercise.targetBPM)
+                    .frame(height: 210)
+                Text("mastery.chart.legend").font(.caption).foregroundStyle(.secondary)
+            }
+        }.masteryPanel()
+    }
+
+    private func notes(_ exercise: MasteryExercise) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("mastery.notes").font(.headline)
+            TextField("mastery.notes.hint", text: Binding(get: { self.exercise?.comment ?? "" }, set: { value in
+                store.update(exerciseID) { $0.comment = value }
+            }), axis: .vertical).lineLimit(3...8)
+        }.masteryPanel()
+    }
+
+    private func openTimer() {
+        if practice.remaining <= 0 { practice.resetTimer(minutes: minutes) }
+        showingTimer = true
+    }
+
+    private func presentWheel(_ request: MasteryWheelRequest) { wheelEditor = request }
+
+    private var timerPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("mastery.timer").font(.headline)
+            MasteryWheelControl(title: "mastery.timer", value: $minutes, range: 1...120, unit: L10n.string("mastery.minutes"), onRequest: presentWheel)
+                .disabled(practice.running)
+            Button(action: openTimer) {
+                Text(Duration.seconds(practice.remaining.rounded(.up)).formatted(.time(pattern: .minuteSecond)))
+                    .font(.system(size: 40, weight: .semibold, design: .monospaced))
+            }.buttonStyle(.plain).accessibilityLabel("mastery.timer.open")
+            HStack {
+                Button(practice.hasPausedTimer ? "mastery.resume" : "mastery.start", action: openTimer)
+                    .buttonStyle(.borderedProminent)
+                Button("mastery.timer.reset") { practice.resetTimer(minutes: minutes) }.buttonStyle(.bordered)
+            }
+            Text("mastery.timer.hint").font(.caption).foregroundStyle(.secondary)
+        }.masteryPanel()
+        .onChange(of: minutes) { practice.resetTimer(minutes: $0) }
+    }
+
+    private var metronomePanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("mastery.metronome").font(.headline)
+            MasteryWheelControl(title: "mastery.metronome", value: $metroBPM, range: 30...240, unit: "BPM", onRequest: presentWheel)
+            Button("mastery.use.bpm") { if let value = Int(bpm) { metroBPM = min(240, max(30, value)) } }
+                .font(.caption)
+            Text("mastery.time.signature").font(.subheadline)
+            HStack(spacing: 12) {
+                MasteryWheelControl(title: "mastery.time.signature", value: $beats, range: 1...96, unit: "", compact: true, onRequest: presentWheel)
+                    .accessibilityLabel("mastery.beats")
+                Text("/").font(.title2).foregroundStyle(.secondary)
+                MasteryWheelControl(title: "mastery.time.signature", value: $noteValue, range: 2...64, unit: "", values: [2, 4, 8, 16, 32, 64], compact: true, onRequest: presentWheel)
+                    .accessibilityLabel("mastery.note.value")
+                Spacer()
+            }
+            Button(practice.metronomePlaying ? "mastery.stop" : "mastery.start") {
+                if practice.metronomePlaying { practice.stopMetronome() }
+                else { practice.startMetronome(bpm: metroBPM, beats: beats, noteValue: noteValue) }
+            }.buttonStyle(.borderedProminent)
+        }.masteryPanel()
+        .onChange(of: metroBPM) { value in
+            bpm = String(value)
+            if practice.metronomePlaying {
+                practice.startMetronome(bpm: value, beats: beats, noteValue: noteValue)
+            }
+        }
+        .onChange(of: beats) { _ in if practice.metronomePlaying { practice.startMetronome(bpm: metroBPM, beats: beats, noteValue: noteValue) } }
+        .onChange(of: noteValue) { _ in if practice.metronomePlaying { practice.startMetronome(bpm: metroBPM, beats: beats, noteValue: noteValue) } }
+    }
+
+    private var historySheet: some View {
+        NavigationStack {
+            List {
+                Section("mastery.history") {
+                    ForEach((exercise?.results ?? []).sorted { $0.date > $1.date }) { result in
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text("\(result.bpm) BPM").bold()
+                                Spacer()
+                                Text(result.clean ? "mastery.clean" : "mastery.attempt").font(.caption)
+                            }
+                            Text(result.date.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+                            MasteryResultDetails(result: result)
+                            if !result.note.isEmpty { Text(result.note).font(.subheadline) }
+                        }.swipeActions {
+                            Button("mastery.delete", role: .destructive) {
+                                store.update(exerciseID) { $0.results.removeAll { $0.id == result.id } }
+                            }
+                        }
+                    }
+                    if exercise?.results.isEmpty == true { Text("mastery.no.results") }
+                }
+                Section("mastery.sessions") {
+                    ForEach((exercise?.sessions ?? []).sorted { $0.date > $1.date }) { session in
+                        VStack(alignment: .leading) {
+                            Text(Duration.seconds(session.seconds).formatted(.time(pattern: .hourMinuteSecond)))
+                            Text(session.date.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }.navigationTitle("mastery.history")
+                .toolbar { Button("mastery.done") { history = false } }
+        }
+    }
+}
+
+private extension View {
+    func masteryKeyboardDismiss() -> some View {
+        toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("mastery.done") {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
+            }
+        }
+    }
+
+    func masteryPanel() -> some View {
+        padding(16).frame(maxWidth: .infinity, alignment: .leading)
+            .background(AppColors.panel, in: RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+struct MasteryPhotoViewer: View {
+    let url: URL
+    @Environment(\.dismiss) private var dismiss
+    var body: some View {
+        NavigationStack {
+            MasteryZoomImage(url: url).background(Color.black)
+                .toolbar { Button("mastery.done") { dismiss() } }
+        }
+    }
+}
+
+private struct MasteryZoomImage: UIViewRepresentable {
+    let url: URL
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeUIView(context: Context) -> UIScrollView {
+        let scroll = UIScrollView()
+        scroll.minimumZoomScale = 1
+        scroll.maximumZoomScale = 5
+        scroll.delegate = context.coordinator
+        let image = context.coordinator.image
+        image.image = UIImage(contentsOfFile: url.path)
+        image.contentMode = .scaleAspectFit
+        image.translatesAutoresizingMaskIntoConstraints = false
+        scroll.addSubview(image)
+        NSLayoutConstraint.activate([
+            image.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor),
+            image.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor),
+            image.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor),
+            image.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor),
+            image.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor),
+            image.heightAnchor.constraint(equalTo: scroll.frameLayoutGuide.heightAnchor)
+        ])
+        return scroll
+    }
+    func updateUIView(_ uiView: UIScrollView, context: Context) { }
+    final class Coordinator: NSObject, UIScrollViewDelegate {
+        let image = UIImageView()
+        func viewForZooming(in scrollView: UIScrollView) -> UIView? { image }
+    }
+}
+
+private struct MasteryCamera: UIViewControllerRepresentable {
+    let completion: (UIImage?) -> Void
+    func makeCoordinator() -> Coordinator { Coordinator(completion: completion) }
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.delegate = context.coordinator
+        return picker
+    }
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) { }
+    final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let completion: (UIImage?) -> Void
+        init(completion: @escaping (UIImage?) -> Void) { self.completion = completion }
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) { completion(nil) }
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            completion(info[.originalImage] as? UIImage)
+        }
+    }
+}
+
+private struct MasteryProgressPlot: View {
+    let results: [MasteryResult]
+    let target: Int
+    private var sorted: [MasteryResult] { results.sorted { $0.date < $1.date } }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let values = sorted
+            let upper = Double(max(target + 20, (values.map(\.bpm).max() ?? 0) + 20))
+            let width = max(1, proxy.size.width - 46)
+            let height = max(1, proxy.size.height - 32)
+            let first = values.first?.date ?? Date()
+            let duration = max(1, (values.last?.date ?? first).timeIntervalSince(first))
+            let point: (MasteryResult) -> CGPoint = { result in
+                let fraction = values.count == 1 ? 0.5 : result.date.timeIntervalSince(first) / duration
+                return CGPoint(x: 38 + fraction * width, y: height * (1 - Double(result.bpm) / upper))
+            }
+            ZStack(alignment: .topLeading) {
+                ForEach(0..<5, id: \.self) { index in
+                    let value = upper * Double(index) / 4
+                    let y = height * (1 - Double(index) / 4)
+                    Path { path in
+                        path.move(to: CGPoint(x: 38, y: y))
+                        path.addLine(to: CGPoint(x: 38 + width, y: y))
+                    }.stroke(Color.secondary.opacity(0.18), lineWidth: 1)
+                    Text("\(Int(value))").font(.caption2).foregroundStyle(.secondary)
+                        .position(x: 15, y: y)
+                }
+                Path { path in
+                    let y = height * (1 - Double(target) / upper)
+                    path.move(to: CGPoint(x: 38, y: y))
+                    path.addLine(to: CGPoint(x: 38 + width, y: y))
+                }.stroke(Color.secondary, style: StrokeStyle(lineWidth: 1, dash: [5]))
+                Path { path in
+                    for (index, result) in values.enumerated() {
+                        if index == 0 { path.move(to: point(result)) }
+                        else { path.addLine(to: point(result)) }
+                    }
+                }.stroke(AppColors.rootText, lineWidth: 2)
+                ForEach(values) { result in
+                    Circle().fill(result.clean ? Color.green : Color.orange)
+                        .frame(width: 8, height: 8).position(point(result))
+                }
+                HStack {
+                    Text(first, format: .dateTime.day().month())
+                    Spacer()
+                    if let last = values.last, values.count > 1 { Text(last.date, format: .dateTime.day().month()) }
+                }.font(.caption2).foregroundStyle(.secondary)
+                    .frame(width: width).offset(x: 38, y: height + 12)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("mastery.chart")
+        .accessibilityValue(sorted.map { "\($0.date.formatted(date: .abbreviated, time: .shortened)): \($0.bpm) BPM" }.joined(separator: ", "))
+    }
+}
+
+private struct MasteryWheelRequest: Identifiable {
+    let id = UUID()
+    let title: LocalizedStringKey
+    let value: Binding<Int>
+    let range: ClosedRange<Int>
+    let unit: String
+    let values: [Int]?
+}
+
+#if targetEnvironment(macCatalyst)
+private struct MacWheelEditor: View {
+    let request: MasteryWheelRequest
+    let onClose: () -> Void
+    @State private var draft: Int
+
+    init(request: MasteryWheelRequest, onClose: @escaping () -> Void) {
+        self.request = request
+        self.onClose = onClose
+        _draft = State(initialValue: request.value.wrappedValue)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text(request.title).font(.headline)
+            Picker(request.title, selection: $draft) {
+                ForEach(request.values ?? Array(request.range), id: \.self) { number in
+                    Text("\(number) \(request.unit)").tag(number)
+                }
+            }.pickerStyle(.menu)
+            Spacer(minLength: 0)
+            HStack {
+                Spacer()
+                Button("mastery.cancel", action: onClose).keyboardShortcut(.cancelAction)
+                Button("mastery.done") { request.value.wrappedValue = draft; onClose() }
+                    .buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
+            }
+        }.padding(24).background(AppBackgroundView())
+    }
+}
+#endif
+
+private struct MasteryWheelControl: View {
+    let title: LocalizedStringKey
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+    let unit: String
+    var values: [Int]? = nil
+    var compact = false
+    var onRequest: ((MasteryWheelRequest) -> Void)? = nil
+    @State private var showing = false
+    @State private var draft = 0
+
+    var body: some View {
+        Button {
+            #if targetEnvironment(macCatalyst)
+            onRequest?(MasteryWheelRequest(title: title, value: $value, range: range, unit: unit, values: values))
+            #else
+            draft = value
+            showing = true
+            #endif
+        } label: {
+            HStack {
+                Text("\(value) \(unit)").font(.title3.monospacedDigit().bold())
+                if !compact {
+                    Spacer()
+                    Image(systemName: "chevron.up.chevron.down")
+                }
+            }.frame(minWidth: compact ? 52 : nil, minHeight: 44)
+                .background(compact ? AppColors.control : Color.clear, in: RoundedRectangle(cornerRadius: 10))
+        }
+        .accessibilityLabel(title)
+        .accessibilityValue("\(value) \(unit)")
+        #if !targetEnvironment(macCatalyst)
+        .sheet(isPresented: $showing) {
+            NavigationStack {
+                Picker(title, selection: $draft) {
+                    ForEach(values ?? Array(range), id: \.self) { number in
+                        Text("\(number) \(unit)").tag(number)
+                    }
+                }.pickerStyle(.wheel)
+                    .navigationTitle(title).navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("mastery.cancel") { showing = false }
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("mastery.done") { value = draft; showing = false }
+                        }
+                    }
+            }.presentationDetents([.height(300)])
+        }
+        #endif
+    }
+}

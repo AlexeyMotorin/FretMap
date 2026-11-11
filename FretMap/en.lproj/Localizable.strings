@@ -13,6 +13,8 @@
 "Лидийский" = "Lydian";
 "Миксолидийский" = "Mixolydian";
 "Локрийский" = "Locrian";
+"Ионийский" = "Ionian";
+"Эолийский" = "Aeolian";
 "Трезвучие" = "Triad";
 "Септаккорд" = "Seventh chord";
 "Смешанный" = "Mixed";
@@ -47,3 +49,327 @@
 "Увеличенный" = "Augmented";
 "Уменьшенный" = "Diminished";
 "Ещё…" = "More…";
+"Справка" = "Help";
+"Закрыть" = "Close";
+"Функции в мажоре" = "Functions in major";
+"Функции аккордов" = "Chord functions";
+"Справка: функции аккордов" = "Tonic function creates stability, predominant function prepares motion, and dominant function tends toward the tonic. In major: I, iii, and vi are T; ii and IV are S; V and vii° are D.\n\nIn functional minor, V and vii° use the raised seventh degree. The v and bVII chords belong to natural minor and have a weaker or different dominant function.";
+"Обозначения ступеней" = "Degree notation";
+"Модальные обозначения" = "Modal notation";
+"Справка: модальные обозначения" = "Roman numerals are written relative to the parallel major scale: b lowers a degree and # raises it. Uppercase means a major triad, lowercase a minor triad, and ° a diminished triad.\n\nColors help compare chord stability within a mode, but they are not universal functions across every musical style.";
+"Гармонические прогрессии" = "Chord progressions";
+"Заимствованные аккорды" = "Borrowed chords";
+"Заимствование" = "Borrowed harmony";
+"Справка: заимствованные аккорды" = "Some progressions intentionally use chords outside the selected mode through modal mixture, secondary dominants, or the raised seventh in minor. These are common ways to strengthen harmonic motion.\n\nRoman-numeral accidentals are measured against the parallel major scale. Ratings reflect practical popularity and can be changed by the user.";
+"Надстройки аккорда" = "Chord extensions";
+"Справка: надстройки аккорда" = "The 9th, 11th, and 13th are normally added to seventh chords and written in parentheses, as in C7(b9) or Cmaj7(#11). A slash indicates an alternate bass note: C/E.\n\nAdded-note triads use symbols such as Cadd9, Cadd11, and C6. The symbol C13 implies that a seventh is present.";
+"Тоническая функция" = "Tonic function";
+"Субдоминантовая функция" = "Predominant function";
+"Доминантная функция" = "Dominant function";
+"Мелодический минор (восходящий / джазовый)" = "Melodic minor (ascending / jazz)";
+"Мелод. минор ↑" = "Melodic minor ↑";
+
+"harmony.borrowing.general.info" = "This progression includes chords outside its main scale. They add color or strengthen the pull toward the next chord. Modal borrowing and secondary dominants are different techniques; this collection uses the same badge for both.";
+
+"harmony.borrowing.secondary.info" = "V/vi is a secondary dominant: it strengthens the move to the vi chord. In C major, this is E7 → Am. It is not a key change or, strictly speaking, modal borrowing; this badge marks a chord outside the main scale.";
+
+"mastery.title" = "Mastery Path";
+
+"mastery.subtitle" = "Turn practice into progress";
+
+"mastery.add" = "Add exercise";
+
+"mastery.search" = "Search exercises";
+
+"mastery.category" = "Category";
+
+"mastery.all" = "All categories";
+
+"mastery.newest" = "Newest first";
+
+"mastery.recent" = "Recent practice";
+
+"mastery.empty" = "Your journey starts here";
+
+"mastery.no.matches" = "No exercises found";
+
+"mastery.uncategorized" = "Uncategorized";
+
+"mastery.no.results" = "No results yet";
+
+"mastery.name" = "Exercise name";
+
+"mastery.target" = "Target BPM";
+
+"mastery.range" = "Tempo from 20 to 400 BPM";
+
+"mastery.category.new" = "For example: technique, rhythm, repertoire";
+
+"mastery.category.existing" = "Choose category";
+
+"mastery.edit" = "Edit";
+
+"mastery.cancel" = "Cancel";
+
+"mastery.save" = "Save";
+
+"mastery.error" = "Unable to complete action";
+
+"mastery.delete" = "Delete";
+
+"mastery.delete.confirm" = "Delete this exercise, all results and photos?";
+
+"mastery.practice.total" = "Total practice time";
+
+"mastery.current" = "Latest";
+
+"mastery.best" = "Best clean";
+
+"mastery.achieved" = "Goal reached — ready for a new one!";
+
+"mastery.progress.hint" = "Progress based on your best clean performance";
+
+"mastery.photos" = "Tabs and sheet music";
+
+"mastery.photos.hint" = "Up to 3 photos. Tap to zoom, touch and hold to delete.";
+
+"mastery.photo.add" = "Add photo";
+
+"mastery.camera" = "Take photo";
+
+"mastery.result" = "New result";
+
+"mastery.history" = "History";
+
+"mastery.clean" = "Clean performance";
+
+"mastery.attempt" = "With mistakes";
+
+"mastery.result.note" = "How did it go? What was difficult?";
+
+"mastery.record" = "Record result";
+
+"mastery.chart" = "Progress chart";
+
+"mastery.chart.empty" = "Record your first result to see it here.";
+
+"mastery.chart.legend" = "Green: clean · orange: with mistakes · dashed: target";
+
+"mastery.notes" = "Notes";
+"mastery.manual.order" = "Manual order";
+
+"mastery.notes.hint" = "Hand position, rhythm, picking, difficult passages…";
+
+"mastery.timer" = "Practice timer";
+
+"mastery.minutes" = "min";
+
+"mastery.pause" = "Pause";
+
+"mastery.start" = "Start";
+
+"mastery.timer.reset" = "Reset";
+
+"mastery.timer.hint" = "Time is saved on completion, reset or exit. Pauses when the app is backgrounded.";
+
+"mastery.metronome" = "Metronome";
+
+"mastery.use.bpm" = "Use BPM from result field";
+
+"mastery.beats" = "Beats per bar";
+
+"mastery.beats.hint" = "Beats per bar: the first beat is accented.";
+
+"mastery.stop" = "Stop";
+
+"mastery.sessions" = "Practice sessions";
+
+"mastery.done" = "Done";
+
+"mastery.load.error" = "Could not read exercises. Saving is disabled to preserve the original data.";
+
+"mastery.save.error" = "Could not save. Check free storage and try again.";
+
+"mastery.photo.error" = "Could not load or save the photo. Try another image.";
+
+"mastery.audio.error" = "Could not start the metronome. Please try again.";
+
+"mastery.validation" = "Enter a name and a BPM between 20 and 400.";
+
+"backup.title" = "Backup";
+
+"backup.description" = "Save settings, harmonies, exercises, BPM history, practice time photos and PDFs in one file.";
+
+"backup.export" = "Save backup";
+
+"backup.import" = "Restore backup";
+
+"backup.hint" = "Choose iCloud Drive in Files to keep the backup after deleting FretMap. Backups are manual: save before the app signing expires.";
+
+"backup.working" = "Preparing…";
+
+"backup.export.success" = "Backup saved. If you selected iCloud Drive, wait for the file to finish uploading.";
+
+"backup.import.success" = "Data restored.";
+
+"backup.confirm" = "Replace current data with this backup? This cannot be undone. Save a backup of current data first if needed.";
+
+"backup.replace" = "Replace and restore";
+
+"backup.exercises" = "exercises";
+
+"backup.invalid" = "The file is damaged or uses an unsupported format. Current data was not changed.";
+
+"backup.large" = "Backup is too large. Files up to 100 MB and attachments totaling up to 70 MB are supported.";
+
+"mastery.pdf.add" = "Add PDF";
+
+"mastery.pdf.hint" = "One PDF up to 5 MB. Touch and hold to delete.";
+
+"mastery.pdf.error" = "Could not open PDF. Choose a password-free file up to 5 MB.";
+
+"mastery.workspace" = "Exercises";
+
+"mastery.active" = "Active";
+
+"mastery.archive" = "Archive";
+
+"mastery.archive.empty" = "No matching archived exercises";
+
+"mastery.complete" = "Complete exercise";
+
+"mastery.reactivate" = "Move to active";
+
+"mastery.completed" = "Completed";
+
+"mastery.difficulty" = "Rate exercise";
+
+"mastery.difficulty.choose" = "Choose";
+
+"mastery.difficulty.hard" = "Hard";
+
+"mastery.difficulty.medium" = "Medium";
+
+"mastery.difficulty.easy" = "Easy";
+
+"mastery.delete.title" = "Delete exercise?";
+
+"mastery.delete.message" = "History, photos and PDFs will be deleted. This cannot be undone.";
+
+"song.library" = "Songs";
+"song.exercises" = "Exercises";
+"song.title" = "Songs";
+"song.add" = "Add song";
+"song.create" = "Create";
+"song.create.hint" = "After creating it, add the parts of the song.";
+"song.artist" = "Artist";
+"song.name" = "Song title";
+"song.empty" = "No songs yet";
+"song.empty.hint" = "Create a song and add riffs and other parts to it.";
+"song.archive.empty" = "No songs in the archive yet";
+"song.archive.hint" = "Fully learned songs appear here.";
+"song.parts" = "Song parts";
+"song.parts.empty" = "Add the first song part with +.";
+"song.part.add" = "Add song part";
+"song.progress" = "Learned parts";
+"song.archive" = "Move to archive";
+"song.reactivate" = "Move to active";
+"song.delete" = "Delete song";
+"song.delete.title" = "Delete song?";
+"song.delete.message" = "All song parts, their history, photos and PDFs will be deleted. This cannot be undone.";
+"song.not.found" = "Song not found";
+"song.validation" = "Enter an artist and song title.";
+"song.search" = "Search songs";
+"song.oldest" = "Oldest first";
+"song.materials" = "Materials";
+"song.statistics.archived" = "Archived songs";
+"song.no.matches" = "No matching songs";
+"mastery.unsaved.title" = "Save changes?";
+"mastery.unsaved.message" = "Unsaved changes will be lost.";
+"mastery.discard" = "Don't save";
+
+"mastery.result.saved" = "Result recorded";
+
+"mastery.resume" = "Resume";
+
+"mastery.timer.open" = "Open timer";
+
+"mastery.timer.finished" = "Time is up";
+
+"mastery.timer.pause.hint" = "Pause returns to the exercise and keeps the remaining time.";
+
+"mastery.daily.title" = "Daily statistics";
+"mastery.daily.exercises" = "Exercises for the day";
+"mastery.daily.results" = "Results recorded";
+"mastery.daily.clean" = "Clean results";
+"mastery.daily.empty" = "No entries for this day.";
+"mastery.daily.time.hint" = "Includes saved timer sessions for the selected day.";
+
+"backup.reminder.title" = "Back up your data";
+"backup.reminder.body" = "FretMap signing expires in less than a day. Open Backup and save your data to Files or iCloud Drive.";
+"backup.reminder.unknown" = "This build’s signing expiration could not be determined. No reminder is scheduled.";
+"backup.reminder.error" = "Could not schedule the reminder. Try opening the app again.";
+"backup.reminder.denied" = "Notifications are disabled. Allow them in iOS Settings.";
+"backup.reminder.expired" = "Signing has expired or is about to expire. Back up your data now.";
+"backup.reminder.enabled" = "Reminder enabled: one day before signing expires, or in the next minute if less than a day remains.";
+"backup.reminder.settings" = "Notification settings";
+
+"mastery.daily.date" = "Date";
+
+"mastery.subdivision" = "Note subdivision";
+"mastery.subdivision.quarters" = "Quarter notes";
+"mastery.subdivision.eighths" = "Eighth notes";
+"mastery.subdivision.triplets" = "Triplets";
+"mastery.subdivision.sixteenths" = "Sixteenth notes";
+"mastery.subdivision.hint" = "Quarter notes: 1 note per beat; eighths: 2; triplets: 3; sixteenths: 4; sextuplets: 6; thirty-seconds: 8.";
+"mastery.repetitions" = "Consecutive clean repetitions";
+"mastery.repetitions.hint" = "One repetition is a complete performance of the exercise or chosen passage without mistakes.";
+"mastery.result.difficulty" = "How did this attempt feel?";
+
+"mastery.subdivision.sextuplets" = "Sextuplets";
+"mastery.subdivision.thirtySeconds" = "Thirty-second notes";
+"mastery.rhythm.measure" = "One 4/4 measure · four beats";
+
+"mastery.not.selected" = "Not selected";
+
+"mastery.note.value" = "Note value";
+"mastery.note.value.hint" = "BPM uses quarter notes. Note value changes click spacing; the first beat is accented.";
+"mastery.links" = "Materials";
+"mastery.links.url" = "https://…";
+"mastery.links.add" = "Add link";
+"mastery.links.hint" = "Material links open outside the app.";
+"mastery.month.previous" = "Previous month";
+"mastery.month.next" = "Next month";
+"mastery.day.trained" = "Practice recorded";
+"mastery.training.days" = "Total practice days";
+"mastery.day.legend" = "A dot marks a day with a recorded result or saved timer session.";
+
+"mastery.statistics.show.all" = "Show all statistics";
+"mastery.statistics.all" = "All time";
+"mastery.statistics.exercises" = "Total exercises";
+
+"mastery.links.name" = "Link title";
+"mastery.links.duplicate" = "This link has already been added.";
+"mastery.time.signature" = "Time signature";
+"mac.fretboard.resize" = "Resize fretboard";
+"mac.fretboard.resize.hint" = "Drag this corner to resize the fretboard.";
+"mac.sidebar.resize" = "Resize settings panel";
+"mac.sidebar.resize.hint" = "Drag the divider to widen the settings up to one third of the window.";
+"mac.photos.hint" = "Up to 3 photos. Click to view; right-click to delete.";
+"mac.pdf.hint" = "One PDF up to 5 MB. Click to view; right-click to delete.";
+"mastery.view" = "View";
+"mastery.view.tiles" = "Tiles";
+"mastery.view.list" = "List";
+"mac.fretboard.window" = "Fretboard — Scales";
+"mac.fretboard.open.window" = "Open fretboard in a separate window";
+"app.language" = "Language";
+"app.language.system" = "System default";
+"mac.chord.expand" = "Open chord full screen";
+"mac.links.hint" = "Paste a website address. The title is optional; the site name will be used.";
+"mac.materials.add" = "Add files";
+"mac.materials.drop.active" = "Release to add files";
+"mac.materials.drop.hint" = "Drag images or PDFs here";
+"mac.materials.limits" = "Up to 3 images and 1 PDF up to 5 MB. Shared song materials do not use this limit.";
+"mac.materials.inherited" = "Song materials";
+"mac.materials.inherited.hint" = "Shared with every part. Edit these materials in the song.";
+"mac.materials.invalid" = "Only images and PDF files are supported.";

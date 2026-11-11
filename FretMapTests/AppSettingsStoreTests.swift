@@ -30,6 +30,9 @@ final class AppSettingsStoreTests: XCTestCase {
             store.chordStringCount = 12
             store.harmonyTempoBPM = 500
             store.functionalSelectedDegrees = [0, 8]
+            store.popularGlobalRoot = -8
+            store.popularProgressionRoots = ["invalid-high": 99, "invalid-low": -3]
+            store.favoriteProgressionIDs = ["progression-b", "progression-a", "progression-b"]
             store.normalize()
 
             XCTAssertEqual(store.rootNote, 11)
@@ -38,6 +41,24 @@ final class AppSettingsStoreTests: XCTestCase {
             XCTAssertEqual(store.harmonyTempoBPM, 200)
             XCTAssertEqual(store.functionalSelectedDegrees.count, 8)
             XCTAssertTrue(store.functionalSelectedDegrees.allSatisfy { (1...7).contains($0) })
+            XCTAssertEqual(store.popularGlobalRoot, -1)
+            XCTAssertEqual(store.popularProgressionRoots["invalid-high"], 11)
+            XCTAssertEqual(store.popularProgressionRoots["invalid-low"], -1)
+            XCTAssertEqual(store.favoriteProgressionIDs, ["progression-b", "progression-a"])
+        }
+    }
+
+    func testNormalizePersistsOnce() async {
+        await MainActor.run {
+            let persistence = InMemorySettingsPersistence()
+            let store = AppSettingsStore(persistence: persistence)
+            store.rootNote = 99
+            store.stringCount = 2
+            let writesBeforeNormalize = persistence.writeCount
+
+            store.normalize()
+
+            XCTAssertEqual(persistence.writeCount, writesBeforeNormalize + 1)
         }
     }
 }

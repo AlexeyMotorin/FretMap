@@ -1,9 +1,83 @@
 import SwiftUI
 
-struct HarmonyTempoSlider: View {
-    @Binding var bpm: Double
+struct TheoryHelpButton: View {
+    let titleKey: String
+    let bodyKey: String
+    @State private var isPresented = false
 
     var body: some View {
+        Button {
+            isPresented = true
+        } label: {
+            Image(systemName: "questionmark.circle.fill")
+                .font(.system(size: 19, weight: .semibold))
+                .foregroundStyle(AppColors.mutedText)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(L10n.string("Справка"))
+        .sheet(isPresented: $isPresented) {
+            NavigationStack {
+                ScrollView {
+                    Text(L10n.string(bodyKey))
+                        .font(.body)
+                        .foregroundStyle(AppColors.primaryText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(20)
+                }
+                .background(AppColors.page)
+                .navigationTitle(L10n.string(titleKey))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(L10n.string("Закрыть")) {
+                            isPresented = false
+                        }
+                    }
+                }
+            }
+            .preferredColorScheme(.dark)
+            .presentationDetents([.medium, .large])
+        }
+    }
+}
+
+enum HarmonyTempoInput {
+    static func value(_ text: String, previous: Double) -> Double {
+        Double(min(200, max(40, Int(text.trimmingCharacters(in: .whitespacesAndNewlines)) ?? Int(previous))))
+    }
+}
+
+struct HarmonyTempoSlider: View {
+    @Binding var bpm: Double
+    #if targetEnvironment(macCatalyst)
+    @State private var text = ""
+    @FocusState private var editing: Bool
+    #endif
+
+    var body: some View {
+        #if targetEnvironment(macCatalyst)
+        HStack(spacing: 12) {
+            Text("Темп").font(.subheadline.weight(.bold))
+            TextField("BPM", text: $text)
+                .textFieldStyle(.roundedBorder)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 76)
+                .focused($editing)
+                .onChange(of: text) { value in
+                    if let number = Int(value), (40...200).contains(number) { bpm = Double(number) }
+                }
+                .onSubmit { commitTempo() }
+                .accessibilityLabel("Темп")
+            Text("BPM").foregroundStyle(.secondary)
+            Text("40–200").font(.caption).foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+        }
+        .onAppear { text = "\(Int(bpm))" }
+        .onChange(of: editing) { if !$0 { commitTempo() } }
+        .onChange(of: bpm) { if !editing { text = "\(Int($0))" } }
+        #else
         HStack(spacing: 12) {
             Text("Темп")
                 .font(.subheadline.weight(.bold))
@@ -27,10 +101,18 @@ struct HarmonyTempoSlider: View {
         }
         .padding(.horizontal, 12)
         .frame(minHeight: 42)
-        .background(AppColors.control.opacity(0.56), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .appSurface(fill: AppColors.control.opacity(0.72))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(L10n.string("Темп")) \(Int(bpm)) BPM")
+        #endif
     }
+
+    #if targetEnvironment(macCatalyst)
+    private func commitTempo() {
+        bpm = HarmonyTempoInput.value(text, previous: bpm)
+        text = "\(Int(bpm))"
+    }
+    #endif
 }
 
 struct DegreeChordOption: Hashable {
@@ -84,8 +166,19 @@ struct DegreeSquarePicker: View {
                 .padding(.top, isPortrait ? 6 : 12)
             }
             .frame(maxWidth: .infinity)
+            #if targetEnvironment(macCatalyst)
+            .frame(height: 128)
+            .contentShape(Rectangle())
+            .background(color.opacity(0.20), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            #else
             .aspectRatio(1, contentMode: .fit)
             .background(color.opacity(0.84), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            #endif
+            .overlay {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(Color.white.opacity(0.16), lineWidth: 1)
+            }
+            .shadow(color: color.opacity(0.18), radius: 8, y: 4)
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
